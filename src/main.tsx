@@ -1927,11 +1927,21 @@ function SettingsPage({
         </div>
       </div>
 
-      <div className="split-layout">
-        <div className="page-card settings-card">
-          <h2>테마</h2>
-          <p>업무 영역은 라이트/다크/시스템 설정을 따르고, 사이드바는 Plander 블랙을 유지합니다.</p>
-          <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
+      <div className="settings-layout">
+        <div className="settings-side">
+          <div className="page-card settings-card">
+            <h2>테마</h2>
+            <p>업무 영역은 라이트/다크/시스템 설정을 따르고, 사이드바는 Plander 블랙을 유지합니다.</p>
+            <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
+          </div>
+          <div className="page-card settings-card">
+            <h2>푸시알림</h2>
+            <p>{pushStatus}</p>
+            <button className="primary-action" disabled={pushLoading} onClick={onRegisterPush} type="button">
+              <Bell size={17} />
+              {pushLoading ? '진행중...' : pushEnabled ? '이 기기 알림 끄기' : '이 기기 알림 켜기'}
+            </button>
+          </div>
         </div>
         <form className="page-card form-stack" onSubmit={submitProfile}>
           <div>
@@ -1981,15 +1991,7 @@ function SettingsPage({
             {profileLoading ? '진행중...' : '내 정보 저장'}
           </button>
         </form>
-        <div className="page-card settings-card">
-          <h2>푸시알림</h2>
-          <p>{pushStatus}</p>
-          <button className="primary-action" disabled={pushLoading} onClick={onRegisterPush} type="button">
-            <Bell size={17} />
-            {pushLoading ? '진행중...' : pushEnabled ? '이 기기 알림 끄기' : '이 기기 알림 켜기'}
-          </button>
-        </div>
-        <div className="page-card settings-card">
+        <div className="page-card settings-card settings-backend">
           <h2>백엔드</h2>
           <p>{backendStatus}</p>
         </div>

@@ -1207,6 +1207,22 @@ h1 {
   gap: 12px;
 }
 
+.settings-layout {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.settings-side {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-backend {
+  grid-column: 1 / -1;
+}
+
 .settings-card h2,
 .settings-card p {
   margin-bottom: 0;
@@ -1237,8 +1253,13 @@ h1 {
   }
 
   .split-layout,
-  .split-layout.wide-left {
+  .split-layout.wide-left,
+  .settings-layout {
     grid-template-columns: 1fr;
+  }
+
+  .settings-backend {
+    grid-column: auto;
   }
 }
 
