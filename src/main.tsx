@@ -1934,10 +1934,10 @@ function Dashboard({
 
       <section className="content-grid dashboard-content-grid">
         <div className="dashboard-flow">
-          <DashboardTaskSection title="받은 업무" eyebrow="Inbox" tasks={tasks} target="inbox" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-          <DashboardTaskSection title="보낸 업무" eyebrow="Sent" tasks={sentTasks} target="sent" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-          <DashboardTaskSection title="보고·제안" eyebrow="Reports" tasks={reportTasks} target="reports" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-          <DashboardClientSection clients={clients} onNavigate={() => onNavigate('clients')} />
+        <DashboardTaskSection title="받은 업무" eyebrow="Inbox" tone="blue" tasks={tasks} target="inbox" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+        <DashboardTaskSection title="보낸 업무" eyebrow="Sent" tasks={sentTasks} target="sent" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+        <DashboardTaskSection title="보고·제안" eyebrow="Reports" tone="amber" tasks={reportTasks} target="reports" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+        <DashboardClientSection clients={clients} onNavigate={() => onNavigate('clients')} />
         </div>
         <aside className="side-panel">
           <TaskComposer employees={employees} taskTypes={taskTypes} onCreateTask={onCreateTask} />
@@ -1953,6 +1953,7 @@ function DashboardTaskSection({
   eyebrow,
   tasks,
   target,
+  tone,
   currentUser,
   onNavigate,
   onOpenTask,
@@ -1961,12 +1962,13 @@ function DashboardTaskSection({
   eyebrow: string;
   tasks: Task[];
   target: ActiveView;
+  tone?: string;
   currentUser: AppUser;
   onNavigate: (view: ActiveView) => void;
   onOpenTask: (task: Task) => void;
 }) {
   return (
-    <section className="dashboard-flow-section">
+    <section className="dashboard-flow-section" data-tone={tone}>
       <button className="dashboard-flow-head" onClick={() => onNavigate(target)} type="button">
         <span>
           <small>{eyebrow}</small>

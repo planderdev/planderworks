@@ -52,6 +52,9 @@ textarea {
 }
 
 button {
+  border: 0;
+  color: inherit;
+  background: transparent;
   cursor: pointer;
 }
 
@@ -577,13 +580,14 @@ h1 {
   display: grid;
   align-content: center;
   overflow: hidden;
-  border: 1px solid rgba(150, 158, 172, 0.16);
+  border: 1px solid rgba(150, 158, 172, 0.18);
   border-radius: 8px;
   padding: 18px;
   color: var(--text);
-  background: rgba(255, 255, 255, 0.015);
+  background: var(--panel);
   text-align: left;
   cursor: pointer;
+  box-shadow: none;
 }
 
 .stat-card::before {
@@ -643,6 +647,32 @@ h1 {
 .dashboard-flow-section {
   display: grid;
   gap: 10px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(150, 158, 172, 0.18);
+  border-radius: 8px;
+  padding: 18px;
+  background: var(--panel);
+}
+
+.dashboard-flow-section::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: #aab0bb;
+}
+
+.dashboard-flow-section[data-tone='blue']::before {
+  background: #4b8ef7;
+}
+
+.dashboard-flow-section[data-tone='amber']::before {
+  background: #d69731;
+}
+
+.dashboard-flow-section[data-tone='red']::before {
+  background: #df5f5f;
 }
 
 .dashboard-flow-head {
@@ -652,8 +682,8 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid rgba(150, 158, 172, 0.16);
-  padding: 0 0 10px;
+  border: 0;
+  padding: 0;
   color: var(--text);
   background: transparent;
   text-align: left;
@@ -680,9 +710,9 @@ h1 {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid rgba(150, 158, 172, 0.14);
-  border-radius: 0;
-  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  padding: 0 10px;
   color: var(--text);
   background: transparent;
   text-align: left;
@@ -690,11 +720,11 @@ h1 {
 
 .dashboard-flow-row[data-unread='true'] {
   box-shadow: inset 4px 0 0 #4b8ef7;
-  padding-left: 12px;
+  background: rgba(75, 142, 247, 0.08);
+  padding-left: 14px;
 }
 
-.dashboard-flow-row:hover,
-.dashboard-flow-head:hover {
+.dashboard-flow-row:hover {
   background: var(--soft);
 }
 
@@ -776,7 +806,7 @@ h1 {
   gap: 18px;
   padding: 16px 0;
   border: 0;
-  border-bottom: 1px solid rgba(150, 158, 172, 0.14);
+  border: 0;
   border-radius: 0;
   background: transparent;
 }
