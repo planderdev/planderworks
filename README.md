@@ -2,6 +2,8 @@
 
 Plander internal task workflow MVP.
 
+Production: https://planderworks.vercel.app
+
 ## Stack
 
 - Vite
