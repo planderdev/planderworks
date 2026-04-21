@@ -412,6 +412,40 @@ button:disabled {
   padding: 0 12px;
 }
 
+.account-menu {
+  position: relative;
+}
+
+.account-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 30;
+  min-width: 150px;
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.account-popover button {
+  min-height: 36px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 10px;
+  color: var(--text);
+  background: transparent;
+  text-align: left;
+  font-weight: 800;
+}
+
+.account-popover button:hover {
+  background: var(--soft);
+}
+
 .theme-switcher {
   height: 42px;
   display: flex;
@@ -743,6 +777,14 @@ h1 {
 
 .task-menu-popover button:hover:not(:disabled) {
   background: var(--soft);
+}
+
+.task-menu-popover .danger-menu-item {
+  color: #9f2424;
+}
+
+:root[data-theme='dark'] .task-menu-popover .danger-menu-item {
+  color: #ffb4b4;
 }
 
 .task-menu-popover button:disabled {

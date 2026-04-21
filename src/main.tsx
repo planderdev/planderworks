@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Session } from '@supabase/supabase-js';
 import {
@@ -110,6 +110,7 @@ type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers'> & {
 };
 
 type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
+type TaskDeleteHandler = (task: Task) => Promise<string>;
 type MessageHandler = (message: string) => void;
 type ClientSubmitHandler = (client: Omit<Client, 'id'>) => Promise<string>;
 type JobTypeSubmitHandler = (name: string) => Promise<string>;
@@ -315,6 +316,7 @@ function App() {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [authReady, setAuthReady] = useState(!hasSupabaseConfig);
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+  const [viewHistory, setViewHistory] = useState<ActiveView[]>([]);
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
   const [clients, setClients] = useState<Client[]>(seedClients);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
@@ -324,6 +326,7 @@ function App() {
   const [pushLoading, setPushLoading] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [popupMessage, setPopupMessage] = useState('');
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     applyTheme(themeMode);
@@ -569,6 +572,38 @@ function App() {
     });
   };
 
+  const navigateTo = (view: ActiveView) => {
+    if (view === activeView) return;
+    setViewHistory((history) => [...history, activeView].slice(-12));
+    setActiveView(view);
+  };
+
+  const navigateBack = () => {
+    setViewHistory((history) => {
+      const previous = history[history.length - 1] || 'dashboard';
+      setActiveView(previous);
+      return history.slice(0, -1);
+    });
+  };
+
+  const handleWorkspaceTouchStart = (event: React.TouchEvent<HTMLElement>) => {
+    if (window.innerWidth > 760) return;
+    const touch = event.touches[0];
+    swipeStart.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleWorkspaceTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
+    if (window.innerWidth > 760 || activeView === 'dashboard' || !swipeStart.current) return;
+    const touch = event.changedTouches[0];
+    const deltaX = touch.clientX - swipeStart.current.x;
+    const deltaY = Math.abs(touch.clientY - swipeStart.current.y);
+    swipeStart.current = null;
+
+    if (deltaX > 80 && deltaY < 60) {
+      navigateBack();
+    }
+  };
+
   const handleLogout = async () => {
     if (currentUser?.isPrototype) {
       setCurrentUser(null);
@@ -630,6 +665,7 @@ function App() {
       await loadBackendData();
       const message = `업무 ${data?.length || rows.length}건을 전송했습니다.`;
       setBackendStatus(message);
+      setViewHistory((history) => [...history, activeView].slice(-12));
       setActiveView('sent');
       return message;
     }
@@ -648,6 +684,7 @@ function App() {
     }));
 
     setTasks((current) => [...nextTasks, ...current]);
+    setViewHistory((history) => [...history, activeView].slice(-12));
     setActiveView('sent');
     return `업무 ${nextTasks.length}건을 전송했습니다.`;
   };
@@ -816,6 +853,35 @@ function App() {
     return `업무 상태를 ${status}(으)로 변경했습니다.`;
   };
 
+  const deleteTask = async (task: Task): Promise<string> => {
+    const canDelete =
+      currentUser?.accountRole === 'admin' ||
+      task.creatorId === currentUser?.id ||
+      (currentUser?.isPrototype && task.from === currentUser.name);
+
+    if (!canDelete) {
+      return '삭제 권한이 없습니다.';
+    }
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { data, error } = await supabase.functions.invoke('delete-task', {
+        body: { taskId: task.id },
+      });
+
+      if (error || data?.error) {
+        const message = `업무 삭제 실패: ${data?.error || error?.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '업무를 삭제했습니다.';
+    }
+
+    setTasks((current) => current.filter((item) => item.id !== task.id));
+    return '업무를 삭제했습니다.';
+  };
+
   const registerPushNotifications = async () => {
     if (!supabase || !currentUser || currentUser.isPrototype) {
       return '실제 로그인 후 푸시알림을 켤 수 있습니다.';
@@ -921,7 +987,7 @@ function App() {
         onLogout={handleLogout}
         onNavigate={(view) => {
           if (!isAdmin && (view === 'employees' || view === 'jobTypes')) return;
-          setActiveView(view);
+          navigateTo(view);
           setSidebarOpen(false);
         }}
         badges={navBadges}
@@ -929,13 +995,15 @@ function App() {
       />
       <div className="mobile-overlay" data-open={sidebarOpen} onClick={() => setSidebarOpen(false)} />
 
-      <main className="workspace">
+      <main className="workspace" onTouchStart={handleWorkspaceTouchStart} onTouchEnd={handleWorkspaceTouchEnd}>
         <Topbar
           currentUser={currentUser}
           pushEnabled={pushEnabled}
           pushLoading={pushLoading}
           pushStatus={pushStatus}
           themeMode={themeMode}
+          onLogout={handleLogout}
+          onNavigate={navigateTo}
           onRegisterPush={handleRegisterPush}
           onThemeChange={setThemeMode}
           onMenuClick={() => setSidebarOpen(true)}
@@ -946,15 +1014,23 @@ function App() {
             stats={dashboardStats}
             tasks={inboxTasks}
             employees={employees}
-            onCreateClick={() => setActiveView('create')}
+            onCreateClick={() => navigateTo('create')}
             onCreateTask={createTask}
+            onDeleteTask={deleteTask}
             onUpdateTaskStatus={updateTaskStatus}
+            currentUser={currentUser}
           />
         ) : null}
-        {activeView === 'inbox' ? <TaskListPage title="받은 업무" tasks={inboxTasks} onUpdateTaskStatus={updateTaskStatus} /> : null}
-        {activeView === 'sent' ? <TaskListPage title="보낸 업무" tasks={sentTasks} onUpdateTaskStatus={updateTaskStatus} /> : null}
+        {activeView === 'inbox' ? (
+          <TaskListPage title="받은 업무" tasks={inboxTasks} currentUser={currentUser} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+        ) : null}
+        {activeView === 'sent' ? (
+          <TaskListPage title="보낸 업무" tasks={sentTasks} currentUser={currentUser} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+        ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} onCreateTask={createTask} /> : null}
-        {activeView === 'reports' ? <ReportsPage tasks={tasks} onCreateTask={createTask} onUpdateTaskStatus={updateTaskStatus} /> : null}
+        {activeView === 'reports' ? (
+          <ReportsPage tasks={tasks} currentUser={currentUser} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+        ) : null}
         {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} /> : null}
         {activeView === 'employees' && isAdmin ? (
           <EmployeesPage
@@ -1168,6 +1244,8 @@ function Topbar({
   pushLoading,
   pushStatus,
   themeMode,
+  onLogout,
+  onNavigate,
   onRegisterPush,
   onThemeChange,
   onMenuClick,
@@ -1177,11 +1255,24 @@ function Topbar({
   pushLoading: boolean;
   pushStatus: string;
   themeMode: ThemeMode;
+  onLogout: () => void;
+  onNavigate: (view: ActiveView) => void;
   onRegisterPush: () => void;
   onThemeChange: (mode: ThemeMode) => void;
   onMenuClick: () => void;
 }) {
   const PushIcon = pushEnabled ? Bell : BellOff;
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  const goSettings = () => {
+    onNavigate('settings');
+    setAccountOpen(false);
+  };
+
+  const logout = () => {
+    setAccountOpen(false);
+    onLogout();
+  };
 
   return (
     <header className="topbar">
@@ -1207,11 +1298,26 @@ function Topbar({
         >
           <PushIcon size={19} />
         </button>
-        <button className="account-button">
-          <CircleUserRound size={20} />
-          <span>{currentUser.name}</span>
-          <ChevronDown size={16} />
-        </button>
+        <div className="account-menu">
+          <button className="account-button" onClick={() => setAccountOpen((open) => !open)} type="button">
+            <CircleUserRound size={20} />
+            <span>{currentUser.name}</span>
+            <ChevronDown size={16} />
+          </button>
+          {accountOpen ? (
+            <div className="account-popover">
+              <button onClick={goSettings} type="button">
+                내 정보 수정
+              </button>
+              <button onClick={goSettings} type="button">
+                설정
+              </button>
+              <button onClick={logout} type="button">
+                로그아웃
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </header>
   );
@@ -1265,15 +1371,19 @@ function Dashboard({
   stats,
   tasks,
   employees,
+  currentUser,
   onCreateClick,
   onCreateTask,
+  onDeleteTask,
   onUpdateTaskStatus,
 }: {
   stats: Array<{ label: string; value: number; hint: string; tone: string }>;
   tasks: Task[];
   employees: Employee[];
+  currentUser: AppUser;
   onCreateClick: () => void;
   onCreateTask: TaskSubmitHandler;
+  onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   return (
@@ -1318,7 +1428,7 @@ function Dashboard({
 
           <div className="task-list">
             {tasks.slice(0, 4).map((task) => (
-              <TaskCard key={task.id} task={task} onUpdateStatus={onUpdateTaskStatus} />
+              <TaskCard key={task.id} task={task} currentUser={currentUser} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
             ))}
           </div>
         </div>
@@ -1335,10 +1445,14 @@ function Dashboard({
 function TaskListPage({
   title,
   tasks,
+  currentUser,
+  onDeleteTask,
   onUpdateTaskStatus,
 }: {
   title: string;
   tasks: Task[];
+  currentUser: AppUser;
+  onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const [status, setStatus] = useState<'전체' | TaskStatus>('전체');
@@ -1363,7 +1477,9 @@ function TaskListPage({
       <div className="task-board page-card">
         <div className="task-list">
           {filteredTasks.length ? (
-            filteredTasks.map((task) => <TaskCard key={task.id} task={task} onUpdateStatus={onUpdateTaskStatus} />)
+            filteredTasks.map((task) => (
+              <TaskCard key={task.id} task={task} currentUser={currentUser} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
+            ))
           ) : (
             <EmptyState text="조건에 맞는 업무가 없습니다." />
           )}
@@ -1399,11 +1515,15 @@ function TaskCreatePage({
 
 function ReportsPage({
   tasks,
+  currentUser,
   onCreateTask,
+  onDeleteTask,
   onUpdateTaskStatus,
 }: {
   tasks: Task[];
+  currentUser: AppUser;
   onCreateTask: TaskSubmitHandler;
+  onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안' || task.type === '영업 브리핑');
@@ -1425,7 +1545,9 @@ function ReportsPage({
             </div>
           </div>
           <div className="task-list">
-            {reportTasks.map((task) => <TaskCard key={task.id} task={task} onUpdateStatus={onUpdateTaskStatus} />)}
+            {reportTasks.map((task) => (
+              <TaskCard key={task.id} task={task} currentUser={currentUser} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
+            ))}
           </div>
         </div>
         <div className="page-card">
@@ -2323,20 +2445,39 @@ function TaskComposer({
 
 function TaskCard({
   task,
+  currentUser,
+  onDeleteTask,
   onUpdateStatus,
 }: {
   task: Task;
+  currentUser: AppUser;
+  onDeleteTask: TaskDeleteHandler;
   onUpdateStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState<TaskStatus | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const statusActions: TaskStatus[] = ['진행중', '완료 요청', '보류', '완료'];
+  const canDelete =
+    currentUser.accountRole === 'admin' ||
+    task.creatorId === currentUser.id ||
+    (currentUser.isPrototype && task.from === currentUser.name);
 
   const updateStatus = async (status: TaskStatus) => {
     if (loadingStatus) return;
     setLoadingStatus(status);
     const message = await onUpdateStatus(task.id, status);
     setLoadingStatus(null);
+    showActionPopup(message);
+    setMenuOpen(false);
+  };
+
+  const deleteCurrentTask = async () => {
+    if (deleteLoading) return;
+    if (!window.confirm('이 업무를 삭제할까요? 받은 사람 화면에서도 삭제됩니다.')) return;
+    setDeleteLoading(true);
+    const message = await onDeleteTask(task);
+    setDeleteLoading(false);
     showActionPopup(message);
     setMenuOpen(false);
   };
@@ -2376,6 +2517,11 @@ function TaskCard({
                   {loadingStatus === status ? '진행중...' : status}
                 </button>
               ))}
+              {canDelete ? (
+                <button className="danger-menu-item" disabled={deleteLoading || Boolean(loadingStatus)} onClick={deleteCurrentTask} type="button">
+                  {deleteLoading ? '진행중...' : '삭제'}
+                </button>
+              ) : null}
             </div>
           ) : null}
         </div>
