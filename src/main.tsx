@@ -104,8 +104,11 @@ type OwnProfileUpdate = Pick<Employee, 'name' | 'phone' | 'jobType'> & {
 type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers'> & {
   status?: TaskStatus;
   watchers?: string[];
+  toIds?: string[];
   toList?: string[];
 };
+
+type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
 
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
@@ -555,17 +558,20 @@ function App() {
     setCurrentUser(null);
   };
 
-  const createTask = async (task: TaskDraft) => {
+  const createTask = async (task: TaskDraft): Promise<string> => {
+    const recipientIds = Array.from(new Set(task.toIds || []));
     const recipients = (task.toList?.length ? task.toList : [task.to]).filter(Boolean);
     const uniqueRecipients = Array.from(new Set(recipients));
-    const assignees = uniqueRecipients
-      .map((name) => employees.find((employee) => employee.name === name))
-      .filter((employee): employee is Employee => Boolean(employee));
+    const assignees = (recipientIds.length
+      ? recipientIds.map((id) => employees.find((employee) => employee.id === id))
+      : uniqueRecipients.map((name) => employees.find((employee) => employee.name === name))
+    ).filter((employee): employee is Employee => Boolean(employee));
     const client = clients.find((item) => item.name === task.client);
 
-    if (!uniqueRecipients.length || !assignees.length) {
-      setBackendStatus('실제 등록된 담당자를 한 명 이상 선택해주세요.');
-      return;
+    if (!assignees.length) {
+      const message = '실제 등록된 담당자를 한 명 이상 선택해주세요.';
+      setBackendStatus(message);
+      return message;
     }
 
     if (supabase && currentUser && !currentUser.isPrototype) {
@@ -587,8 +593,9 @@ function App() {
         .select('id');
 
       if (error) {
-        setBackendStatus(`업무 저장 실패: ${error.message}`);
-        return;
+        const message = `업무 저장 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
       }
 
       await Promise.all(
@@ -600,22 +607,28 @@ function App() {
       );
 
       await loadBackendData();
-      setBackendStatus(`업무 ${data?.length || rows.length}건을 전송했습니다.`);
+      const message = `업무 ${data?.length || rows.length}건을 전송했습니다.`;
+      setBackendStatus(message);
       setActiveView('sent');
-      return;
+      return message;
     }
 
-    const nextTasks: Task[] = uniqueRecipients.map((recipient, index) => ({
+    const prototypeAssignees = assignees.length
+      ? assignees
+      : uniqueRecipients.map((name) => employees.find((employee) => employee.name === name)).filter(Boolean) as Employee[];
+
+    const nextTasks: Task[] = prototypeAssignees.map((assignee, index) => ({
       id: `${Date.now()}-${index}`,
       status: task.status || '대기',
       watchers: task.watchers || [],
       ...task,
       from: currentUser?.name || task.from,
-      to: recipient,
+      to: assignee.name,
     }));
 
     setTasks((current) => [...nextTasks, ...current]);
     setActiveView('sent');
+    return `업무 ${nextTasks.length}건을 전송했습니다.`;
   };
 
   const addClient = async (client: Omit<Client, 'id'>) => {
@@ -1207,7 +1220,7 @@ function Dashboard({
   tasks: Task[];
   employees: Employee[];
   onCreateClick: () => void;
-  onCreateTask: (task: TaskDraft) => void;
+  onCreateTask: TaskSubmitHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void;
 }) {
   return (
@@ -1314,7 +1327,7 @@ function TaskCreatePage({
 }: {
   clients: Client[];
   employees: Employee[];
-  onCreateTask: (task: TaskDraft) => void;
+  onCreateTask: TaskSubmitHandler;
 }) {
   return (
     <section className="page-shell">
@@ -1337,7 +1350,7 @@ function ReportsPage({
   onUpdateTaskStatus,
 }: {
   tasks: Task[];
-  onCreateTask: (task: TaskDraft) => void;
+  onCreateTask: TaskSubmitHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void;
 }) {
   const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안' || task.type === '영업 브리핑');
@@ -1919,50 +1932,56 @@ function TaskForm({
 }: {
   clients: Client[];
   employees: Employee[];
-  onSubmit: (task: TaskDraft) => void;
+  onSubmit: TaskSubmitHandler;
 }) {
   const [form, setForm] = useState({
     type: '영업 브리핑' as TaskType,
     title: '',
-    toList: employees[1]?.name ? [employees[1].name] : [],
+    toIds: employees[1]?.id ? [employees[1].id] : [],
     client: clients[0]?.name || '',
     due: '',
     priority: '보통' as Priority,
     summary: '',
   });
   const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
     setForm((current) => {
-      const validRecipients = current.toList.filter((name) => employees.some((employee) => employee.name === name));
-      if (validRecipients.length) return { ...current, toList: validRecipients };
-      return { ...current, toList: employees[0]?.name ? [employees[0].name] : [] };
+      const validRecipientIds = current.toIds.filter((id) => employees.some((employee) => employee.id === id));
+      if (validRecipientIds.length) return { ...current, toIds: validRecipientIds };
+      return { ...current, toIds: employees[0]?.id ? [employees[0].id] : [] };
     });
   }, [employees]);
 
-  const toggleRecipient = (name: string) => {
+  const toggleRecipient = (id: string) => {
     setForm((current) => ({
       ...current,
-      toList: current.toList.includes(name)
-        ? current.toList.filter((item) => item !== name)
-        : [...current.toList, name],
+      toIds: current.toIds.includes(id)
+        ? current.toIds.filter((item) => item !== id)
+        : [...current.toIds, id],
     }));
   };
 
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const validRecipients = form.toList.filter((name) => employees.some((employee) => employee.name === name));
+    const validRecipientIds = form.toIds.filter((id) => employees.some((employee) => employee.id === id));
+    const validRecipients = validRecipientIds
+      .map((id) => employees.find((employee) => employee.id === id)?.name)
+      .filter((name): name is string => Boolean(name));
 
-    if (!validRecipients.length) {
+    if (!validRecipientIds.length) {
       setError('받는 담당자를 한 명 이상 선택해주세요.');
       return;
     }
 
     setError('');
-    onSubmit({
+    setStatus('전송중입니다.');
+    await onSubmit({
       title: form.title,
       from: '인성이형',
       to: validRecipients[0] || '',
+      toIds: validRecipientIds,
       toList: validRecipients,
       client: form.client,
       due: form.due || '미정',
@@ -1970,6 +1989,7 @@ function TaskForm({
       type: form.type,
       summary: form.summary,
     });
+    setStatus('업무를 전송했습니다. 보낸 업무에서 확인해주세요.');
     setForm({ ...form, title: '', summary: '' });
   };
 
@@ -1993,9 +2013,9 @@ function TaskForm({
           {employees.map((employee) => (
             <button
               className="select-chip"
-              data-selected={form.toList.includes(employee.name)}
+              data-selected={form.toIds.includes(employee.id)}
               key={employee.id}
-              onClick={() => toggleRecipient(employee.name)}
+              onClick={() => toggleRecipient(employee.id)}
               type="button"
             >
               {employee.name}
@@ -2011,7 +2031,7 @@ function TaskForm({
       </label>
       <label>
         마감일
-        <input value={form.due} onChange={(event) => setForm({ ...form, due: event.target.value })} placeholder="4월 30일" />
+        <input type="date" value={form.due} onChange={(event) => setForm({ ...form, due: event.target.value })} />
       </label>
       <label>
         우선순위
@@ -2034,6 +2054,7 @@ function TaskForm({
         <span>Supabase Storage 첨부 예정</span>
       </div>
       {error ? <p className="auth-error span-2">{error}</p> : null}
+      {status ? <p className="admin-note span-2">{status}</p> : null}
       <button className="primary-action span-2" type="submit">
         <CheckCircle2 size={17} />
         업무 전송
@@ -2045,14 +2066,15 @@ function TaskForm({
 function ReportForm({
   onCreateTask,
 }: {
-  onCreateTask: (task: TaskDraft) => void;
+  onCreateTask: TaskSubmitHandler;
 }) {
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
+  const [status, setStatus] = useState('');
 
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    onCreateTask({
+    const message = await onCreateTask({
       title,
       summary,
       from: '인성이형',
@@ -2063,6 +2085,7 @@ function ReportForm({
       type: '보고',
       status: '대기',
     });
+    setStatus(message);
     setTitle('');
     setSummary('');
   };
@@ -2081,6 +2104,7 @@ function ReportForm({
         보고 내용
         <textarea required value={summary} onChange={(event) => setSummary(event.target.value)} />
       </label>
+      {status ? <p className="admin-note">{status}</p> : null}
       <button className="primary-action wide" type="submit">
         <CheckCircle2 size={17} />
         보고 전송
@@ -2094,23 +2118,24 @@ function TaskComposer({
   onCreateTask,
 }: {
   employees: Employee[];
-  onCreateTask: (task: TaskDraft) => void;
+  onCreateTask: TaskSubmitHandler;
 }) {
   const [title, setTitle] = useState('A업체 미팅 내용 전달');
   const [summary, setSummary] = useState('미팅 내용, 요청사항, 다음 액션을 정리해서 전달합니다.');
   const [type, setType] = useState<TaskType>('영업 브리핑');
-  const [toList, setToList] = useState<string[]>(employees[0]?.name ? [employees[0].name] : []);
+  const [toIds, setToIds] = useState<string[]>(employees[0]?.id ? [employees[0].id] : []);
   const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
-    setToList((current) => {
-      const validRecipients = current.filter((name) => employees.some((employee) => employee.name === name));
-      return validRecipients.length ? validRecipients : employees[0]?.name ? [employees[0].name] : [];
+    setToIds((current) => {
+      const validRecipientIds = current.filter((id) => employees.some((employee) => employee.id === id));
+      return validRecipientIds.length ? validRecipientIds : employees[0]?.id ? [employees[0].id] : [];
     });
   }, [employees]);
 
-  const toggleRecipient = (name: string) => {
-    setToList((current) => (current.includes(name) ? current.filter((item) => item !== name) : [...current, name]));
+  const toggleRecipient = (id: string) => {
+    setToIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   };
 
   return (
@@ -2144,9 +2169,9 @@ function TaskComposer({
             {employees.map((employee) => (
               <button
                 className="select-chip"
-                data-selected={toList.includes(employee.name)}
+                data-selected={toIds.includes(employee.id)}
                 key={employee.id}
-                onClick={() => toggleRecipient(employee.name)}
+                onClick={() => toggleRecipient(employee.id)}
                 type="button"
               >
                 {employee.name}
@@ -2163,26 +2188,33 @@ function TaskComposer({
           <span>파일 첨부 준비됨</span>
         </div>
         {error ? <p className="auth-error">{error}</p> : null}
+        {status ? <p className="admin-note">{status}</p> : null}
         <button
           className="primary-action wide"
-          onClick={() => {
-            const validRecipients = toList.filter((name) => employees.some((employee) => employee.name === name));
-            if (!validRecipients.length) {
+          onClick={async () => {
+            const validRecipientIds = toIds.filter((id) => employees.some((employee) => employee.id === id));
+            const validRecipients = validRecipientIds
+              .map((id) => employees.find((employee) => employee.id === id)?.name)
+              .filter((name): name is string => Boolean(name));
+
+            if (!validRecipientIds.length) {
               setError('받는 담당자를 한 명 이상 선택해주세요.');
               return;
             }
             setError('');
-            onCreateTask({
+            setStatus('전송중입니다.');
+            setStatus(await onCreateTask({
               title,
               summary,
               type,
               to: validRecipients[0] || '',
+              toIds: validRecipientIds,
               toList: validRecipients,
               from: '인성이형',
               client: 'A업체',
               due: '미정',
               priority: '보통',
-            });
+            }));
           }}
           type="button"
         >
