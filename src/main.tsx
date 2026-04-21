@@ -1929,8 +1929,9 @@ function SettingsPage({
 
       <div className="split-layout">
         <div className="page-card settings-card">
-          <h2>백엔드</h2>
-          <p>{backendStatus}</p>
+          <h2>테마</h2>
+          <p>업무 영역은 라이트/다크/시스템 설정을 따르고, 사이드바는 Plander 블랙을 유지합니다.</p>
+          <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
         </div>
         <form className="page-card form-stack" onSubmit={submitProfile}>
           <div>
@@ -1981,11 +1982,6 @@ function SettingsPage({
           </button>
         </form>
         <div className="page-card settings-card">
-          <h2>테마</h2>
-          <p>사이드바는 Plander 블랙을 유지하고, 업무 영역은 라이트/다크/시스템 설정을 따릅니다.</p>
-          <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
-        </div>
-        <div className="page-card settings-card">
           <h2>푸시알림</h2>
           <p>{pushStatus}</p>
           <button className="primary-action" disabled={pushLoading} onClick={onRegisterPush} type="button">
@@ -1994,8 +1990,8 @@ function SettingsPage({
           </button>
         </div>
         <div className="page-card settings-card">
-          <h2>첨부파일</h2>
-          <p>파일 본문은 DB가 아니라 Supabase Storage에 저장하고, DB에는 경로와 메타데이터만 저장하는 구조로 갑니다.</p>
+          <h2>백엔드</h2>
+          <p>{backendStatus}</p>
         </div>
       </div>
     </section>
