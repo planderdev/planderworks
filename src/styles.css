@@ -15,6 +15,8 @@
   --bg: #f5f6f8;
   --panel: #ffffff;
   --panel-2: #f0f2f5;
+  --card-bg: #ffffff;
+  --card-line: #d7dce5;
   --text: #15171c;
   --muted: #666d78;
   --soft: #e6e8ed;
@@ -24,8 +26,10 @@
 
 :root[data-theme='dark'] {
   --bg: #111316;
-  --panel: #181b20;
-  --panel-2: #20242b;
+  --panel: #14171c;
+  --panel-2: #20252e;
+  --card-bg: #14171c;
+  --card-line: #2d3541;
   --text: #f4f6f9;
   --muted: #a7adb8;
   --soft: #292e37;
@@ -567,6 +571,30 @@ h1 {
   width: 100%;
 }
 
+.auth-card,
+.stat-card,
+.task-board,
+.compose-panel,
+.team-panel,
+.dashboard-flow-section,
+.page-card,
+.client-card,
+.month-cell,
+.table-row,
+.modal-card,
+.action-popup,
+.job-type-card,
+.type-row,
+.empty-state,
+.file-row,
+.person-row,
+.task-card {
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  background: var(--card-bg);
+  box-shadow: none;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -700,7 +728,7 @@ h1 {
 
 .dashboard-flow-list {
   display: grid;
-  gap: 0;
+  gap: 16px;
 }
 
 .dashboard-flow-row {
@@ -710,22 +738,22 @@ h1 {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  border: 0;
-  border-radius: 7px;
-  padding: 0 10px;
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  padding: 0 14px;
   color: var(--text);
-  background: transparent;
+  background: var(--card-bg);
   text-align: left;
+  box-shadow: inset 4px 0 0 #5b6472;
 }
 
 .dashboard-flow-row[data-unread='true'] {
   box-shadow: inset 4px 0 0 #4b8ef7;
-  background: rgba(75, 142, 247, 0.08);
   padding-left: 14px;
 }
 
 .dashboard-flow-row:hover {
-  background: var(--soft);
+  background: var(--panel-2);
 }
 
 .dashboard-flow-row span {
@@ -796,7 +824,7 @@ h1 {
 
 .task-list {
   display: grid;
-  gap: 11px;
+  gap: 18px;
 }
 
 .task-card {
@@ -804,11 +832,8 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
-  padding: 16px 0;
-  border: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  padding: 16px;
+  box-shadow: inset 4px 0 0 #5b6472;
 }
 
 .task-card[data-unread='true'] {
@@ -1719,6 +1744,46 @@ h1 {
   border-radius: 8px;
   color: var(--muted);
   background: var(--panel-2);
+}
+
+.auth-card,
+.stat-card,
+.task-board,
+.compose-panel,
+.team-panel,
+.dashboard-flow-section,
+.page-card,
+.client-card,
+.month-cell,
+.table-row,
+.modal-card,
+.action-popup,
+.job-type-card,
+.type-row,
+.empty-state,
+.file-row,
+.person-row {
+  border: 1px solid var(--card-line) !important;
+  border-radius: 8px;
+  background: var(--card-bg) !important;
+  box-shadow: none !important;
+}
+
+.task-card,
+.dashboard-flow-row {
+  border: 1px solid var(--card-line) !important;
+  border-radius: 8px !important;
+  background: var(--card-bg) !important;
+}
+
+.task-card,
+.dashboard-flow-row {
+  box-shadow: inset 4px 0 0 #5b6472;
+}
+
+.task-card[data-unread='true'],
+.dashboard-flow-row[data-unread='true'] {
+  box-shadow: inset 4px 0 0 #4b8ef7;
 }
 
 .compact-list {

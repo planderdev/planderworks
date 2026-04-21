@@ -44,6 +44,7 @@ type ActiveView =
   | 'employees'
   | 'settings';
 type TaskStatus = '대기' | '진행중' | '완료 요청' | '보류' | '완료';
+type TaskListFilter = '전체' | TaskStatus;
 type Priority = '높음' | '보통' | '낮음';
 type TaskType = string;
 
@@ -395,6 +396,7 @@ function App() {
   const [forwardHistory, setForwardHistory] = useState<ActiveView[]>([]);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [taskListFilters, setTaskListFilters] = useState<Partial<Record<ActiveView, TaskListFilter>>>({});
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -663,8 +665,8 @@ function App() {
   const dashboardStats = useMemo(
     () => [
       { label: '받은 업무', value: inboxTasks.length, hint: '내 담당 기준', tone: 'silver', target: 'inbox' as ActiveView },
-      { label: '진행중', value: inboxTasks.filter((task) => task.status === '진행중').length, hint: '담당자 확인중', tone: 'blue', target: 'inbox' as ActiveView },
-      { label: '완료 요청', value: inboxTasks.filter((task) => task.status === '완료 요청').length, hint: '검토 필요', tone: 'amber', target: 'inbox' as ActiveView },
+      { label: '진행중', value: inboxTasks.filter((task) => task.status === '진행중').length, hint: '담당자 확인중', tone: 'blue', target: 'inbox' as ActiveView, filter: '진행중' as TaskListFilter },
+      { label: '완료 요청', value: inboxTasks.filter((task) => task.status === '완료 요청').length, hint: '검토 필요', tone: 'amber', target: 'inbox' as ActiveView, filter: '완료 요청' as TaskListFilter },
       { label: '마감 임박', value: dueSoonTasks.length, hint: '마감일 입력 기준', tone: 'red', target: 'calendar' as ActiveView },
     ],
     [dueSoonTasks.length, inboxTasks],
@@ -681,7 +683,11 @@ function App() {
     });
   };
 
-  const navigateTo = (view: ActiveView) => {
+  const navigateTo = (view: ActiveView, filter?: TaskListFilter) => {
+    if (filter) setTaskListFilters((current) => ({ ...current, [view]: filter }));
+    if (!filter && (view === 'inbox' || view === 'sent' || view === 'allTasks')) {
+      setTaskListFilters((current) => ({ ...current, [view]: '전체' }));
+    }
     if (view === activeView) return;
     setViewHistory((history) => [...history, activeView].slice(-12));
     setForwardHistory([]);
@@ -1387,17 +1393,17 @@ function App() {
           />
         ) : null}
         {activeView === 'inbox' ? (
-          <TaskListPage title="받은 업무" tasks={inboxTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage title="받은 업무" initialStatus={taskListFilters.inbox || '전체'} tasks={inboxTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'sent' ? (
-          <TaskListPage title="보낸 업무" tasks={sentTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage title="보낸 업무" initialStatus={taskListFilters.sent || '전체'} tasks={sentTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
           <ReportsPage tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'allTasks' ? (
-          <TaskListPage title="전체 업무보기" tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'calendar' ? <CalendarPage currentUser={currentUser} tasks={tasks} onOpenTask={(task) => setSelectedTaskId(task.id)} /> : null}
         {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} onDeleteClient={deleteClient} onUpdateClient={updateClient} /> : null}
@@ -1906,7 +1912,7 @@ function Dashboard({
   onDeleteTask,
   onUpdateTaskStatus,
 }: {
-  stats: Array<{ label: string; value: number; hint: string; tone: string; target: ActiveView }>;
+  stats: Array<{ label: string; value: number; hint: string; tone: string; target: ActiveView; filter?: TaskListFilter }>;
   tasks: Task[];
   sentTasks: Task[];
   reportTasks: Task[];
@@ -1914,7 +1920,7 @@ function Dashboard({
   employees: Employee[];
   taskTypes: string[];
   currentUser: AppUser;
-  onNavigate: (view: ActiveView) => void;
+  onNavigate: (view: ActiveView, filter?: TaskListFilter) => void;
   onOpenTask: (task: Task) => void;
   onCreateTask: TaskSubmitHandler;
   onDeleteTask: TaskDeleteHandler;
@@ -1924,7 +1930,7 @@ function Dashboard({
     <>
       <section className="stats-grid" aria-label="업무 요약">
         {stats.map((item) => (
-          <button className="stat-card" data-tone={item.tone} key={item.label} onClick={() => onNavigate(item.target)} type="button">
+          <button className="stat-card" data-tone={item.tone} key={item.label} onClick={() => onNavigate(item.target, item.filter || '전체')} type="button">
             <span>{item.label}</span>
             <strong>{item.value}</strong>
             <small>{item.hint}</small>
@@ -1964,12 +1970,12 @@ function DashboardTaskSection({
   target: ActiveView;
   tone?: string;
   currentUser: AppUser;
-  onNavigate: (view: ActiveView) => void;
+  onNavigate: (view: ActiveView, filter?: TaskListFilter) => void;
   onOpenTask: (task: Task) => void;
 }) {
   return (
     <section className="dashboard-flow-section" data-tone={tone}>
-      <button className="dashboard-flow-head" onClick={() => onNavigate(target)} type="button">
+      <button className="dashboard-flow-head" onClick={() => onNavigate(target, '전체')} type="button">
         <span>
           <small>{eyebrow}</small>
           <strong>{title}</strong>
@@ -2020,6 +2026,7 @@ function DashboardClientSection({ clients, onNavigate }: { clients: Client[]; on
 
 function TaskListPage({
   title,
+  initialStatus,
   tasks,
   currentUser,
   onOpenTask,
@@ -2027,14 +2034,19 @@ function TaskListPage({
   onUpdateTaskStatus,
 }: {
   title: string;
+  initialStatus: TaskListFilter;
   tasks: Task[];
   currentUser: AppUser;
   onOpenTask: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
-  const [status, setStatus] = useState<'전체' | TaskStatus>('전체');
+  const [status, setStatus] = useState<TaskListFilter>(initialStatus);
   const filteredTasks = status === '전체' ? tasks : tasks.filter((task) => task.status === status);
+
+  useEffect(() => {
+    setStatus(initialStatus);
+  }, [initialStatus]);
 
   return (
     <section className="page-shell">
