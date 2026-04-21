@@ -93,6 +93,10 @@ type NewEmployee = Omit<Employee, 'id' | 'load'> & {
   password?: string;
 };
 
+type EmployeeUpdate = Pick<Employee, 'name' | 'phone' | 'jobType' | 'role'> & {
+  password?: string;
+};
+
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
   { id: 'inbox', label: '받은 업무', icon: ClipboardList },
@@ -241,6 +245,21 @@ const roleFromDb: Record<string, Employee['role']> = {
   admin: '관리자',
   manager: '사용자',
   staff: '사용자',
+};
+
+const getPhoneDigits = (value: string) => value.replace(/\D/g, '').slice(0, 11);
+
+const formatMobilePhone = (value: string) => {
+  const digits = getPhoneDigits(value);
+
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+};
+
+const hasValidMobilePhoneLength = (value: string) => {
+  const digits = getPhoneDigits(value);
+  return digits.length === 0 || digits.length === 11;
 };
 
 function formatDueDate(value: string | null | undefined) {
@@ -606,39 +625,21 @@ function App() {
     setEmployees((current) => [{ id: String(Date.now()), load: 0, ...employeeProfile }, ...current]);
   };
 
-  const updateEmployee = async (employeeId: string, updates: Pick<Employee, 'name' | 'phone' | 'jobType' | 'role'>) => {
-    const jobType = jobTypes.find((item) => item === updates.jobType);
-
+  const updateEmployee = async (employeeId: string, updates: EmployeeUpdate) => {
     if (supabase && currentUser && !currentUser.isPrototype) {
-      let jobTypeId: string | null = null;
-
-      if (jobType) {
-        const { data: jobTypeData, error: jobTypeError } = await supabase
-          .from('job_types')
-          .select('id')
-          .eq('name', jobType)
-          .single();
-
-        if (jobTypeError) {
-          setBackendStatus(`담당업무 조회 실패: ${jobTypeError.message}`);
-          return;
-        }
-
-        jobTypeId = jobTypeData.id;
-      }
-
-      const { error } = await supabase
-        .from('profiles')
-        .update({
+      const { data, error } = await supabase.functions.invoke('update-user', {
+        body: {
+          userId: employeeId,
           name: updates.name,
           phone: updates.phone,
-          job_type_id: jobTypeId,
+          jobType: updates.jobType,
           role: roleToDb[updates.role],
-        })
-        .eq('id', employeeId);
+          password: updates.password,
+        },
+      });
 
-      if (error) {
-        setBackendStatus(`직원 정보 수정 실패: ${error.message}`);
+      if (error || data?.error) {
+        setBackendStatus(`직원 정보 수정 실패: ${data?.error || error?.message}`);
         return;
       }
 
@@ -1285,7 +1286,7 @@ function EmployeesPage({
   employees: Employee[];
   jobTypes: string[];
   onAddEmployee: (employee: NewEmployee) => void;
-  onUpdateEmployee: (employeeId: string, updates: Pick<Employee, 'name' | 'phone' | 'jobType' | 'role'>) => void;
+  onUpdateEmployee: (employeeId: string, updates: EmployeeUpdate) => void;
 }) {
   const [form, setForm] = useState({
     name: '',
@@ -1302,16 +1303,21 @@ function EmployeesPage({
     phone: '',
     jobType: jobTypes[0] || '',
     role: '사용자' as Employee['role'],
+    password: '',
+    passwordConfirm: '',
   });
   const [error, setError] = useState('');
 
   const openEdit = (employee: Employee) => {
+    setError('');
     setEditingEmployee(employee);
     setEditForm({
       name: employee.name,
-      phone: employee.phone,
+      phone: formatMobilePhone(employee.phone),
       jobType: employee.jobType,
       role: employee.role,
+      password: '',
+      passwordConfirm: '',
     });
   };
 
@@ -1321,6 +1327,11 @@ function EmployeesPage({
 
     if (form.password !== form.passwordConfirm) {
       setError('비밀번호 확인이 맞지 않습니다.');
+      return;
+    }
+
+    if (!hasValidMobilePhoneLength(form.phone)) {
+      setError('전화번호는 숫자 11자리로 입력해주세요.');
       return;
     }
 
@@ -1337,8 +1348,26 @@ function EmployeesPage({
 
   const submitEdit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError('');
     if (!editingEmployee) return;
-    onUpdateEmployee(editingEmployee.id, editForm);
+
+    if (editForm.password && editForm.password !== editForm.passwordConfirm) {
+      setError('비밀번호 확인이 맞지 않습니다.');
+      return;
+    }
+
+    if (!hasValidMobilePhoneLength(editForm.phone)) {
+      setError('전화번호는 숫자 11자리로 입력해주세요.');
+      return;
+    }
+
+    onUpdateEmployee(editingEmployee.id, {
+      name: editForm.name,
+      phone: editForm.phone,
+      jobType: editForm.jobType,
+      role: editForm.role,
+      password: editForm.password || undefined,
+    });
     setEditingEmployee(null);
   };
 
@@ -1402,7 +1431,12 @@ function EmployeesPage({
           </label>
           <label>
             전화번호
-            <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
+            <input
+              inputMode="numeric"
+              maxLength={13}
+              value={form.phone}
+              onChange={(event) => setForm({ ...form, phone: formatMobilePhone(event.target.value) })}
+            />
           </label>
           <label>
             권한
@@ -1438,7 +1472,30 @@ function EmployeesPage({
             </label>
             <label>
               전화번호
-              <input value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} />
+              <input
+                inputMode="numeric"
+                maxLength={13}
+                value={editForm.phone}
+                onChange={(event) => setEditForm({ ...editForm, phone: formatMobilePhone(event.target.value) })}
+              />
+            </label>
+            <label>
+              새 비밀번호
+              <input
+                autoComplete="new-password"
+                type="password"
+                value={editForm.password}
+                onChange={(event) => setEditForm({ ...editForm, password: event.target.value })}
+              />
+            </label>
+            <label>
+              새 비밀번호 확인
+              <input
+                autoComplete="new-password"
+                type="password"
+                value={editForm.passwordConfirm}
+                onChange={(event) => setEditForm({ ...editForm, passwordConfirm: event.target.value })}
+              />
             </label>
             <label>
               담당업무
@@ -1453,6 +1510,7 @@ function EmployeesPage({
                 <option>사용자</option>
               </select>
             </label>
+            {error ? <p className="auth-error">{error}</p> : null}
             <button className="primary-action wide" type="submit">
               <CheckCircle2 size={17} />
               정보 저장
@@ -1561,7 +1619,7 @@ function SettingsPage({
   const currentEmployee = employees.find((employee) => employee.id === currentUser.id);
   const [profileForm, setProfileForm] = useState({
     name: currentEmployee?.name || currentUser.name,
-    phone: currentEmployee?.phone || '',
+    phone: formatMobilePhone(currentEmployee?.phone || ''),
     jobType: currentEmployee?.jobType || currentUser.role,
   });
   const [profileStatus, setProfileStatus] = useState('');
@@ -1569,7 +1627,7 @@ function SettingsPage({
   useEffect(() => {
     setProfileForm({
       name: currentEmployee?.name || currentUser.name,
-      phone: currentEmployee?.phone || '',
+      phone: formatMobilePhone(currentEmployee?.phone || ''),
       jobType: currentEmployee?.jobType || currentUser.role,
     });
   }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.jobType, currentUser.name, currentUser.role]);
@@ -1582,6 +1640,10 @@ function SettingsPage({
 
   const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!hasValidMobilePhoneLength(profileForm.phone)) {
+      setProfileStatus('전화번호는 숫자 11자리로 입력해주세요.');
+      return;
+    }
     setProfileStatus(await onUpdateOwnProfile(profileForm));
   };
 
@@ -1610,7 +1672,12 @@ function SettingsPage({
           </label>
           <label>
             전화번호
-            <input value={profileForm.phone} onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })} />
+            <input
+              inputMode="numeric"
+              maxLength={13}
+              value={profileForm.phone}
+              onChange={(event) => setProfileForm({ ...profileForm, phone: formatMobilePhone(event.target.value) })}
+            />
           </label>
           <label>
             담당업무
