@@ -564,14 +564,6 @@ h1 {
   width: 100%;
 }
 
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.stat-card,
 .task-board,
 .compose-panel,
 .team-panel {
@@ -581,76 +573,32 @@ h1 {
   box-shadow: var(--shadow);
 }
 
-.stat-card {
-  position: relative;
-  overflow: hidden;
-  padding: 18px;
-  border-color: var(--line);
-  color: var(--text);
-  text-align: left;
-  cursor: pointer;
-}
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: #aab0bb;
-}
-
-.stat-card[data-tone='blue']::before {
-  background: #4b8ef7;
-}
-
-.stat-card[data-tone='amber']::before {
-  background: #d69731;
-}
-
-.stat-card[data-tone='red']::before {
-  background: #df5f5f;
-}
-
-.stat-card span,
-.stat-card small {
-  color: var(--muted);
-}
-
-.stat-card strong {
-  display: block;
-  margin: 8px 0 4px;
-  font-size: 2rem;
-}
-
-.dashboard-lists {
+.dashboard-flow {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 28px;
   margin-bottom: 18px;
 }
 
-.dashboard-mini-panel {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
-  overflow: hidden;
+.dashboard-flow-section {
+  display: grid;
+  gap: 10px;
 }
 
-.dashboard-mini-head {
+.dashboard-flow-head {
   width: 100%;
-  min-height: 58px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 13px 14px;
+  border-bottom: 1px solid var(--line);
+  padding: 0 0 10px;
   color: var(--text);
   background: transparent;
   text-align: left;
 }
 
-.dashboard-mini-head small {
+.dashboard-flow-head small {
   display: block;
   margin-bottom: 4px;
   color: var(--muted);
@@ -659,44 +607,43 @@ h1 {
   text-transform: uppercase;
 }
 
-.mini-task-list {
+.dashboard-flow-list {
   display: grid;
-  gap: 1px;
-  padding: 0 10px 10px;
+  gap: 0;
 }
 
-.mini-task-row {
+.dashboard-flow-row {
   position: relative;
-  min-height: 42px;
+  min-height: 54px;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  border-radius: 7px;
-  padding: 0 8px;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 0;
   color: var(--text);
   background: transparent;
   text-align: left;
 }
 
-.mini-task-row[data-unread='true'] {
-  border-left: 3px solid #4b8ef7;
-  background: rgba(75, 142, 247, 0.08);
+.dashboard-flow-row[data-unread='true'] {
+  box-shadow: inset 4px 0 0 #4b8ef7;
+  padding-left: 12px;
 }
 
-.mini-task-row:hover,
-.dashboard-mini-head:hover,
-.stat-card:hover {
+.dashboard-flow-row:hover,
+.dashboard-flow-head:hover {
   background: var(--soft);
 }
 
-.mini-task-row span {
+.dashboard-flow-row span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.mini-task-row small,
+.dashboard-flow-row small,
 .mini-empty {
   color: var(--muted);
   font-size: 0.78rem;
@@ -713,6 +660,13 @@ h1 {
 .compose-panel,
 .team-panel {
   padding: 18px;
+}
+
+.list-surface {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 0;
 }
 
 .section-head {
@@ -759,14 +713,16 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel-2);
+  padding: 16px 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
 }
 
 .task-card[data-unread='true'] {
-  border-left: 4px solid #4b8ef7;
+  box-shadow: inset 4px 0 0 #4b8ef7;
+  padding-left: 14px;
 }
 
 .task-title-row {
@@ -939,6 +895,11 @@ h1 {
   background: #dff5d8;
 }
 
+.status[data-status='진행중'] {
+  color: #17437a;
+  background: #d8e9ff;
+}
+
 .status[data-status='대기'] {
   color: #3d434d;
   background: #dce1e8;
@@ -962,6 +923,11 @@ h1 {
 :root[data-theme='dark'] .status {
   color: #d8f5d0;
   background: #25432a;
+}
+
+:root[data-theme='dark'] .status[data-status='진행중'] {
+  color: #cfe3ff;
+  background: #1f416d;
 }
 
 :root[data-theme='dark'] .status[data-status='대기'] {
@@ -1221,6 +1187,10 @@ h1 {
 .calendar-task-pill {
   width: 100%;
   min-height: 30px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
   border-radius: 6px;
   padding: 0 8px;
   color: var(--text);
@@ -1229,6 +1199,29 @@ h1 {
   text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.month-cell button[data-kind='받은 업무'],
+.calendar-task-pill[data-kind='받은 업무'] {
+  box-shadow: inset 3px 0 0 #4b8ef7;
+}
+
+.month-cell button[data-kind='보낸 업무'],
+.calendar-task-pill[data-kind='보낸 업무'] {
+  box-shadow: inset 3px 0 0 #9aa1ad;
+}
+
+.month-cell button span,
+.calendar-task-pill span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.month-cell button small,
+.calendar-task-pill small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 850;
 }
 
 .day-timeline,
@@ -1706,9 +1699,6 @@ h1 {
     padding: 16px;
   }
 
-  .stats-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 720px) {
@@ -1750,8 +1740,6 @@ h1 {
     width: 100%;
   }
 
-  .stats-grid,
-  .dashboard-lists,
   .side-panel {
     grid-template-columns: 1fr;
   }

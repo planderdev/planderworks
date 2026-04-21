@@ -330,6 +330,8 @@ const hasValidMobilePhoneLength = (value: string) => {
   return digits.length === 0 || digits.length === 11;
 };
 
+const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
 function formatDueDate(value: string | null | undefined) {
   if (!value) return '미정';
   return new Intl.DateTimeFormat('ko-KR', {
@@ -355,7 +357,8 @@ function getTaskReadLabel(task: Task) {
 }
 
 function isUnreadForUser(task: Task, currentUser: AppUser) {
-  return !task.readAt && (task.assigneeId === currentUser.id || task.to === currentUser.name);
+  void currentUser;
+  return !task.readAt;
 }
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -559,7 +562,7 @@ function App() {
 
     setTasks(nextTasks);
     setEmployees(nextEmployees.length ? nextEmployees : seedEmployees);
-    setClients(nextClients.length ? nextClients : seedClients);
+    setClients(nextClients);
     setJobTypes(nextJobTypes.length ? nextJobTypes : seedJobTypes);
     setTaskTypes(nextTaskTypes.length ? nextTaskTypes : fallbackTaskTypes);
     setBackendStatus('Supabase 연결됨');
@@ -798,14 +801,14 @@ function App() {
     const recipientIds = Array.from(new Set(task.toIds || []));
     const recipients = (task.toList?.length ? task.toList : [task.to]).filter(Boolean);
     const uniqueRecipients = Array.from(new Set(recipients));
-    const assignees = (recipientIds.length
+    let assignees = (recipientIds.length
       ? recipientIds.map((id) => employees.find((employee) => employee.id === id))
       : uniqueRecipients.map((name) => employees.find((employee) => employee.name === name))
     ).filter((employee): employee is Employee => Boolean(employee));
-    const client = task.clientId
+    const client = task.clientId && isUuid(task.clientId)
       ? clients.find((item) => item.id === task.clientId)
       : clients.find((item) => item.name === task.client);
-    const clientId = client?.id || null;
+    const clientId = client?.id && isUuid(client.id) ? client.id : null;
 
     if (!assignees.length) {
       const message = '실제 등록된 담당자를 한 명 이상 선택해주세요.';
@@ -814,6 +817,14 @@ function App() {
     }
 
     if (supabase && currentUser && !currentUser.isPrototype) {
+      assignees = assignees.filter((assignee) => isUuid(assignee.id));
+
+      if (!assignees.length) {
+        const message = '담당자 정보가 아직 동기화되지 않았습니다. 새로고침 후 다시 전송해주세요.';
+        setBackendStatus(message);
+        return message;
+      }
+
       const rows = assignees.map((assignee) => ({
         title: task.title,
         description: task.summary,
@@ -821,7 +832,7 @@ function App() {
         status: statusToDb[task.status || '대기'],
         priority: priorityToDb[task.priority],
         creator_id: currentUser.id,
-        assignee_id: assignee?.id || null,
+        assignee_id: assignee.id,
         client_id: clientId,
         due_at: parseDueDate(task.due),
       }));
@@ -914,6 +925,11 @@ function App() {
   };
 
   const updateClient = async (clientId: string, client: Omit<Client, 'id'>): Promise<string> => {
+    if (!isUuid(clientId)) {
+      setClients((current) => current.map((item) => (item.id === clientId ? { id: clientId, ...client } : item)));
+      return '업체가 저장되었습니다.';
+    }
+
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { error } = await supabase
         .from('clients')
@@ -941,6 +957,11 @@ function App() {
   };
 
   const deleteClient = async (client: Client): Promise<string> => {
+    if (!isUuid(client.id)) {
+      setClients((current) => current.filter((item) => item.id !== client.id));
+      return '업체가 삭제되었습니다.';
+    }
+
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { error } = await supabase.from('clients').delete().eq('id', client.id);
 
@@ -1378,7 +1399,7 @@ function App() {
         {activeView === 'allTasks' ? (
           <TaskListPage title="전체 업무보기" tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
-        {activeView === 'calendar' ? <CalendarPage tasks={tasks} onOpenTask={(task) => setSelectedTaskId(task.id)} /> : null}
+        {activeView === 'calendar' ? <CalendarPage currentUser={currentUser} tasks={tasks} onOpenTask={(task) => setSelectedTaskId(task.id)} /> : null}
         {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} onDeleteClient={deleteClient} onUpdateClient={updateClient} /> : null}
         {activeView === 'employees' && isAdmin ? (
           <EmployeesPage
@@ -1911,44 +1932,14 @@ function Dashboard({
         </div>
       </section>
 
-      <section className="stats-grid" aria-label="업무 요약">
-        {stats.map((item) => (
-          <button className="stat-card" data-tone={item.tone} key={item.label} onClick={() => onNavigate(item.target)} type="button">
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
-            <small>{item.hint}</small>
-          </button>
-        ))}
-      </section>
-
-      <section className="dashboard-lists">
-        <DashboardMiniList title="받은 업무" eyebrow="Inbox" tasks={tasks} target="inbox" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-        <DashboardMiniList title="보낸 업무" eyebrow="Sent" tasks={sentTasks} target="sent" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-        <DashboardMiniList title="보고·제안" eyebrow="Reports" tasks={reportTasks} target="reports" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-        <DashboardClientList clients={clients} onNavigate={() => onNavigate('clients')} />
+      <section className="dashboard-flow">
+        <DashboardTaskSection title="받은 업무" eyebrow="Inbox" tasks={tasks} target="inbox" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+        <DashboardTaskSection title="보낸 업무" eyebrow="Sent" tasks={sentTasks} target="sent" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+        <DashboardTaskSection title="보고·제안" eyebrow="Reports" tasks={reportTasks} target="reports" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+        <DashboardClientSection clients={clients} onNavigate={() => onNavigate('clients')} />
       </section>
 
       <section className="content-grid">
-        <div className="task-board">
-          <div className="section-head">
-            <div>
-              <p className="eyebrow">Inbox</p>
-              <h2>받은 업무</h2>
-            </div>
-            <div className="filters">
-              <button>전체</button>
-              <button>진행중</button>
-              <button>완료 요청</button>
-            </div>
-          </div>
-
-          <div className="task-list">
-            {tasks.slice(0, 4).map((task) => (
-              <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
-            ))}
-          </div>
-        </div>
-
         <aside className="side-panel">
           <TaskComposer employees={employees} taskTypes={taskTypes} onCreateTask={onCreateTask} />
           <TeamLoad employees={employees} />
@@ -1958,7 +1949,7 @@ function Dashboard({
   );
 }
 
-function DashboardMiniList({
+function DashboardTaskSection({
   title,
   eyebrow,
   tasks,
@@ -1976,18 +1967,18 @@ function DashboardMiniList({
   onOpenTask: (task: Task) => void;
 }) {
   return (
-    <section className="dashboard-mini-panel">
-      <button className="dashboard-mini-head" onClick={() => onNavigate(target)} type="button">
+    <section className="dashboard-flow-section">
+      <button className="dashboard-flow-head" onClick={() => onNavigate(target)} type="button">
         <span>
           <small>{eyebrow}</small>
           <strong>{title}</strong>
         </span>
         <ChevronDown size={16} />
       </button>
-      <div className="mini-task-list">
+      <div className="dashboard-flow-list">
         {tasks.slice(0, 5).map((task) => (
           <button
-            className="mini-task-row"
+            className="dashboard-flow-row"
             data-unread={isUnreadForUser(task, currentUser)}
             key={task.id}
             onClick={() => onOpenTask(task)}
@@ -2003,19 +1994,19 @@ function DashboardMiniList({
   );
 }
 
-function DashboardClientList({ clients, onNavigate }: { clients: Client[]; onNavigate: () => void }) {
+function DashboardClientSection({ clients, onNavigate }: { clients: Client[]; onNavigate: () => void }) {
   return (
-    <section className="dashboard-mini-panel">
-      <button className="dashboard-mini-head" onClick={onNavigate} type="button">
+    <section className="dashboard-flow-section">
+      <button className="dashboard-flow-head" onClick={onNavigate} type="button">
         <span>
           <small>Clients</small>
           <strong>업체</strong>
         </span>
         <ChevronDown size={16} />
       </button>
-      <div className="mini-task-list">
+      <div className="dashboard-flow-list">
         {clients.slice(0, 5).map((client) => (
-          <button className="mini-task-row" key={client.id} onClick={onNavigate} type="button">
+          <button className="dashboard-flow-row" key={client.id} onClick={onNavigate} type="button">
             <span>{client.name}</span>
             <small>{client.manager}</small>
           </button>
@@ -2060,7 +2051,7 @@ function TaskListPage({
         </div>
       </div>
 
-      <div className="task-board page-card">
+      <div className="task-board list-surface">
         <div className="task-list">
           {filteredTasks.length ? (
             filteredTasks.map((task) => (
@@ -2148,9 +2139,15 @@ function ReportsPage({
   );
 }
 
-function CalendarPage({ tasks, onOpenTask }: { tasks: Task[]; onOpenTask: (task: Task) => void }) {
+function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser; tasks: Task[]; onOpenTask: (task: Task) => void }) {
   const [mode, setMode] = useState<'일' | '주' | '월'>('월');
+  const calendarTasks = tasks.filter((task) =>
+    task.assigneeId === currentUser.id ||
+    task.creatorId === currentUser.id ||
+    (currentUser.isPrototype && (task.to === currentUser.name || task.from === currentUser.name)),
+  );
   const datedTasks = tasks
+    .filter((task) => calendarTasks.includes(task))
     .filter((task) => task.dueAt)
     .map((task) => ({ task, date: new Date(task.dueAt || '') }))
     .filter((item) => !Number.isNaN(item.date.getTime()))
@@ -2163,6 +2160,8 @@ function CalendarPage({ tasks, onOpenTask }: { tasks: Task[]; onOpenTask: (task:
 
   const tasksForDay = (date: Date) =>
     datedTasks.filter(({ date: dueDate }) => dueDate.toDateString() === date.toDateString());
+  const getCalendarKind = (task: Task) =>
+    task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name) ? '보낸 업무' : '받은 업무';
 
   return (
     <section className="page-shell">
@@ -2190,8 +2189,9 @@ function CalendarPage({ tasks, onOpenTask }: { tasks: Task[]; onOpenTask: (task:
                 <div className="month-cell" key={day.toISOString()}>
                   <strong>{index + 1}</strong>
                   {dayTasks.slice(0, 3).map(({ task, date }) => (
-                    <button key={task.id} onClick={() => onOpenTask(task)} type="button">
-                      {date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} {task.title}
+                    <button data-kind={getCalendarKind(task)} key={task.id} onClick={() => onOpenTask(task)} type="button">
+                      <span>{date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} {task.title}</span>
+                      <small>{getCalendarKind(task)}</small>
                     </button>
                   ))}
                 </div>
@@ -2217,8 +2217,9 @@ function CalendarPage({ tasks, onOpenTask }: { tasks: Task[]; onOpenTask: (task:
                     return (
                       <div className="time-slot" key={`${day.toDateString()}-${hour}`}>
                         {dayTasks.map(({ task }) => (
-                          <button className="calendar-task-pill" key={task.id} onClick={() => onOpenTask(task)} type="button">
-                            {task.title}
+                          <button className="calendar-task-pill" data-kind={getCalendarKind(task)} key={task.id} onClick={() => onOpenTask(task)} type="button">
+                            <span>{task.title}</span>
+                            <small>{getCalendarKind(task)}</small>
                           </button>
                         ))}
                       </div>
