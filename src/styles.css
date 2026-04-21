@@ -1681,6 +1681,43 @@ h1 {
   background: #f1f3f5;
 }
 
+.region-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 7px 0 10px;
+}
+
+.region-chip-select,
+.region-chip-delete {
+  border: 0;
+  color: inherit;
+  background: transparent;
+}
+
+.region-chip-select {
+  min-height: 30px;
+  padding: 0;
+  font: inherit;
+}
+
+.region-chip-delete {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.region-chip-delete:hover {
+  color: #fff;
+  background: #df5f5f;
+}
+
 .settings-card {
   display: grid;
   gap: 12px;
@@ -1784,6 +1821,13 @@ h1 {
 .task-card[data-unread='true'],
 .dashboard-flow-row[data-unread='true'] {
   box-shadow: inset 4px 0 0 #4b8ef7;
+}
+
+.task-board.list-surface {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0;
 }
 
 .compact-list {

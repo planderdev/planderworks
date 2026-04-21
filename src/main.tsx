@@ -2318,9 +2318,13 @@ function ClientsPage({
   };
 
   const deleteRegion = (region: string) => {
-    setRegions((current) => current.filter((item) => item !== region));
-    setForm((current) => ({ ...current, region: current.region === region ? regions.find((item) => item !== region) || '' : current.region }));
-    setEditForm((current) => ({ ...current, region: current.region === region ? regions.find((item) => item !== region) || '' : current.region }));
+    setRegions((current) => {
+      const nextRegions = current.filter((item) => item !== region);
+      const fallbackRegion = nextRegions[0] || '';
+      setForm((formCurrent) => ({ ...formCurrent, region: formCurrent.region === region ? fallbackRegion : formCurrent.region }));
+      setEditForm((editCurrent) => ({ ...editCurrent, region: editCurrent.region === region ? fallbackRegion : editCurrent.region }));
+      return nextRegions;
+    });
   };
 
   return (
@@ -2376,11 +2380,16 @@ function ClientsPage({
           </label>
           <label>
             지역
-            <select value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })}>
-              {regions.map((region) => <option key={region}>{region}</option>)}
-            </select>
+            <RegionEditor
+              regions={regions}
+              selectedRegion={form.region}
+              newRegion={newRegion}
+              onAdd={addRegion}
+              onChangeNewRegion={setNewRegion}
+              onDelete={deleteRegion}
+              onSelect={(region) => setForm({ ...form, region })}
+            />
           </label>
-          <RegionEditor regions={regions} newRegion={newRegion} onAdd={addRegion} onChangeNewRegion={setNewRegion} onDelete={deleteRegion} />
           <label>
             메모
             <textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
@@ -2422,11 +2431,16 @@ function ClientsPage({
             </label>
             <label>
               지역
-              <select value={editForm.region} onChange={(event) => setEditForm({ ...editForm, region: event.target.value })}>
-                {regions.map((region) => <option key={region}>{region}</option>)}
-              </select>
+              <RegionEditor
+                regions={regions}
+                selectedRegion={editForm.region}
+                newRegion={newRegion}
+                onAdd={addRegion}
+                onChangeNewRegion={setNewRegion}
+                onDelete={deleteRegion}
+                onSelect={(region) => setEditForm({ ...editForm, region })}
+              />
             </label>
-            <RegionEditor regions={regions} newRegion={newRegion} onAdd={addRegion} onChangeNewRegion={setNewRegion} onDelete={deleteRegion} />
             <label>
               메모
               <textarea value={editForm.memo} onChange={(event) => setEditForm({ ...editForm, memo: event.target.value })} />
@@ -2444,24 +2458,41 @@ function ClientsPage({
 
 function RegionEditor({
   regions,
+  selectedRegion,
   newRegion,
   onAdd,
   onChangeNewRegion,
   onDelete,
+  onSelect,
 }: {
   regions: string[];
+  selectedRegion: string;
   newRegion: string;
   onAdd: () => void;
   onChangeNewRegion: (region: string) => void;
   onDelete: (region: string) => void;
+  onSelect: (region: string) => void;
 }) {
   return (
     <div className="region-editor">
       <div className="multi-picker compact">
         {regions.map((region) => (
-          <button className="select-chip" key={region} onClick={() => onDelete(region)} type="button">
-            {region} 삭제
-          </button>
+          <span className="select-chip region-chip" data-selected={selectedRegion === region} key={region}>
+            <button className="region-chip-select" onClick={() => onSelect(region)} type="button">
+              {region}
+            </button>
+            <button
+              aria-label={`${region} 삭제`}
+              className="region-chip-delete"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDelete(region);
+              }}
+              type="button"
+            >
+              x
+            </button>
+          </span>
         ))}
       </div>
       <div className="inline-form">
