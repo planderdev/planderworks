@@ -143,6 +143,23 @@ function showActionPopup(message: string) {
   window.dispatchEvent(new CustomEvent('plander-action-complete', { detail: message }));
 }
 
+let confirmRequestId = 0;
+const confirmResolvers = new Map<number, (confirmed: boolean) => void>();
+
+function requestActionConfirm(message: string) {
+  const id = confirmRequestId + 1;
+  confirmRequestId = id;
+  return new Promise<boolean>((resolve) => {
+    confirmResolvers.set(id, resolve);
+    window.dispatchEvent(new CustomEvent('plander-action-confirm-request', { detail: { id, message } }));
+  });
+}
+
+function resolveActionConfirm(id: number, confirmed: boolean) {
+  confirmResolvers.get(id)?.(confirmed);
+  confirmResolvers.delete(id);
+}
+
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
   { id: 'create', label: '업무 생성', icon: Plus },
@@ -371,6 +388,7 @@ function App() {
   const [pushLoading, setPushLoading] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [popupMessage, setPopupMessage] = useState('');
+  const [confirmRequest, setConfirmRequest] = useState<{ id: number; message: string } | null>(null);
   const [forwardHistory, setForwardHistory] = useState<ActiveView[]>([]);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -565,6 +583,16 @@ function App() {
 
     window.addEventListener('plander-action-complete', handleActionComplete);
     return () => window.removeEventListener('plander-action-complete', handleActionComplete);
+  }, []);
+
+  useEffect(() => {
+    const handleConfirmRequest = (event: Event) => {
+      const detail = (event as CustomEvent<{ id: number; message: string }>).detail;
+      if (detail) setConfirmRequest(detail);
+    };
+
+    window.addEventListener('plander-action-confirm-request', handleConfirmRequest);
+    return () => window.removeEventListener('plander-action-confirm-request', handleConfirmRequest);
   }, []);
 
   useEffect(() => {
@@ -1382,6 +1410,13 @@ function App() {
         ) : null}
       </main>
       <TaskDetailModal task={selectedTask} currentUser={currentUser} onClose={() => setSelectedTaskId(null)} onDownloadFile={openTaskFile} onMarkRead={markTaskRead} />
+      <ConfirmPopup
+        request={confirmRequest}
+        onResolve={(id, confirmed) => {
+          resolveActionConfirm(id, confirmed);
+          setConfirmRequest(null);
+        }}
+      />
       <CompletionPopup message={popupMessage} onClose={() => setPopupMessage('')} />
     </div>
   );
@@ -1709,6 +1744,50 @@ function CompletionPopup({ message, onClose }: { message: string; onClose: () =>
         <button className="primary-action wide" onClick={onClose} type="button">
           확인
         </button>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmPopup({
+  request,
+  onResolve,
+}: {
+  request: { id: number; message: string } | null;
+  onResolve: (id: number, confirmed: boolean) => void;
+}) {
+  useEffect(() => {
+    if (!request) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        onResolve(request.id, true);
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onResolve(request.id, false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onResolve, request]);
+
+  if (!request) return null;
+
+  return (
+    <div className="modal-backdrop action-popup-backdrop" role="presentation" onClick={() => onResolve(request.id, false)}>
+      <div className="action-popup" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <CheckCircle2 size={26} />
+        <h2>확인</h2>
+        <p>{request.message}</p>
+        <div className="confirm-actions">
+          <button className="secondary-action" onClick={() => onResolve(request.id, false)} type="button">
+            취소
+          </button>
+          <button className="primary-action" onClick={() => onResolve(request.id, true)} type="button">
+            확인
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2198,7 +2277,7 @@ function ClientsPage({
   const saveEdit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editingClient || actionLoading) return;
-    if (!window.confirm('업체 정보를 저장하시겠습니까?')) return;
+    if (!(await requestActionConfirm('업체 정보를 저장하시겠습니까?'))) return;
     setActionLoading('save');
     const message = await onUpdateClient(editingClient.id, editForm);
     setActionLoading('');
@@ -2208,7 +2287,7 @@ function ClientsPage({
 
   const removeClient = async (client: Client) => {
     if (actionLoading) return;
-    if (!window.confirm(`${client.name} 업체를 삭제하시겠습니까?`)) return;
+    if (!(await requestActionConfirm(`${client.name} 업체를 삭제하시겠습니까?`))) return;
     setActionLoading(client.id);
     const message = await onDeleteClient(client);
     setActionLoading('');
@@ -2943,7 +3022,7 @@ function JobTypeModal({
 
   const remove = async (jobType: string) => {
     if (loadingName) return;
-    if (!window.confirm(`${jobType} 담당업무를 삭제할까요?`)) return;
+    if (!(await requestActionConfirm(`${jobType} 담당업무를 삭제할까요?`))) return;
     setLoadingName(jobType);
     const message = await onDeleteJobType(jobType);
     setLoadingName('');
@@ -3028,7 +3107,7 @@ function SimpleTypeModal({
 
   const remove = async (item: string) => {
     if (loadingName) return;
-    if (!window.confirm(`${item} 항목을 삭제할까요?`)) return;
+    if (!(await requestActionConfirm(`${item} 항목을 삭제할까요?`))) return;
     setLoadingName(item);
     const message = await onDelete(item);
     setLoadingName('');
@@ -3463,7 +3542,7 @@ function TaskCard({
 
   const deleteCurrentTask = async () => {
     if (deleteLoading) return;
-    if (!window.confirm('이 업무를 삭제할까요? 받은 사람 화면에서도 삭제됩니다.')) return;
+    if (!(await requestActionConfirm('이 업무를 삭제할까요? 받은 사람 화면에서도 삭제됩니다.'))) return;
     setDeleteLoading(true);
     const message = await onDeleteTask(task);
     setDeleteLoading(false);

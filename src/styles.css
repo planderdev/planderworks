@@ -1452,6 +1452,13 @@ h1 {
   line-height: 1.5;
 }
 
+.confirm-actions {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .modal-head {
   display: flex;
   align-items: flex-start;
