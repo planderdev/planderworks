@@ -1392,7 +1392,7 @@ h1 {
 .month-events {
   position: relative;
   z-index: 2;
-  grid-auto-rows: 31px;
+  grid-auto-rows: 23px;
   align-items: start;
   margin-top: -70px;
   padding: 0 8px 8px;
@@ -1400,10 +1400,19 @@ h1 {
 }
 
 .calendar-range-pill {
+  min-height: 23px;
   min-width: 0;
+  gap: 4px;
   border: 1px solid var(--card-line);
+  border-radius: 5px;
+  padding: 0 7px;
   background: var(--card-bg);
+  font-size: 0.76rem;
   pointer-events: auto;
+}
+
+.calendar-range-pill small {
+  font-size: 0.62rem;
 }
 
 .week-range-grid {
