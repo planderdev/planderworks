@@ -161,8 +161,8 @@ function resolveActionConfirm(id: number, confirmed: boolean) {
 }
 
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
-  { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
   { id: 'create', label: '업무 생성', icon: Plus },
+  { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
   { id: 'inbox', label: '받은 업무', icon: ClipboardList },
   { id: 'sent', label: '보낸 업무', icon: MessageSquareText },
   { id: 'reports', label: '보고·제안', icon: FileText },
