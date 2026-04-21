@@ -1922,24 +1922,23 @@ function Dashboard({
 }) {
   return (
     <>
-      <section className="hero-panel">
-        <div>
-          <p className="eyebrow">Plander Works</p>
-          <h1>업무 요청, 보고, 전달을 한 화면에서 관리</h1>
-          <p className="hero-copy">
-            직원이 대표에게 보고하고, 팀끼리 요청을 넘기고, 업무 상태와 첨부 내역을 한 흐름에 쌓는 내부 업무 허브.
-          </p>
+      <section className="stats-grid" aria-label="업무 요약">
+        {stats.map((item) => (
+          <button className="stat-card" data-tone={item.tone} key={item.label} onClick={() => onNavigate(item.target)} type="button">
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+            <small>{item.hint}</small>
+          </button>
+        ))}
+      </section>
+
+      <section className="content-grid dashboard-content-grid">
+        <div className="dashboard-flow">
+          <DashboardTaskSection title="받은 업무" eyebrow="Inbox" tasks={tasks} target="inbox" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+          <DashboardTaskSection title="보낸 업무" eyebrow="Sent" tasks={sentTasks} target="sent" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+          <DashboardTaskSection title="보고·제안" eyebrow="Reports" tasks={reportTasks} target="reports" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+          <DashboardClientSection clients={clients} onNavigate={() => onNavigate('clients')} />
         </div>
-      </section>
-
-      <section className="dashboard-flow">
-        <DashboardTaskSection title="받은 업무" eyebrow="Inbox" tasks={tasks} target="inbox" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-        <DashboardTaskSection title="보낸 업무" eyebrow="Sent" tasks={sentTasks} target="sent" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-        <DashboardTaskSection title="보고·제안" eyebrow="Reports" tasks={reportTasks} target="reports" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-        <DashboardClientSection clients={clients} onNavigate={() => onNavigate('clients')} />
-      </section>
-
-      <section className="content-grid">
         <aside className="side-panel">
           <TaskComposer employees={employees} taskTypes={taskTypes} onCreateTask={onCreateTask} />
           <TeamLoad employees={employees} />

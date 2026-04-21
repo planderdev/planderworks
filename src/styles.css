@@ -29,7 +29,7 @@
   --text: #f4f6f9;
   --muted: #a7adb8;
   --soft: #292e37;
-  --line: #303640;
+  --line: #252a31;
   --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
 }
 
@@ -564,6 +564,63 @@ h1 {
   width: 100%;
 }
 
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.stat-card {
+  position: relative;
+  min-height: 112px;
+  display: grid;
+  align-content: center;
+  overflow: hidden;
+  border: 1px solid rgba(150, 158, 172, 0.16);
+  border-radius: 8px;
+  padding: 18px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.015);
+  text-align: left;
+  cursor: pointer;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: #aab0bb;
+}
+
+.stat-card[data-tone='blue']::before {
+  background: #4b8ef7;
+}
+
+.stat-card[data-tone='amber']::before {
+  background: #d69731;
+}
+
+.stat-card[data-tone='red']::before {
+  background: #df5f5f;
+}
+
+.stat-card:hover {
+  background: var(--soft);
+}
+
+.stat-card span,
+.stat-card small {
+  color: var(--muted);
+}
+
+.stat-card strong {
+  display: block;
+  margin: 8px 0 4px;
+  font-size: 2rem;
+}
+
 .task-board,
 .compose-panel,
 .team-panel {
@@ -576,7 +633,11 @@ h1 {
 .dashboard-flow {
   display: grid;
   gap: 28px;
-  margin-bottom: 18px;
+  min-width: 0;
+}
+
+.dashboard-content-grid {
+  align-items: start;
 }
 
 .dashboard-flow-section {
@@ -591,7 +652,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid rgba(150, 158, 172, 0.16);
   padding: 0 0 10px;
   color: var(--text);
   background: transparent;
@@ -619,7 +680,7 @@ h1 {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid rgba(150, 158, 172, 0.14);
   border-radius: 0;
   padding: 0;
   color: var(--text);
@@ -715,7 +776,7 @@ h1 {
   gap: 18px;
   padding: 16px 0;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid rgba(150, 158, 172, 0.14);
   border-radius: 0;
   background: transparent;
 }
@@ -1699,6 +1760,9 @@ h1 {
     padding: 16px;
   }
 
+  .stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
@@ -1741,6 +1805,10 @@ h1 {
   }
 
   .side-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 
