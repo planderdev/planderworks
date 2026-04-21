@@ -934,15 +934,8 @@ h1 {
   background: var(--panel-2);
 }
 
-.table-button {
-  width: 100%;
-  color: var(--text);
-  text-align: left;
-}
-
-.table-button[data-active='true'] {
-  border-color: #8f97a5;
-  background: var(--soft);
+.employee-row {
+  grid-template-columns: minmax(0, 1.4fr) minmax(120px, 0.8fr) 80px 64px 70px;
 }
 
 .table-row strong,
@@ -980,21 +973,114 @@ h1 {
   gap: 18px;
 }
 
-.tag-cloud {
+.secondary-action {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--panel);
+  font-weight: 800;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.modal-card {
+  width: min(460px, 100%);
+  max-height: min(720px, calc(100vh - 36px));
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--panel);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+}
+
+.modal-head {
   display: flex;
-  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.modal-head h2 {
+  margin-bottom: 0;
+}
+
+.job-type-list {
+  display: grid;
   gap: 10px;
 }
 
-.tag-cloud span {
-  min-height: 36px;
+.job-type-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.job-type-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.job-type-head strong {
+  font-weight: 800;
+}
+
+.job-type-head small {
+  min-height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0 10px;
+  color: var(--text);
+  background: var(--soft);
+  font-weight: 800;
+}
+
+.job-type-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.job-type-members p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.member-chip {
+  min-height: 34px;
   display: inline-flex;
   align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 0 13px;
-  color: var(--text);
-  background: var(--panel-2);
-  font-weight: 800;
+  padding: 0 10px;
+  background: var(--panel);
+}
+
+.member-chip span,
+.member-chip small {
+  display: inline-block;
+}
+
+.member-chip small {
+  color: var(--muted);
 }
 
 .settings-card {

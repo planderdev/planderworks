@@ -790,7 +790,7 @@ function App() {
             onUpdateEmployee={updateEmployee}
           />
         ) : null}
-        {activeView === 'jobTypes' && isAdmin ? <JobTypesPage jobTypes={jobTypes} onAddJobType={addJobType} /> : null}
+        {activeView === 'jobTypes' && isAdmin ? <JobTypesPage employees={employees} jobTypes={jobTypes} onAddJobType={addJobType} /> : null}
         {activeView === 'settings' ? (
           <SettingsPage
             backendStatus={backendStatus}
@@ -1296,25 +1296,24 @@ function EmployeesPage({
     jobType: jobTypes[0] || '',
     role: '사용자' as Employee['role'],
   });
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(employees[0]?.id || '');
-  const selectedEmployee = employees.find((employee) => employee.id === selectedEmployeeId) || employees[0];
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [editForm, setEditForm] = useState({
-    name: selectedEmployee?.name || '',
-    phone: selectedEmployee?.phone || '',
-    jobType: selectedEmployee?.jobType || jobTypes[0] || '',
-    role: selectedEmployee?.role || ('사용자' as Employee['role']),
+    name: '',
+    phone: '',
+    jobType: jobTypes[0] || '',
+    role: '사용자' as Employee['role'],
   });
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!selectedEmployee) return;
+  const openEdit = (employee: Employee) => {
+    setEditingEmployee(employee);
     setEditForm({
-      name: selectedEmployee.name,
-      phone: selectedEmployee.phone,
-      jobType: selectedEmployee.jobType,
-      role: selectedEmployee.role,
+      name: employee.name,
+      phone: employee.phone,
+      jobType: employee.jobType,
+      role: employee.role,
     });
-  }, [selectedEmployee?.id]);
+  };
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1338,8 +1337,9 @@ function EmployeesPage({
 
   const submitEdit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!selectedEmployee) return;
-    onUpdateEmployee(selectedEmployee.id, editForm);
+    if (!editingEmployee) return;
+    onUpdateEmployee(editingEmployee.id, editForm);
+    setEditingEmployee(null);
   };
 
   return (
@@ -1355,7 +1355,7 @@ function EmployeesPage({
         <div className="page-card">
           <div className="table-list">
             {employees.map((employee) => (
-              <button className="table-row table-button" data-active={selectedEmployee?.id === employee.id} key={employee.id} onClick={() => setSelectedEmployeeId(employee.id)} type="button">
+              <div className="table-row employee-row" key={employee.id}>
                 <div>
                   <strong>{employee.name}</strong>
                   <span>{employee.email}</span>
@@ -1363,44 +1363,15 @@ function EmployeesPage({
                 <span>{employee.jobType}</span>
                 <span>{employee.role}</span>
                 <small>{employee.load}건</small>
-              </button>
+                <button className="secondary-action" onClick={() => openEdit(employee)} type="button">
+                  수정
+                </button>
+              </div>
             ))}
           </div>
         </div>
 
         <div className="admin-forms">
-          <form className="page-card form-stack" onSubmit={submitEdit}>
-            <div>
-              <p className="eyebrow">Edit User</p>
-              <h2>직원 정보 수정</h2>
-            </div>
-            <label>
-              이름
-              <input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} />
-            </label>
-            <label>
-              전화번호
-              <input value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} />
-            </label>
-            <label>
-              담당업무
-              <select value={editForm.jobType} onChange={(event) => setEditForm({ ...editForm, jobType: event.target.value })}>
-                {jobTypes.map((jobType) => <option key={jobType}>{jobType}</option>)}
-              </select>
-            </label>
-            <label>
-              권한
-              <select value={editForm.role} onChange={(event) => setEditForm({ ...editForm, role: event.target.value as Employee['role'] })}>
-                <option>관리자</option>
-                <option>사용자</option>
-              </select>
-            </label>
-            <button className="primary-action wide" type="submit">
-              <CheckCircle2 size={17} />
-              정보 저장
-            </button>
-          </form>
-
           <form className="page-card form-stack" onSubmit={submit}>
           <div>
             <p className="eyebrow">Create User</p>
@@ -1448,11 +1419,60 @@ function EmployeesPage({
           </form>
         </div>
       </div>
+
+      {editingEmployee ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setEditingEmployee(null)}>
+          <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={submitEdit}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Edit User</p>
+                <h2>직원 정보 수정</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setEditingEmployee(null)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              이름
+              <input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} />
+            </label>
+            <label>
+              전화번호
+              <input value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} />
+            </label>
+            <label>
+              담당업무
+              <select value={editForm.jobType} onChange={(event) => setEditForm({ ...editForm, jobType: event.target.value })}>
+                {jobTypes.map((jobType) => <option key={jobType}>{jobType}</option>)}
+              </select>
+            </label>
+            <label>
+              권한
+              <select value={editForm.role} onChange={(event) => setEditForm({ ...editForm, role: event.target.value as Employee['role'] })}>
+                <option>관리자</option>
+                <option>사용자</option>
+              </select>
+            </label>
+            <button className="primary-action wide" type="submit">
+              <CheckCircle2 size={17} />
+              정보 저장
+            </button>
+          </form>
+        </div>
+      ) : null}
     </section>
   );
 }
 
-function JobTypesPage({ jobTypes, onAddJobType }: { jobTypes: string[]; onAddJobType: (name: string) => void }) {
+function JobTypesPage({
+  employees,
+  jobTypes,
+  onAddJobType,
+}: {
+  employees: Employee[];
+  jobTypes: string[];
+  onAddJobType: (name: string) => void;
+}) {
   const [name, setName] = useState('');
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -1472,8 +1492,31 @@ function JobTypesPage({ jobTypes, onAddJobType }: { jobTypes: string[]; onAddJob
       </div>
 
       <div className="split-layout">
-        <div className="page-card tag-cloud">
-          {jobTypes.map((jobType) => <span key={jobType}>{jobType}</span>)}
+        <div className="page-card job-type-list">
+          {jobTypes.map((jobType) => {
+            const assignedEmployees = employees.filter((employee) => employee.jobType === jobType);
+
+            return (
+              <article className="job-type-card" key={jobType}>
+                <div className="job-type-head">
+                  <strong>{jobType}</strong>
+                  <small>{assignedEmployees.length}명</small>
+                </div>
+                <div className="job-type-members">
+                  {assignedEmployees.length ? (
+                    assignedEmployees.map((employee) => (
+                      <div className="member-chip" key={employee.id}>
+                        <span>{employee.name}</span>
+                        <small>{employee.role}</small>
+                      </div>
+                    ))
+                  ) : (
+                    <p>배정된 직원이 없습니다.</p>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
         <form className="page-card form-stack" onSubmit={submit}>
           <div>
