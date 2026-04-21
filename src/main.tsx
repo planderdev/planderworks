@@ -1099,8 +1099,6 @@ function Sidebar({
   onNavigate: (view: ActiveView) => void;
   showAdmin: boolean;
 }) {
-  const PushIcon = pushEnabled ? Bell : BellOff;
-
   return (
     <aside className="sidebar" data-open={open}>
       <div className="brand-row">
@@ -1183,6 +1181,8 @@ function Topbar({
   onThemeChange: (mode: ThemeMode) => void;
   onMenuClick: () => void;
 }) {
+  const PushIcon = pushEnabled ? Bell : BellOff;
+
   return (
     <header className="topbar">
       <button className="icon-button menu-button" aria-label="메뉴 열기" onClick={onMenuClick}>
