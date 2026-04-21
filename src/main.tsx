@@ -93,12 +93,12 @@ type NewEmployee = Omit<Employee, 'id' | 'load'> & {
   password?: string;
 };
 
-const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType; badge?: number }> = [
+const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
-  { id: 'inbox', label: '받은 업무', icon: ClipboardList, badge: 7 },
-  { id: 'sent', label: '보낸 업무', icon: MessageSquareText, badge: 3 },
+  { id: 'inbox', label: '받은 업무', icon: ClipboardList },
+  { id: 'sent', label: '보낸 업무', icon: MessageSquareText },
   { id: 'create', label: '업무 생성', icon: Plus },
-  { id: 'reports', label: '보고·제안', icon: FileText, badge: 2 },
+  { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'clients', label: '업체', icon: Building2 },
 ];
 
@@ -435,14 +435,41 @@ function App() {
     loadBackendData();
   }, [currentUser?.id, currentUser?.isPrototype]);
 
+  const inboxTasks = useMemo(
+    () => tasks.filter((task) => task.assigneeId === currentUser?.id || task.to === currentUser?.name || (currentUser?.isPrototype && task.to === '인성이형')),
+    [currentUser?.id, currentUser?.isPrototype, currentUser?.name, tasks],
+  );
+
+  const sentTasks = useMemo(
+    () => tasks.filter((task) => task.creatorId === currentUser?.id || task.from === currentUser?.name || (currentUser?.isPrototype && task.from === '인성이형')),
+    [currentUser?.id, currentUser?.isPrototype, currentUser?.name, tasks],
+  );
+
+  const reportTasks = useMemo(
+    () => tasks.filter((task) => task.type === '보고' || task.type === '제안' || task.type === '영업 브리핑'),
+    [tasks],
+  );
+
+  const dueSoonTasks = useMemo(
+    () =>
+      inboxTasks.filter((task) => task.due !== '미정' && task.due !== '검토 대기' && task.status !== '완료'),
+    [inboxTasks],
+  );
+
+  const navBadges: Partial<Record<ActiveView, number>> = {
+    inbox: inboxTasks.length,
+    sent: sentTasks.length,
+    reports: reportTasks.length,
+  };
+
   const dashboardStats = useMemo(
     () => [
-      { label: '받은 업무', value: tasks.filter((task) => task.assigneeId === currentUser?.id || task.to === currentUser?.name || task.to === '인성이형').length, hint: '내 담당 기준', tone: 'silver' },
-      { label: '진행중', value: tasks.filter((task) => task.status === '진행중').length, hint: '담당자 확인중', tone: 'blue' },
-      { label: '완료 요청', value: tasks.filter((task) => task.status === '완료 요청').length, hint: '검토 필요', tone: 'amber' },
-      { label: '마감 임박', value: 3, hint: '48시간 이내', tone: 'red' },
+      { label: '받은 업무', value: inboxTasks.length, hint: '내 담당 기준', tone: 'silver' },
+      { label: '진행중', value: inboxTasks.filter((task) => task.status === '진행중').length, hint: '담당자 확인중', tone: 'blue' },
+      { label: '완료 요청', value: inboxTasks.filter((task) => task.status === '완료 요청').length, hint: '검토 필요', tone: 'amber' },
+      { label: '마감 임박', value: dueSoonTasks.length, hint: '마감일 입력 기준', tone: 'red' },
     ],
-    [currentUser?.id, currentUser?.name, tasks],
+    [dueSoonTasks.length, inboxTasks],
   );
 
   const handlePrototypeLogin = () => {
@@ -728,6 +755,7 @@ function App() {
           setActiveView(view);
           setSidebarOpen(false);
         }}
+        badges={navBadges}
         showAdmin={isAdmin}
       />
       <div className="mobile-overlay" data-open={sidebarOpen} onClick={() => setSidebarOpen(false)} />
@@ -741,10 +769,16 @@ function App() {
         />
 
         {activeView === 'dashboard' ? (
-          <Dashboard stats={dashboardStats} tasks={tasks} employees={employees} onCreateTask={createTask} />
+          <Dashboard
+            stats={dashboardStats}
+            tasks={inboxTasks}
+            employees={employees}
+            onCreateClick={() => setActiveView('create')}
+            onCreateTask={createTask}
+          />
         ) : null}
-        {activeView === 'inbox' ? <TaskListPage title="받은 업무" tasks={tasks.filter((task) => task.assigneeId === currentUser.id || task.to === '인성이형' || task.to === currentUser.name)} /> : null}
-        {activeView === 'sent' ? <TaskListPage title="보낸 업무" tasks={tasks.filter((task) => task.creatorId === currentUser.id || task.from === '인성이형' || task.from === currentUser.name)} /> : null}
+        {activeView === 'inbox' ? <TaskListPage title="받은 업무" tasks={inboxTasks} /> : null}
+        {activeView === 'sent' ? <TaskListPage title="보낸 업무" tasks={sentTasks} /> : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? <ReportsPage tasks={tasks} onCreateTask={createTask} /> : null}
         {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} /> : null}
@@ -870,6 +904,7 @@ function LoginScreen({
 
 function Sidebar({
   activeView,
+  badges,
   currentUser,
   open,
   onClose,
@@ -878,6 +913,7 @@ function Sidebar({
   showAdmin,
 }: {
   activeView: ActiveView;
+  badges: Partial<Record<ActiveView, number>>;
   currentUser: AppUser;
   open: boolean;
   onClose: () => void;
@@ -898,11 +934,12 @@ function Sidebar({
       <nav className="sidebar-nav" aria-label="주 메뉴">
         {primaryNavItems.map((item) => {
           const Icon = item.icon;
+          const badge = badges[item.id] || 0;
           return (
             <button className="nav-button" data-active={activeView === item.id} key={item.id} onClick={() => onNavigate(item.id)}>
               <Icon size={18} />
               <span>{item.label}</span>
-              {item.badge ? <small>{item.badge}</small> : null}
+              {badge > 0 ? <small>{badge}</small> : null}
             </button>
           );
         })}
@@ -1015,11 +1052,13 @@ function Dashboard({
   stats,
   tasks,
   employees,
+  onCreateClick,
   onCreateTask,
 }: {
   stats: Array<{ label: string; value: number; hint: string; tone: string }>;
   tasks: Task[];
   employees: Employee[];
+  onCreateClick: () => void;
   onCreateTask: (task: Omit<Task, 'id' | 'status' | 'watchers'> & { status?: TaskStatus; watchers?: string[] }) => void;
 }) {
   return (
@@ -1032,7 +1071,7 @@ function Dashboard({
             직원이 대표에게 보고하고, 팀끼리 요청을 넘기고, 업무 상태와 첨부 내역을 한 흐름에 쌓는 내부 업무 허브.
           </p>
         </div>
-        <button className="primary-action">
+        <button className="primary-action" onClick={onCreateClick} type="button">
           <Plus size={18} />
           업무 생성
         </button>
