@@ -50,6 +50,7 @@ type AppUser = {
   name: string;
   email: string;
   role: string;
+  accountRole: 'admin' | 'staff';
   isPrototype: boolean;
 };
 
@@ -84,7 +85,7 @@ type Employee = {
   email: string;
   phone: string;
   jobType: string;
-  role: '관리자' | '매니저' | '직원';
+  role: '관리자' | '사용자';
   load: number;
 };
 
@@ -171,8 +172,8 @@ const seedClients: Client[] = [
 const seedEmployees: Employee[] = [
   { id: '1', name: '인성이형', email: 'insung@plander.co.kr', phone: '010-0000-0000', jobType: '일본 마케팅', role: '관리자', load: 7 },
   { id: '2', name: '대표', email: 'ceo@plander.co.kr', phone: '010-1111-1111', jobType: '경영·영업', role: '관리자', load: 5 },
-  { id: '3', name: '디자인팀장', email: 'design@plander.co.kr', phone: '010-2222-2222', jobType: 'UIUX·브랜딩', role: '매니저', load: 9 },
-  { id: '4', name: '개발팀', email: 'dev@plander.co.kr', phone: '010-3333-3333', jobType: '웹·앱 개발', role: '직원', load: 4 },
+  { id: '3', name: '디자인팀장', email: 'design@plander.co.kr', phone: '010-2222-2222', jobType: 'UIUX·브랜딩', role: '사용자', load: 9 },
+  { id: '4', name: '개발팀', email: 'dev@plander.co.kr', phone: '010-3333-3333', jobType: '웹·앱 개발', role: '사용자', load: 4 },
 ];
 
 const seedJobTypes = ['일본 마케팅', '국내 마케팅', '디자인', '개발', '영업', '운영', '대표', '회계·정산'];
@@ -196,6 +197,7 @@ function getUserFromSession(session: Session | null): AppUser | null {
     name: session.user.user_metadata?.name || session.user.email.split('@')[0],
     email: session.user.email,
     role: session.user.user_metadata?.job_type || 'Plander',
+    accountRole: session.user.user_metadata?.role === 'admin' ? 'admin' : 'staff',
     isPrototype: false,
   };
 }
@@ -232,14 +234,13 @@ const priorityFromDb: Record<string, Priority> = {
 
 const roleToDb: Record<Employee['role'], string> = {
   관리자: 'admin',
-  매니저: 'manager',
-  직원: 'staff',
+  사용자: 'staff',
 };
 
 const roleFromDb: Record<string, Employee['role']> = {
   admin: '관리자',
-  manager: '매니저',
-  staff: '직원',
+  manager: '사용자',
+  staff: '사용자',
 };
 
 function formatDueDate(value: string | null | undefined) {
@@ -393,7 +394,7 @@ function App() {
       email: profile.email,
       phone: profile.phone || '',
       jobType: profile.job_types?.name || '미지정',
-      role: roleFromDb[profile.role] || '직원',
+      role: roleFromDb[profile.role] || '사용자',
       load: loadByUser.get(profile.id) || 0,
     }));
 
@@ -406,6 +407,7 @@ function App() {
               ...user,
               name: currentProfile.name,
               role: currentProfile.jobType,
+              accountRole: currentProfile.role === '관리자' ? 'admin' : 'staff',
               email: currentProfile.email,
             }
           : user,
@@ -449,6 +451,7 @@ function App() {
       name: '인성이형',
       email: 'prototype@plander.co.kr',
       role: '일본 마케팅',
+      accountRole: 'admin',
       isPrototype: true,
     });
   };
@@ -576,6 +579,70 @@ function App() {
     setEmployees((current) => [{ id: String(Date.now()), load: 0, ...employeeProfile }, ...current]);
   };
 
+  const updateEmployee = async (employeeId: string, updates: Pick<Employee, 'name' | 'phone' | 'jobType' | 'role'>) => {
+    const jobType = jobTypes.find((item) => item === updates.jobType);
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      let jobTypeId: string | null = null;
+
+      if (jobType) {
+        const { data: jobTypeData, error: jobTypeError } = await supabase
+          .from('job_types')
+          .select('id')
+          .eq('name', jobType)
+          .single();
+
+        if (jobTypeError) {
+          setBackendStatus(`담당업무 조회 실패: ${jobTypeError.message}`);
+          return;
+        }
+
+        jobTypeId = jobTypeData.id;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          name: updates.name,
+          phone: updates.phone,
+          job_type_id: jobTypeId,
+          role: roleToDb[updates.role],
+        })
+        .eq('id', employeeId);
+
+      if (error) {
+        setBackendStatus(`직원 정보 수정 실패: ${error.message}`);
+        return;
+      }
+
+      await loadBackendData();
+      return;
+    }
+
+    setEmployees((current) =>
+      current.map((employee) => (employee.id === employeeId ? { ...employee, ...updates } : employee)),
+    );
+  };
+
+  const updateOwnProfile = async (updates: Pick<Employee, 'name' | 'phone' | 'jobType'>) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+
+    const target = employees.find((employee) => employee.id === currentUser.id);
+
+    if (!target && !currentUser.isPrototype) {
+      return '프로필 정보를 찾을 수 없습니다.';
+    }
+
+    await updateEmployee(currentUser.id, {
+      name: updates.name,
+      phone: updates.phone,
+      jobType: updates.jobType,
+      role: target?.role || (currentUser.accountRole === 'admin' ? '관리자' : '사용자'),
+    });
+
+    return '내 정보가 저장되었습니다.';
+  };
+
   const registerPushNotifications = async () => {
     if (!supabase || !currentUser || currentUser.isPrototype) {
       return '실제 로그인 후 푸시알림을 켤 수 있습니다.';
@@ -646,6 +713,8 @@ function App() {
     );
   }
 
+  const isAdmin = currentUser.accountRole === 'admin';
+
   return (
     <div className="app">
       <Sidebar
@@ -655,9 +724,11 @@ function App() {
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
         onNavigate={(view) => {
+          if (!isAdmin && (view === 'employees' || view === 'jobTypes')) return;
           setActiveView(view);
           setSidebarOpen(false);
         }}
+        showAdmin={isAdmin}
       />
       <div className="mobile-overlay" data-open={sidebarOpen} onClick={() => setSidebarOpen(false)} />
 
@@ -677,19 +748,24 @@ function App() {
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? <ReportsPage tasks={tasks} onCreateTask={createTask} /> : null}
         {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} /> : null}
-        {activeView === 'employees' ? (
+        {activeView === 'employees' && isAdmin ? (
           <EmployeesPage
             employees={employees}
             jobTypes={jobTypes}
             onAddEmployee={addEmployee}
+            onUpdateEmployee={updateEmployee}
           />
         ) : null}
-        {activeView === 'jobTypes' ? <JobTypesPage jobTypes={jobTypes} onAddJobType={addJobType} /> : null}
+        {activeView === 'jobTypes' && isAdmin ? <JobTypesPage jobTypes={jobTypes} onAddJobType={addJobType} /> : null}
         {activeView === 'settings' ? (
           <SettingsPage
             backendStatus={backendStatus}
+            currentUser={currentUser}
+            employees={employees}
+            jobTypes={jobTypes}
             themeMode={themeMode}
             onRegisterPush={registerPushNotifications}
+            onUpdateOwnProfile={updateOwnProfile}
             onThemeChange={setThemeMode}
           />
         ) : null}
@@ -799,6 +875,7 @@ function Sidebar({
   onClose,
   onLogout,
   onNavigate,
+  showAdmin,
 }: {
   activeView: ActiveView;
   currentUser: AppUser;
@@ -806,6 +883,7 @@ function Sidebar({
   onClose: () => void;
   onLogout: () => void;
   onNavigate: (view: ActiveView) => void;
+  showAdmin: boolean;
 }) {
   return (
     <aside className="sidebar" data-open={open}>
@@ -831,18 +909,28 @@ function Sidebar({
       </nav>
 
       <div className="sidebar-bottom-layer">
-        <div className="sidebar-section">
-          <p>관리</p>
-          {adminNavItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button className="nav-button compact" data-active={activeView === item.id} key={item.id} onClick={() => onNavigate(item.id)}>
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {showAdmin ? (
+          <div className="sidebar-section">
+            <p>관리</p>
+            {adminNavItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button className="nav-button compact" data-active={activeView === item.id} key={item.id} onClick={() => onNavigate(item.id)}>
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="sidebar-section">
+            <p>계정</p>
+            <button className="nav-button compact" data-active={activeView === 'settings'} onClick={() => onNavigate('settings')}>
+              <Settings size={18} />
+              <span>설정</span>
+            </button>
+          </div>
+        )}
 
         <div className="profile-card">
           <CircleUserRound size={34} />
@@ -1153,10 +1241,12 @@ function EmployeesPage({
   employees,
   jobTypes,
   onAddEmployee,
+  onUpdateEmployee,
 }: {
   employees: Employee[];
   jobTypes: string[];
   onAddEmployee: (employee: NewEmployee) => void;
+  onUpdateEmployee: (employeeId: string, updates: Pick<Employee, 'name' | 'phone' | 'jobType' | 'role'>) => void;
 }) {
   const [form, setForm] = useState({
     name: '',
@@ -1165,9 +1255,27 @@ function EmployeesPage({
     passwordConfirm: '',
     phone: '',
     jobType: jobTypes[0] || '',
-    role: '직원' as Employee['role'],
+    role: '사용자' as Employee['role'],
+  });
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(employees[0]?.id || '');
+  const selectedEmployee = employees.find((employee) => employee.id === selectedEmployeeId) || employees[0];
+  const [editForm, setEditForm] = useState({
+    name: selectedEmployee?.name || '',
+    phone: selectedEmployee?.phone || '',
+    jobType: selectedEmployee?.jobType || jobTypes[0] || '',
+    role: selectedEmployee?.role || ('사용자' as Employee['role']),
   });
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!selectedEmployee) return;
+    setEditForm({
+      name: selectedEmployee.name,
+      phone: selectedEmployee.phone,
+      jobType: selectedEmployee.jobType,
+      role: selectedEmployee.role,
+    });
+  }, [selectedEmployee?.id]);
 
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1186,7 +1294,13 @@ function EmployeesPage({
       jobType: form.jobType,
       role: form.role,
     });
-    setForm({ name: '', email: '', password: '', passwordConfirm: '', phone: '', jobType: jobTypes[0] || '', role: '직원' });
+    setForm({ name: '', email: '', password: '', passwordConfirm: '', phone: '', jobType: jobTypes[0] || '', role: '사용자' });
+  };
+
+  const submitEdit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!selectedEmployee) return;
+    onUpdateEmployee(selectedEmployee.id, editForm);
   };
 
   return (
@@ -1202,7 +1316,7 @@ function EmployeesPage({
         <div className="page-card">
           <div className="table-list">
             {employees.map((employee) => (
-              <div className="table-row" key={employee.id}>
+              <button className="table-row table-button" data-active={selectedEmployee?.id === employee.id} key={employee.id} onClick={() => setSelectedEmployeeId(employee.id)} type="button">
                 <div>
                   <strong>{employee.name}</strong>
                   <span>{employee.email}</span>
@@ -1210,17 +1324,50 @@ function EmployeesPage({
                 <span>{employee.jobType}</span>
                 <span>{employee.role}</span>
                 <small>{employee.load}건</small>
-              </div>
+              </button>
             ))}
           </div>
         </div>
 
-        <form className="page-card form-stack" onSubmit={submit}>
+        <div className="admin-forms">
+          <form className="page-card form-stack" onSubmit={submitEdit}>
+            <div>
+              <p className="eyebrow">Edit User</p>
+              <h2>직원 정보 수정</h2>
+            </div>
+            <label>
+              이름
+              <input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} />
+            </label>
+            <label>
+              전화번호
+              <input value={editForm.phone} onChange={(event) => setEditForm({ ...editForm, phone: event.target.value })} />
+            </label>
+            <label>
+              담당업무
+              <select value={editForm.jobType} onChange={(event) => setEditForm({ ...editForm, jobType: event.target.value })}>
+                {jobTypes.map((jobType) => <option key={jobType}>{jobType}</option>)}
+              </select>
+            </label>
+            <label>
+              권한
+              <select value={editForm.role} onChange={(event) => setEditForm({ ...editForm, role: event.target.value as Employee['role'] })}>
+                <option>관리자</option>
+                <option>사용자</option>
+              </select>
+            </label>
+            <button className="primary-action wide" type="submit">
+              <CheckCircle2 size={17} />
+              정보 저장
+            </button>
+          </form>
+
+          <form className="page-card form-stack" onSubmit={submit}>
           <div>
             <p className="eyebrow">Create User</p>
             <h2>계정 생성 폼</h2>
           </div>
-          <p className="admin-note">현재는 프론트 MVP 폼입니다. 실제 Supabase 계정 생성은 service role key가 필요한 서버 전용 기능으로 붙입니다.</p>
+          <p className="admin-note">관리자만 사용자 계정을 생성할 수 있습니다. 초기 비밀번호는 로그인 후 변경하도록 안내하세요.</p>
           <label>
             이름
             <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
@@ -1247,12 +1394,20 @@ function EmployeesPage({
             전화번호
             <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
           </label>
+          <label>
+            권한
+            <select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as Employee['role'] })}>
+              <option>관리자</option>
+              <option>사용자</option>
+            </select>
+          </label>
           {error ? <p className="auth-error">{error}</p> : null}
           <button className="primary-action wide" type="submit">
             <Plus size={17} />
             계정 추가
           </button>
-        </form>
+          </form>
+        </div>
       </div>
     </section>
   );
@@ -1302,22 +1457,50 @@ function JobTypesPage({ jobTypes, onAddJobType }: { jobTypes: string[]; onAddJob
 
 function SettingsPage({
   backendStatus,
+  currentUser,
+  employees,
+  jobTypes,
   themeMode,
   onRegisterPush,
+  onUpdateOwnProfile,
   onThemeChange,
 }: {
   backendStatus: string;
+  currentUser: AppUser;
+  employees: Employee[];
+  jobTypes: string[];
   themeMode: ThemeMode;
   onRegisterPush: () => Promise<string>;
+  onUpdateOwnProfile: (updates: Pick<Employee, 'name' | 'phone' | 'jobType'>) => Promise<string>;
   onThemeChange: (mode: ThemeMode) => void;
 }) {
   const [pushStatus, setPushStatus] = useState('이 기기에서 푸시알림을 켜면 새 업무 배정 시 알림을 받을 수 있습니다.');
   const [pushLoading, setPushLoading] = useState(false);
+  const currentEmployee = employees.find((employee) => employee.id === currentUser.id);
+  const [profileForm, setProfileForm] = useState({
+    name: currentEmployee?.name || currentUser.name,
+    phone: currentEmployee?.phone || '',
+    jobType: currentEmployee?.jobType || currentUser.role,
+  });
+  const [profileStatus, setProfileStatus] = useState('');
+
+  useEffect(() => {
+    setProfileForm({
+      name: currentEmployee?.name || currentUser.name,
+      phone: currentEmployee?.phone || '',
+      jobType: currentEmployee?.jobType || currentUser.role,
+    });
+  }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.jobType, currentUser.name, currentUser.role]);
 
   const handleRegisterPush = async () => {
     setPushLoading(true);
     setPushStatus(await onRegisterPush());
     setPushLoading(false);
+  };
+
+  const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setProfileStatus(await onUpdateOwnProfile(profileForm));
   };
 
   return (
@@ -1334,6 +1517,31 @@ function SettingsPage({
           <h2>백엔드</h2>
           <p>{backendStatus}</p>
         </div>
+        <form className="page-card form-stack" onSubmit={submitProfile}>
+          <div>
+            <p className="eyebrow">My Profile</p>
+            <h2>내 정보 수정</h2>
+          </div>
+          <label>
+            이름
+            <input value={profileForm.name} onChange={(event) => setProfileForm({ ...profileForm, name: event.target.value })} />
+          </label>
+          <label>
+            전화번호
+            <input value={profileForm.phone} onChange={(event) => setProfileForm({ ...profileForm, phone: event.target.value })} />
+          </label>
+          <label>
+            담당업무
+            <select value={profileForm.jobType} onChange={(event) => setProfileForm({ ...profileForm, jobType: event.target.value })}>
+              {jobTypes.map((jobType) => <option key={jobType}>{jobType}</option>)}
+            </select>
+          </label>
+          {profileStatus ? <p className="admin-note">{profileStatus}</p> : null}
+          <button className="primary-action wide" type="submit">
+            <CheckCircle2 size={17} />
+            내 정보 저장
+          </button>
+        </form>
         <div className="page-card settings-card">
           <h2>테마</h2>
           <p>사이드바는 Plander 블랙을 유지하고, 업무 영역은 라이트/다크/시스템 설정을 따릅니다.</p>

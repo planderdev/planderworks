@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 
-type UserRole = 'admin' | 'manager' | 'staff';
+type UserRole = 'admin' | 'staff';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
   const password = String(body.password || '');
   const name = String(body.name || email.split('@')[0] || '').trim();
   const phone = String(body.phone || '').trim();
-  const role = (body.role || 'staff') as UserRole;
+  const role: UserRole = body.role === 'admin' ? 'admin' : 'staff';
   const jobTypeName = String(body.jobType || '').trim();
 
   if (!email || !password || !name) {

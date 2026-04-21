@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
       .eq('id', callerData.user.id)
       .single();
 
-    if (!['admin', 'manager'].includes(callerProfile?.role)) {
+    if (callerProfile?.role !== 'admin') {
       return jsonResponse({ error: 'Forbidden' }, 403);
     }
   }
