@@ -309,6 +309,7 @@ function App() {
   const [backendStatus, setBackendStatus] = useState('프로토타입 데이터');
   const [pushStatus, setPushStatus] = useState('종 버튼을 누르면 이 기기 업무 푸시알림을 켤 수 있습니다.');
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushEnabled, setPushEnabled] = useState(false);
 
   useEffect(() => {
     applyTheme(themeMode);
@@ -464,6 +465,36 @@ function App() {
 
   useEffect(() => {
     loadBackendData();
+  }, [currentUser?.id, currentUser?.isPrototype]);
+
+  useEffect(() => {
+    if (!currentUser || currentUser.isPrototype || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+      setPushEnabled(false);
+      return;
+    }
+
+    let mounted = true;
+
+    navigator.serviceWorker
+      .register('/sw.js')
+      .then((registration) => registration.pushManager.getSubscription())
+      .then((subscription) => {
+        if (!mounted) return;
+        setPushEnabled(Boolean(subscription));
+        setPushStatus(
+          subscription
+            ? '이 기기 업무 푸시알림이 켜져 있습니다.'
+            : '종 버튼을 누르면 이 기기 업무 푸시알림을 켤 수 있습니다.',
+        );
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setPushEnabled(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, [currentUser?.id, currentUser?.isPrototype]);
 
   const inboxTasks = useMemo(
@@ -777,6 +808,7 @@ function App() {
         return `푸시 구독 해제 실패: ${error.message}`;
       }
 
+      setPushEnabled(false);
       return '이 기기 업무 푸시알림이 꺼졌습니다.';
     }
 
@@ -801,6 +833,7 @@ function App() {
       return `푸시 구독 저장 실패: ${error.message}`;
     }
 
+    setPushEnabled(true);
     return '이 기기에서 업무 푸시알림이 켜졌습니다.';
   };
 
@@ -855,6 +888,7 @@ function App() {
       <main className="workspace">
         <Topbar
           currentUser={currentUser}
+          pushEnabled={pushEnabled}
           pushLoading={pushLoading}
           pushStatus={pushStatus}
           themeMode={themeMode}
@@ -894,6 +928,7 @@ function App() {
             employees={employees}
             jobTypes={jobTypes}
             themeMode={themeMode}
+            pushEnabled={pushEnabled}
             pushLoading={pushLoading}
             pushStatus={pushStatus}
             onRegisterPush={handleRegisterPush}
@@ -1084,6 +1119,7 @@ function Sidebar({
 
 function Topbar({
   currentUser,
+  pushEnabled,
   pushLoading,
   pushStatus,
   themeMode,
@@ -1092,6 +1128,7 @@ function Topbar({
   onMenuClick,
 }: {
   currentUser: AppUser;
+  pushEnabled: boolean;
   pushLoading: boolean;
   pushStatus: string;
   themeMode: ThemeMode;
@@ -1114,7 +1151,8 @@ function Topbar({
         <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
         <button
           className="icon-button"
-          aria-label="푸시알림 설정"
+          aria-label={pushEnabled ? '푸시알림 끄기' : '푸시알림 켜기'}
+          data-active={pushEnabled}
           disabled={pushLoading}
           onClick={onRegisterPush}
           title={pushStatus}
@@ -1731,6 +1769,7 @@ function SettingsPage({
   currentUser,
   employees,
   jobTypes,
+  pushEnabled,
   pushLoading,
   pushStatus,
   themeMode,
@@ -1742,6 +1781,7 @@ function SettingsPage({
   currentUser: AppUser;
   employees: Employee[];
   jobTypes: string[];
+  pushEnabled: boolean;
   pushLoading: boolean;
   pushStatus: string;
   themeMode: ThemeMode;
@@ -1862,7 +1902,7 @@ function SettingsPage({
           <p>{pushStatus}</p>
           <button className="primary-action" disabled={pushLoading} onClick={onRegisterPush} type="button">
             <Bell size={17} />
-            {pushLoading ? '설정중' : '이 기기 알림 켜기'}
+            {pushLoading ? '설정중' : pushEnabled ? '이 기기 알림 끄기' : '이 기기 알림 켜기'}
           </button>
         </div>
         <div className="page-card settings-card">

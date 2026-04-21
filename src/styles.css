@@ -393,6 +393,12 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+.icon-button[data-active='true'] {
+  border-color: #f1f3f5;
+  color: #111;
+  background: #f1f3f5;
+}
+
 .menu-button,
 .close-sidebar {
   display: none;
