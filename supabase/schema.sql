@@ -75,6 +75,7 @@ create table if not exists public.tasks (
   client_id uuid references public.clients(id) on delete set null,
   project_id uuid references public.projects(id) on delete set null,
   due_at timestamptz,
+  started_at timestamptz,
   read_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -138,6 +139,19 @@ begin
 end;
 $$;
 
+create or replace function public.set_task_started_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.status = 'in_progress' and new.started_at is null then
+    new.started_at = now();
+  end if;
+
+  return new;
+end;
+$$;
+
 drop trigger if exists set_profiles_updated_at on public.profiles;
 create trigger set_profiles_updated_at
 before update on public.profiles
@@ -157,6 +171,11 @@ drop trigger if exists set_tasks_updated_at on public.tasks;
 create trigger set_tasks_updated_at
 before update on public.tasks
 for each row execute function public.set_updated_at();
+
+drop trigger if exists set_tasks_started_at on public.tasks;
+create trigger set_tasks_started_at
+before insert or update on public.tasks
+for each row execute function public.set_task_started_at();
 
 drop trigger if exists set_push_subscriptions_updated_at on public.push_subscriptions;
 create trigger set_push_subscriptions_updated_at
@@ -410,7 +429,22 @@ drop policy if exists "task participants create comments" on public.task_comment
 create policy "task participants create comments"
 on public.task_comments for insert
 to authenticated
-with check (user_id = auth.uid());
+with check (
+  user_id = auth.uid()
+  and (
+    public.current_user_role() = 'admin'
+    or exists (
+      select 1 from public.tasks
+      where tasks.id = task_comments.task_id
+        and (tasks.creator_id = auth.uid() or tasks.assignee_id = auth.uid())
+    )
+    or exists (
+      select 1 from public.task_watchers
+      where task_watchers.task_id = task_comments.task_id
+        and task_watchers.user_id = auth.uid()
+    )
+  )
+);
 
 drop policy if exists "task participants read files" on public.task_files;
 drop policy if exists "authenticated users read task file records" on public.task_files;

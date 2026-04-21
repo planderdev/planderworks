@@ -9,6 +9,8 @@ import {
   CalendarClock,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CircleUserRound,
   ClipboardList,
   FileText,
@@ -48,6 +50,7 @@ type TaskListFilter = '전체' | TaskStatus;
 type Priority = '높음' | '보통' | '낮음';
 type TaskType = string;
 
+const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'create', 'reports', 'clients', 'employees', 'settings'];
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 
 type AppUser = {
@@ -69,6 +72,7 @@ type Task = {
   clientId?: string;
   client: string;
   dueAt?: string | null;
+  startedAt?: string | null;
   readAt?: string | null;
   due: string;
   status: TaskStatus;
@@ -77,6 +81,7 @@ type Task = {
   summary: string;
   watchers: string[];
   files: TaskFile[];
+  comments: TaskComment[];
 };
 
 type TaskFile = {
@@ -85,6 +90,15 @@ type TaskFile = {
   path: string;
   size?: number | null;
   mimeType?: string | null;
+};
+
+type TaskComment = {
+  id: string;
+  taskId: string;
+  userId?: string;
+  author: string;
+  content: string;
+  createdAt: string;
 };
 
 type Client = {
@@ -118,7 +132,7 @@ type OwnProfileUpdate = Pick<Employee, 'name' | 'phone' | 'jobType'> & {
   password?: string;
 };
 
-type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'dueAt' | 'readAt'> & {
+type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'comments' | 'dueAt' | 'startedAt' | 'readAt'> & {
   status?: TaskStatus;
   watchers?: string[];
   toIds?: string[];
@@ -129,6 +143,7 @@ type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'dueAt' | '
 
 type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
 type TaskDeleteHandler = (task: Task) => Promise<string>;
+type TaskCommentSubmitHandler = (task: Task, content: string) => Promise<string>;
 type MessageHandler = (message: string) => void;
 type ClientSubmitHandler = (client: Omit<Client, 'id'>) => Promise<string>;
 type ClientUpdateHandler = (clientId: string, client: Omit<Client, 'id'>) => Promise<string>;
@@ -191,6 +206,7 @@ const seedTasks: Task[] = [
     summary: '일본인 한국여행 계정 8명 후보와 촬영 가능 일정 정리 필요',
     watchers: ['대표', '운영팀'],
     files: [],
+    comments: [],
   },
   {
     id: '2',
@@ -205,6 +221,7 @@ const seedTasks: Task[] = [
     summary: '일본 현지 고객용 상세페이지 레퍼런스와 시술 메뉴 번역본 전달',
     watchers: ['인성이형'],
     files: [],
+    comments: [],
   },
   {
     id: '3',
@@ -219,6 +236,7 @@ const seedTasks: Task[] = [
     summary: '라쿠텐, 아마존 재팬, 큐텐 입점 조건 비교 및 예상 비용 보고',
     watchers: ['대표', '디자인팀장'],
     files: [],
+    comments: [],
   },
   {
     id: '4',
@@ -233,6 +251,7 @@ const seedTasks: Task[] = [
     summary: '비 오는 날 대체 촬영 컷 구성과 인플루언서 이동 동선 확인',
     watchers: ['운영팀'],
     files: [],
+    comments: [],
   },
 ];
 
@@ -332,6 +351,37 @@ const hasValidMobilePhoneLength = (value: string) => {
 };
 
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+const isActiveView = (value: unknown): value is ActiveView => typeof value === 'string' && appViews.includes(value as ActiveView);
+
+const startOfCalendarDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const addCalendarDays = (date: Date, days: number) => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+};
+const diffCalendarDays = (start: Date, end: Date) =>
+  Math.round((startOfCalendarDay(end).getTime() - startOfCalendarDay(start).getTime()) / 86400000);
+
+const parseTaskDate = (value: string | null | undefined) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const getTaskCalendarRange = (task: Task) => {
+  const dueDate = parseTaskDate(task.dueAt);
+  if (!dueDate) return null;
+
+  const startedDate = parseTaskDate(task.startedAt);
+  const rangeStart = startedDate && startedDate.getTime() <= dueDate.getTime() ? startedDate : dueDate;
+  const rangeEnd = dueDate.getTime() >= rangeStart.getTime() ? dueDate : rangeStart;
+
+  return {
+    start: rangeStart,
+    end: rangeEnd,
+    days: Math.max(1, diffCalendarDays(rangeStart, rangeEnd) + 1),
+  };
+};
 
 function formatDueDate(value: string | null | undefined) {
   if (!value) return '미정';
@@ -398,6 +448,10 @@ function App() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [taskListFilters, setTaskListFilters] = useState<Partial<Record<ActiveView, TaskListFilter>>>({});
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
+  const appHistoryReady = useRef(false);
+  const lastUserId = useRef<string | null>(null);
+
+  const getAppHistoryUrl = (view: ActiveView) => `${window.location.pathname}#${view}`;
 
   useEffect(() => {
     applyTheme(themeMode);
@@ -436,6 +490,26 @@ function App() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!currentUser) {
+      lastUserId.current = null;
+      return;
+    }
+
+    if (lastUserId.current === currentUser.id) return;
+    lastUserId.current = currentUser.id;
+    appHistoryReady.current = false;
+    setActiveView('dashboard');
+    setViewHistory([]);
+    setForwardHistory([]);
+    setSidebarOpen(false);
+    setTaskListFilters({});
+
+    if (!new URLSearchParams(window.location.search).get('taskId')) {
+      setSelectedTaskId(null);
+    }
+  }, [currentUser?.id]);
+
   const loadBackendData = async () => {
     if (!supabase || !currentUser || currentUser.isPrototype) {
       return;
@@ -443,7 +517,7 @@ function App() {
 
     setBackendStatus('Supabase 동기화중');
 
-    const [profilesResult, jobTypesResult, taskTypesResult, clientsResult, tasksResult] = await Promise.all([
+    const [profilesResult, jobTypesResult, taskTypesResult, clientsResult, tasksResult, commentsResult] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, email, name, phone, role, job_types(name)')
@@ -472,6 +546,7 @@ function App() {
           status,
           priority,
           due_at,
+          started_at,
           read_at,
           creator_id,
           assignee_id,
@@ -483,14 +558,32 @@ function App() {
           task_files(id, file_name, file_path, file_size, mime_type)
         `)
         .order('created_at', { ascending: false }),
+      supabase
+        .from('task_comments')
+        .select('id, task_id, user_id, content, created_at, user:profiles!task_comments_user_id_fkey(name)')
+        .order('created_at', { ascending: true }),
     ]);
 
-    if (profilesResult.error || jobTypesResult.error || taskTypesResult.error || clientsResult.error || tasksResult.error) {
+    if (profilesResult.error || jobTypesResult.error || taskTypesResult.error || clientsResult.error || tasksResult.error || commentsResult.error) {
       setBackendStatus('Supabase 테이블 준비 필요');
       return;
     }
 
     const rawTasks = (tasksResult.data || []) as any[];
+    const commentsByTask = ((commentsResult.data || []) as any[]).reduce<Record<string, TaskComment[]>>((groups, comment) => {
+      const nextComment: TaskComment = {
+        id: comment.id,
+        taskId: comment.task_id,
+        userId: comment.user_id,
+        author: comment.user?.name || '알 수 없음',
+        content: comment.content,
+        createdAt: comment.created_at,
+      };
+      return {
+        ...groups,
+        [comment.task_id]: [...(groups[comment.task_id] || []), nextComment],
+      };
+    }, {});
 
     const nextTasks: Task[] = rawTasks.map((task) => ({
       id: task.id,
@@ -502,6 +595,7 @@ function App() {
       clientId: task.client_id,
       client: task.client?.name || '내부',
       dueAt: task.due_at,
+      startedAt: task.started_at,
       readAt: task.read_at,
       due: formatDueDate(task.due_at),
       status: statusFromDb[task.status] || '대기',
@@ -516,6 +610,7 @@ function App() {
         size: file.file_size,
         mimeType: file.mime_type,
       })),
+      comments: commentsByTask[task.id] || [],
     }));
 
     const loadByUser = new Map<string, number>();
@@ -599,6 +694,40 @@ function App() {
     window.addEventListener('plander-action-confirm-request', handleConfirmRequest);
     return () => window.removeEventListener('plander-action-confirm-request', handleConfirmRequest);
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) {
+      appHistoryReady.current = false;
+      return;
+    }
+
+    if (!appHistoryReady.current && activeView !== 'dashboard') return;
+
+    if (!appHistoryReady.current) {
+      window.history.replaceState({ plander: true, view: activeView, guard: true }, '', getAppHistoryUrl(activeView));
+      window.history.pushState({ plander: true, view: activeView }, '', getAppHistoryUrl(activeView));
+      appHistoryReady.current = true;
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
+      const state = event.state as { plander?: boolean; view?: unknown; filter?: TaskListFilter; guard?: boolean } | null;
+      if (!state?.plander) return;
+
+      if (state.guard) {
+        window.history.pushState({ plander: true, view: activeView }, '', getAppHistoryUrl(activeView));
+        return;
+      }
+
+      if (!isActiveView(state.view)) return;
+      setActiveView(state.view);
+      setSidebarOpen(false);
+      setSelectedTaskId(null);
+      if (state.filter) setTaskListFilters((current) => ({ ...current, [state.view as ActiveView]: state.filter }));
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeView, currentUser]);
 
   useEffect(() => {
     if (!currentUser || currentUser.isPrototype || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -692,6 +821,9 @@ function App() {
     setViewHistory((history) => [...history, activeView].slice(-12));
     setForwardHistory([]);
     setActiveView(view);
+    if (appHistoryReady.current) {
+      window.history.pushState({ plander: true, view, filter }, '', getAppHistoryUrl(view));
+    }
   };
 
   const navigateBack = () => {
@@ -836,6 +968,7 @@ function App() {
         description: task.summary,
         task_type: task.type,
         status: statusToDb[task.status || '대기'],
+        started_at: task.status === '진행중' ? new Date().toISOString() : null,
         priority: priorityToDb[task.priority],
         creator_id: currentUser.id,
         assignee_id: assignee.id,
@@ -886,7 +1019,9 @@ function App() {
     const nextTasks: Task[] = prototypeAssignees.map((assignee, index) => ({
       id: `${Date.now()}-${index}`,
       status: task.status || '대기',
+      startedAt: task.status === '진행중' ? new Date().toISOString() : null,
       watchers: task.watchers || [],
+      comments: [],
       ...task,
       files: (task.files || []).map((file, fileIndex) => ({
         id: `${Date.now()}-${index}-${fileIndex}`,
@@ -1163,9 +1298,14 @@ function App() {
 
   const updateTaskStatus = async (taskId: string, status: TaskStatus): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
+      const currentTask = tasks.find((task) => task.id === taskId);
+      const updates = {
+        status: statusToDb[status],
+        ...(status === '진행중' && !currentTask?.startedAt ? { started_at: new Date().toISOString() } : {}),
+      };
       const { error } = await supabase
         .from('tasks')
-        .update({ status: statusToDb[status] })
+        .update(updates)
         .eq('id', taskId);
 
       if (error) {
@@ -1178,7 +1318,13 @@ function App() {
       return `업무 상태를 ${status}(으)로 변경했습니다.`;
     }
 
-    setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, status } : task)));
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === taskId
+          ? { ...task, status, startedAt: status === '진행중' ? task.startedAt || new Date().toISOString() : task.startedAt }
+          : task,
+      ),
+    );
     return `업무 상태를 ${status}(으)로 변경했습니다.`;
   };
 
@@ -1195,6 +1341,57 @@ function App() {
     }
 
     setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, readAt } : item)));
+  };
+
+  const addTaskComment = async (task: Task, content: string): Promise<string> => {
+    const nextContent = content.trim();
+    if (!nextContent) return '댓글 내용을 입력해주세요.';
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { data, error } = await supabase
+        .from('task_comments')
+        .insert({
+          task_id: task.id,
+          user_id: currentUser.id,
+          content: nextContent,
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        const message = `댓글 등록 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      if (data?.id) {
+        await supabase.functions.invoke('send-comment-notification', {
+          body: { commentId: data.id },
+        });
+      }
+
+      await loadBackendData();
+      return '댓글이 등록되었습니다.';
+    }
+
+    const nextComment: TaskComment = {
+      id: `${Date.now()}`,
+      taskId: task.id,
+      userId: currentUser?.id,
+      author: currentUser?.name || '나',
+      content: nextContent,
+      createdAt: new Date().toISOString(),
+    };
+
+    setTasks((current) =>
+      current.map((item) =>
+        item.id === task.id
+          ? { ...item, comments: [...item.comments, nextComment] }
+          : item,
+      ),
+    );
+
+    return '댓글이 등록되었습니다.';
   };
 
   const openTaskFile = async (file: TaskFile) => {
@@ -1436,7 +1633,7 @@ function App() {
           />
         ) : null}
       </main>
-      <TaskDetailModal task={selectedTask} currentUser={currentUser} onClose={() => setSelectedTaskId(null)} onDownloadFile={openTaskFile} onMarkRead={markTaskRead} />
+      <TaskDetailModal task={selectedTask} currentUser={currentUser} onAddComment={addTaskComment} onClose={() => setSelectedTaskId(null)} onDownloadFile={openTaskFile} onMarkRead={markTaskRead} />
       <ConfirmPopup
         request={confirmRequest}
         onResolve={(id, confirmed) => {
@@ -1823,21 +2020,32 @@ function ConfirmPopup({
 function TaskDetailModal({
   task,
   currentUser,
+  onAddComment,
   onClose,
   onDownloadFile,
   onMarkRead,
 }: {
   task: Task | null;
   currentUser: AppUser;
+  onAddComment: TaskCommentSubmitHandler;
   onClose: () => void;
   onDownloadFile: (file: TaskFile) => void;
   onMarkRead: (task: Task) => void;
 }) {
+  const [comment, setComment] = useState('');
+  const [commentStatus, setCommentStatus] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
+
+  useEffect(() => {
+    setComment('');
+    setCommentStatus('');
+  }, [task?.id]);
+
   useEffect(() => {
     if (!task) return;
     onMarkRead(task);
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Enter' || event.key === 'Escape') {
+      if (event.key === 'Escape') {
         event.preventDefault();
         onClose();
       }
@@ -1847,6 +2055,20 @@ function TaskDetailModal({
   }, [onClose, onMarkRead, task]);
 
   if (!task) return null;
+
+  const submitComment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (commentLoading) return;
+    setCommentLoading(true);
+    setCommentStatus('등록중입니다.');
+    const message = await onAddComment(task, comment);
+    setCommentLoading(false);
+    setCommentStatus(message);
+    if (!message.includes('실패') && !message.includes('입력')) {
+      setComment('');
+      showActionPopup(message);
+    }
+  };
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -1887,6 +2109,37 @@ function TaskDetailModal({
           ) : (
             <p>첨부파일이 없습니다.</p>
           )}
+        </div>
+        <div className="task-comments">
+          <h3>댓글</h3>
+          <div className="comment-list">
+            {task.comments.length ? (
+              task.comments.map((item) => (
+                <article className="comment-item" data-own={item.userId === currentUser.id} key={item.id}>
+                  <div>
+                    <strong>{item.author}</strong>
+                    <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+                  </div>
+                  <p>{item.content}</p>
+                </article>
+              ))
+            ) : (
+              <p className="mini-empty">아직 댓글이 없습니다.</p>
+            )}
+          </div>
+          <form className="comment-form" onSubmit={submitComment}>
+            <textarea
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              placeholder="댓글을 입력하세요"
+              rows={3}
+            />
+            {commentStatus ? <p className="admin-note">{commentStatus}</p> : null}
+            <button className="primary-action wide" disabled={commentLoading} type="submit">
+              <MessageSquareText size={17} />
+              {commentLoading ? '진행중...' : '댓글 등록'}
+            </button>
+          </form>
         </div>
         {isUnreadForUser(task, currentUser) ? <p className="admin-note">새 업무 표시: 아직 대기 상태입니다.</p> : null}
         <button className="primary-action wide" onClick={onClose} type="button">
@@ -2131,18 +2384,14 @@ function ReportsPage({
         </div>
       </div>
       <div className="split-layout">
-        <div className="page-card">
-          <div className="section-head tight">
-            <div>
-              <p className="eyebrow">History</p>
-              <h2>최근 보고</h2>
-            </div>
-          </div>
-          <div className="task-list">
-            {reportTasks.map((task) => (
+        <div className="task-list">
+          {reportTasks.length ? (
+            reportTasks.map((task) => (
               <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
-            ))}
-          </div>
+            ))
+          ) : (
+            <EmptyState text="표시할 보고·제안이 없습니다." />
+          )}
         </div>
         <div className="page-card">
           <ReportForm onCreateTask={onCreateTask} />
@@ -2154,27 +2403,64 @@ function ReportsPage({
 
 function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser; tasks: Task[]; onOpenTask: (task: Task) => void }) {
   const [mode, setMode] = useState<'일' | '주' | '월'>('월');
+  const [anchorDate, setAnchorDate] = useState(() => new Date());
   const calendarTasks = tasks.filter((task) =>
     task.assigneeId === currentUser.id ||
     task.creatorId === currentUser.id ||
     (currentUser.isPrototype && (task.to === currentUser.name || task.from === currentUser.name)),
   );
-  const datedTasks = tasks
-    .filter((task) => calendarTasks.includes(task))
-    .filter((task) => task.dueAt)
-    .map((task) => ({ task, date: new Date(task.dueAt || '') }))
-    .filter((item) => !Number.isNaN(item.date.getTime()))
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
-  const today = new Date();
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay());
-  const monthDays = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const calendarEvents = calendarTasks
+    .map((task) => {
+      const range = getTaskCalendarRange(task);
+      return range ? { task, ...range } : null;
+    })
+    .filter((item): item is { task: Task; start: Date; end: Date; days: number } => Boolean(item))
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+  const monthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
+  const monthEnd = new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, 0);
+  const startOfWeek = startOfCalendarDay(addCalendarDays(anchorDate, -anchorDate.getDay()));
+  const monthCalendarStart = addCalendarDays(monthStart, -monthStart.getDay());
+  const monthCalendarEnd = addCalendarDays(monthEnd, 6 - monthEnd.getDay());
+  const monthWeeks = Array.from({ length: Math.ceil((diffCalendarDays(monthCalendarStart, monthCalendarEnd) + 1) / 7) }, (_, weekIndex) =>
+    Array.from({ length: 7 }, (_, dayIndex) => addCalendarDays(monthCalendarStart, weekIndex * 7 + dayIndex)),
+  );
   const hours = Array.from({ length: 14 }, (_, index) => index + 8);
-
-  const tasksForDay = (date: Date) =>
-    datedTasks.filter(({ date: dueDate }) => dueDate.toDateString() === date.toDateString());
+  const isSameCalendarDay = (first: Date, second: Date) => startOfCalendarDay(first).getTime() === startOfCalendarDay(second).getTime();
   const getCalendarKind = (task: Task) =>
     task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name) ? '보낸 업무' : '받은 업무';
+  const eventIntersectsDay = (event: { start: Date; end: Date }, day: Date) => {
+    const dayStart = startOfCalendarDay(day);
+    const dayEnd = addCalendarDays(dayStart, 1);
+    return event.start.getTime() < dayEnd.getTime() && event.end.getTime() >= dayStart.getTime();
+  };
+  const eventsForDay = (day: Date) => calendarEvents.filter((event) => eventIntersectsDay(event, day));
+  const eventSegmentsForWeek = (week: Date[]) =>
+    calendarEvents
+      .map((event) => {
+        const weekStart = week[0];
+        const weekEnd = addCalendarDays(week[6], 1);
+        if (event.end.getTime() < weekStart.getTime() || event.start.getTime() >= weekEnd.getTime()) return null;
+        const segmentStart = event.start.getTime() > weekStart.getTime() ? startOfCalendarDay(event.start) : weekStart;
+        const segmentEnd = event.end.getTime() < weekEnd.getTime() ? startOfCalendarDay(event.end) : week[6];
+        const columnStart = diffCalendarDays(weekStart, segmentStart) + 1;
+        const span = Math.max(1, diffCalendarDays(segmentStart, segmentEnd) + 1);
+        const firstDay = diffCalendarDays(startOfCalendarDay(event.start), segmentStart) + 1;
+        const lastDay = firstDay + span - 1;
+        return { ...event, columnStart, span, firstDay, lastDay };
+      })
+      .filter((item): item is { task: Task; start: Date; end: Date; days: number; columnStart: number; span: number; firstDay: number; lastDay: number } => Boolean(item));
+  const moveCalendar = (direction: -1 | 1) => {
+    setAnchorDate((current) => {
+      if (mode === '일') return addCalendarDays(current, direction);
+      if (mode === '주') return addCalendarDays(current, direction * 7);
+      return new Date(current.getFullYear(), current.getMonth() + direction, 1);
+    });
+  };
+  const currentDateLabel = mode === '월'
+    ? anchorDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })
+    : mode === '주'
+      ? `${startOfWeek.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })} ~ ${addCalendarDays(startOfWeek, 6).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}`
+      : anchorDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
   return (
     <section className="page-shell">
@@ -2182,62 +2468,126 @@ function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser
         <div>
           <p className="eyebrow">Calendar</p>
           <h1>캘린더</h1>
+          <p className="calendar-current-date">{currentDateLabel}</p>
         </div>
-        <div className="filters">
-          {(['일', '주', '월'] as const).map((item) => (
-            <button data-active={mode === item} key={item} onClick={() => setMode(item)} type="button">
-              {item}
-            </button>
-          ))}
+        <div className="calendar-controls">
+          <button className="icon-button" aria-label="이전" onClick={() => moveCalendar(-1)} type="button">
+            <ChevronLeft size={18} />
+          </button>
+          <div className="filters">
+            {(['일', '주', '월'] as const).map((item) => (
+              <button data-active={mode === item} key={item} onClick={() => setMode(item)} type="button">
+                {item}
+              </button>
+            ))}
+          </div>
+          <button className="icon-button" aria-label="다음" onClick={() => moveCalendar(1)} type="button">
+            <ChevronRight size={18} />
+          </button>
         </div>
       </div>
 
       <div className="page-card calendar-panel" data-mode={mode}>
         {mode === '월' ? (
-          <div className="month-grid">
-            {Array.from({ length: monthDays }, (_, index) => {
-              const day = new Date(today.getFullYear(), today.getMonth(), index + 1);
-              const dayTasks = tasksForDay(day);
-              return (
-                <div className="month-cell" key={day.toISOString()}>
-                  <strong>{index + 1}</strong>
-                  {dayTasks.slice(0, 3).map(({ task, date }) => (
-                    <button data-kind={getCalendarKind(task)} key={task.id} onClick={() => onOpenTask(task)} type="button">
-                      <span>{date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} {task.title}</span>
-                      <small>{getCalendarKind(task)}</small>
+          <div className="month-board">
+            {monthWeeks.map((week) => (
+              <div className="month-week" key={week[0].toISOString()}>
+                <div className="month-days">
+                  {week.map((day) => (
+                    <div className="month-cell" data-outside-month={day.getMonth() !== anchorDate.getMonth()} key={day.toISOString()}>
+                      <strong>{day.getDate()}</strong>
+                    </div>
+                  ))}
+                </div>
+                <div className="month-events">
+                  {eventSegmentsForWeek(week).slice(0, 5).map((event) => (
+                    <button
+                      className="calendar-range-pill"
+                      data-kind={getCalendarKind(event.task)}
+                      key={`${event.task.id}-${week[0].toISOString()}`}
+                      onClick={() => onOpenTask(event.task)}
+                      style={{ gridColumn: `${event.columnStart} / span ${event.span}` }}
+                      type="button"
+                    >
+                      <span>{event.task.title}</span>
+                      <small>{event.days > 1 ? `${event.firstDay}~${event.lastDay}일차` : event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</small>
                     </button>
                   ))}
                 </div>
-              );
-            })}
+              </div>
+            ))}
+          </div>
+        ) : mode === '주' ? (
+          <div className="week-calendar">
+            <div className="week-range-grid">
+              {Array.from({ length: 7 }, (_, index) => addCalendarDays(startOfWeek, index)).map((day) => (
+                <strong key={day.toISOString()}>{day.toLocaleDateString('ko-KR', { weekday: 'short', day: 'numeric' })}</strong>
+              ))}
+              {eventSegmentsForWeek(Array.from({ length: 7 }, (_, index) => addCalendarDays(startOfWeek, index))).map((event) => (
+                <button
+                  className="calendar-range-pill"
+                  data-kind={getCalendarKind(event.task)}
+                  key={event.task.id}
+                  onClick={() => onOpenTask(event.task)}
+                  style={{ gridColumn: `${event.columnStart} / span ${event.span}` }}
+                  type="button"
+                >
+                  <span>{event.task.title}</span>
+                  <small>{event.days > 1 ? `${event.firstDay}~${event.lastDay}일차` : event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</small>
+                </button>
+              ))}
+            </div>
+            <div className="week-timeline">
+              {hours.map((hour) => {
+                const columns = Array.from({ length: 7 }, (_, index) => addCalendarDays(startOfWeek, index));
+                return (
+                  <div className="time-row" key={hour}>
+                    <span>{String(hour).padStart(2, '0')}:00</span>
+                    {columns.map((day) => {
+                      const hourEvents = eventsForDay(day).filter(({ start, end }) => {
+                        const isStartDay = isSameCalendarDay(start, day);
+                        const isEndDay = isSameCalendarDay(end, day);
+                        return (isStartDay && start.getHours() === hour) || (isEndDay && end.getHours() === hour);
+                      });
+                      return (
+                        <div className="time-slot" key={`${day.toDateString()}-${hour}`}>
+                          {hourEvents.map(({ task, days }) => (
+                            <button className="calendar-task-pill" data-kind={getCalendarKind(task)} key={task.id} onClick={() => onOpenTask(task)} type="button">
+                              <span>{task.title}</span>
+                              <small>{days > 1 ? `${days}일 일정` : getCalendarKind(task)}</small>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         ) : (
-          <div className={mode === '주' ? 'week-timeline' : 'day-timeline'}>
+          <div className="day-timeline">
             {hours.map((hour) => {
-              const columns = mode === '주'
-                ? Array.from({ length: 7 }, (_, index) => {
-                    const day = new Date(startOfWeek);
-                    day.setDate(startOfWeek.getDate() + index);
-                    return day;
-                  })
-                : [today];
-
+              const hourEvents = eventsForDay(anchorDate).filter(({ start, end }) => {
+                const isStartDay = isSameCalendarDay(start, anchorDate);
+                const isEndDay = isSameCalendarDay(end, anchorDate);
+                return (isStartDay && start.getHours() === hour) || (isEndDay && end.getHours() === hour);
+              });
               return (
                 <div className="time-row" key={hour}>
                   <span>{String(hour).padStart(2, '0')}:00</span>
-                  {columns.map((day) => {
-                    const dayTasks = tasksForDay(day).filter(({ date }) => date.getHours() === hour);
-                    return (
-                      <div className="time-slot" key={`${day.toDateString()}-${hour}`}>
-                        {dayTasks.map(({ task }) => (
-                          <button className="calendar-task-pill" data-kind={getCalendarKind(task)} key={task.id} onClick={() => onOpenTask(task)} type="button">
-                            <span>{task.title}</span>
-                            <small>{getCalendarKind(task)}</small>
-                          </button>
-                        ))}
-                      </div>
-                    );
-                  })}
+                  <div className="time-slot">
+                    {hourEvents.map(({ task, days, start, end }) => (
+                      <button className="calendar-task-pill" data-kind={getCalendarKind(task)} key={task.id} onClick={() => onOpenTask(task)} type="button">
+                        <span>{task.title}</span>
+                        <small>
+                          {days > 1
+                            ? `${start.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}~${end.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}`
+                            : getCalendarKind(task)}
+                        </small>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               );
             })}

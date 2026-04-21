@@ -1276,8 +1276,35 @@ h1 {
   overflow: auto;
 }
 
-.month-grid {
+.calendar-current-date {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.calendar-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.month-board,
+.week-calendar {
   min-width: 760px;
+  display: grid;
+  gap: 14px;
+}
+
+.month-week {
+  position: relative;
+  display: grid;
+  min-height: 126px;
+}
+
+.month-days,
+.month-events,
+.week-range-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(96px, 1fr));
   gap: 8px;
@@ -1294,13 +1321,18 @@ h1 {
   background: var(--panel-2);
 }
 
+.month-cell[data-outside-month='true'] {
+  opacity: 0.42;
+}
+
 .month-cell strong {
   color: var(--muted);
   font-size: 0.82rem;
 }
 
 .month-cell button,
-.calendar-task-pill {
+.calendar-task-pill,
+.calendar-range-pill {
   width: 100%;
   min-height: 30px;
   display: grid;
@@ -1318,26 +1350,61 @@ h1 {
 }
 
 .month-cell button[data-kind='받은 업무'],
-.calendar-task-pill[data-kind='받은 업무'] {
+.calendar-task-pill[data-kind='받은 업무'],
+.calendar-range-pill[data-kind='받은 업무'] {
   box-shadow: inset 3px 0 0 #4b8ef7;
 }
 
 .month-cell button[data-kind='보낸 업무'],
-.calendar-task-pill[data-kind='보낸 업무'] {
+.calendar-task-pill[data-kind='보낸 업무'],
+.calendar-range-pill[data-kind='보낸 업무'] {
   box-shadow: inset 3px 0 0 #9aa1ad;
 }
 
 .month-cell button span,
-.calendar-task-pill span {
+.calendar-task-pill span,
+.calendar-range-pill span {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .month-cell button small,
-.calendar-task-pill small {
+.calendar-task-pill small,
+.calendar-range-pill small {
   color: var(--muted);
   font-size: 0.68rem;
   font-weight: 850;
+}
+
+.month-events {
+  position: relative;
+  z-index: 2;
+  grid-auto-rows: 31px;
+  align-items: start;
+  margin-top: -70px;
+  padding: 0 8px 8px;
+  pointer-events: none;
+}
+
+.calendar-range-pill {
+  min-width: 0;
+  border: 1px solid var(--card-line);
+  background: var(--card-bg);
+  pointer-events: auto;
+}
+
+.week-range-grid {
+  grid-auto-rows: 32px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.week-range-grid > strong {
+  min-height: 28px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .day-timeline,
@@ -1499,9 +1566,69 @@ h1 {
   margin-bottom: 14px;
 }
 
+.task-comments {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
 .detail-files h3,
-.detail-files p {
+.detail-files p,
+.task-comments h3 {
   margin: 0;
+}
+
+.comment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.comment-item {
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--card-bg);
+  box-shadow: inset 3px 0 0 #5b6472;
+}
+
+.comment-item[data-own='true'] {
+  box-shadow: inset 3px 0 0 #4b8ef7;
+}
+
+.comment-item div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.comment-item small,
+.comment-item p {
+  color: var(--muted);
+}
+
+.comment-item p {
+  margin: 0;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.comment-form {
+  display: grid;
+  gap: 8px;
+}
+
+.comment-form textarea {
+  width: 100%;
+  min-height: 86px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--text);
+  background: var(--panel-2);
+  resize: vertical;
+  outline: none;
 }
 
 .file-row {
@@ -1725,14 +1852,13 @@ h1 {
 
 .settings-layout {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 18px;
   align-items: start;
 }
 
 .settings-side {
-  display: grid;
-  gap: 18px;
+  display: contents;
 }
 
 .settings-backend {
