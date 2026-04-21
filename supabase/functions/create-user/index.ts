@@ -76,12 +76,43 @@ Deno.serve(async (req) => {
     },
   });
 
-  if (createError || !createdUser.user) {
-    return jsonResponse({ error: createError?.message || 'Failed to create user' }, 400);
+  let targetUser = createdUser.user;
+
+  if (createError || !targetUser) {
+    const { data: listedUsers, error: listError } = await admin.auth.admin.listUsers({
+      page: 1,
+      perPage: 1000,
+    });
+
+    if (listError) {
+      return jsonResponse({ error: listError.message }, 400);
+    }
+
+    targetUser = listedUsers.users.find((user) => user.email?.toLowerCase() === email) || null;
+
+    if (!targetUser) {
+      return jsonResponse({ error: createError?.message || 'Failed to create user' }, 400);
+    }
+
+    const { data: updatedUser, error: updateError } = await admin.auth.admin.updateUserById(targetUser.id, {
+      password,
+      email_confirm: true,
+      user_metadata: {
+        name,
+        role,
+        job_type: jobTypeName,
+      },
+    });
+
+    if (updateError || !updatedUser.user) {
+      return jsonResponse({ error: updateError?.message || 'Failed to update user' }, 400);
+    }
+
+    targetUser = updatedUser.user;
   }
 
   const { error: profileError } = await admin.from('profiles').upsert({
-    id: createdUser.user.id,
+    id: targetUser.id,
     email,
     name,
     phone,
@@ -94,7 +125,7 @@ Deno.serve(async (req) => {
   }
 
   return jsonResponse({
-    id: createdUser.user.id,
+    id: targetUser.id,
     email,
     name,
     role,
