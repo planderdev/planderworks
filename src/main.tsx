@@ -326,6 +326,8 @@ function App() {
   const [pushLoading, setPushLoading] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [popupMessage, setPopupMessage] = useState('');
+  const [forwardHistory, setForwardHistory] = useState<ActiveView[]>([]);
+  const [swipeOffset, setSwipeOffset] = useState(0);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -575,14 +577,26 @@ function App() {
   const navigateTo = (view: ActiveView) => {
     if (view === activeView) return;
     setViewHistory((history) => [...history, activeView].slice(-12));
+    setForwardHistory([]);
     setActiveView(view);
   };
 
   const navigateBack = () => {
     setViewHistory((history) => {
       const previous = history[history.length - 1] || 'dashboard';
+      setForwardHistory((forward) => [activeView, ...forward].slice(0, 12));
       setActiveView(previous);
       return history.slice(0, -1);
+    });
+  };
+
+  const navigateForward = () => {
+    setForwardHistory((forward) => {
+      const next = forward[0];
+      if (!next) return forward;
+      setViewHistory((history) => [...history, activeView].slice(-12));
+      setActiveView(next);
+      return forward.slice(1);
     });
   };
 
@@ -592,15 +606,40 @@ function App() {
     swipeStart.current = { x: touch.clientX, y: touch.clientY };
   };
 
+  const handleWorkspaceTouchMove = (event: React.TouchEvent<HTMLElement>) => {
+    if (window.innerWidth > 760 || !swipeStart.current) return;
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - swipeStart.current.x;
+    const deltaY = Math.abs(touch.clientY - swipeStart.current.y);
+
+    if (deltaY > 50) return;
+
+    const canSwipeBack = deltaX > 0 && activeView !== 'dashboard' && viewHistory.length > 0;
+    const canSwipeForward = deltaX < 0 && forwardHistory.length > 0;
+
+    if (!canSwipeBack && !canSwipeForward) {
+      setSwipeOffset(0);
+      return;
+    }
+
+    setSwipeOffset(Math.max(-72, Math.min(72, deltaX * 0.35)));
+  };
+
   const handleWorkspaceTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
-    if (window.innerWidth > 760 || activeView === 'dashboard' || !swipeStart.current) return;
+    if (window.innerWidth > 760 || !swipeStart.current) return;
     const touch = event.changedTouches[0];
     const deltaX = touch.clientX - swipeStart.current.x;
     const deltaY = Math.abs(touch.clientY - swipeStart.current.y);
     swipeStart.current = null;
+    setSwipeOffset(0);
 
-    if (deltaX > 80 && deltaY < 60) {
+    if (deltaX > 80 && deltaY < 60 && activeView !== 'dashboard' && viewHistory.length > 0) {
       navigateBack();
+      return;
+    }
+
+    if (deltaX < -80 && deltaY < 60 && forwardHistory.length > 0) {
+      navigateForward();
     }
   };
 
@@ -995,7 +1034,14 @@ function App() {
       />
       <div className="mobile-overlay" data-open={sidebarOpen} onClick={() => setSidebarOpen(false)} />
 
-      <main className="workspace" onTouchStart={handleWorkspaceTouchStart} onTouchEnd={handleWorkspaceTouchEnd}>
+      <main
+        className="workspace"
+        data-swiping={swipeOffset !== 0}
+        onTouchStart={handleWorkspaceTouchStart}
+        onTouchMove={handleWorkspaceTouchMove}
+        onTouchEnd={handleWorkspaceTouchEnd}
+        style={{ transform: `translateX(${swipeOffset}px)` }}
+      >
         <Topbar
           currentUser={currentUser}
           pushEnabled={pushEnabled}

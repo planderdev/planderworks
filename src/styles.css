@@ -331,6 +331,12 @@ button:disabled {
   flex: 1;
   min-width: 0;
   padding: 22px;
+  transition: transform 180ms ease;
+  will-change: transform;
+}
+
+.workspace[data-swiping='true'] {
+  transition: none;
 }
 
 .topbar {
