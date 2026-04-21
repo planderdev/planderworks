@@ -83,7 +83,7 @@ Deno.serve(async (req) => {
   const payload = JSON.stringify({
     title: '새 업무가 도착했습니다',
     body: `${task.creator?.name || 'Plander'} → ${task.assignee?.name || '담당자'}: ${task.title}`,
-    url: '/',
+    url: `/?taskId=${task.id}`,
     taskId: task.id,
   });
 

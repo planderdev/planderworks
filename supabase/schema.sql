@@ -38,6 +38,7 @@ create table if not exists public.clients (
   name text not null,
   contact_name text,
   phone text,
+  region text,
   memo text,
   created_by uuid references public.profiles(id),
   created_at timestamptz not null default now(),
@@ -286,6 +287,12 @@ on public.clients for update
 to authenticated
 using (created_by = auth.uid() or public.current_user_role() = 'admin')
 with check (created_by = auth.uid() or public.current_user_role() = 'admin');
+
+drop policy if exists "users delete own clients" on public.clients;
+create policy "users delete own clients"
+on public.clients for delete
+to authenticated
+using (created_by = auth.uid() or public.current_user_role() = 'admin');
 
 drop policy if exists "projects are readable" on public.projects;
 create policy "projects are readable"

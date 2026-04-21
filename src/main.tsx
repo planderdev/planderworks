@@ -34,17 +34,20 @@ import './styles.css';
 type ThemeMode = 'system' | 'light' | 'dark';
 type ActiveView =
   | 'dashboard'
+  | 'calendar'
+  | 'allTasks'
   | 'inbox'
   | 'sent'
   | 'create'
   | 'reports'
   | 'clients'
   | 'employees'
-  | 'jobTypes'
   | 'settings';
 type TaskStatus = '대기' | '진행중' | '완료 요청' | '보류' | '완료';
 type Priority = '높음' | '보통' | '낮음';
 type TaskType = '영업 브리핑' | '디자인 요청' | '보고' | '제안' | '확인 요청' | '촬영 요청' | '시장 조사';
+
+const taskTypeOptions: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 
 type AppUser = {
   id: string;
@@ -64,6 +67,7 @@ type Task = {
   assigneeId?: string;
   clientId?: string;
   client: string;
+  dueAt?: string | null;
   due: string;
   status: TaskStatus;
   priority: Priority;
@@ -77,6 +81,7 @@ type Client = {
   name: string;
   manager: string;
   phone: string;
+  region: string;
   memo: string;
 };
 
@@ -107,13 +112,17 @@ type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers'> & {
   watchers?: string[];
   toIds?: string[];
   toList?: string[];
+  clientId?: string;
 };
 
 type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
 type TaskDeleteHandler = (task: Task) => Promise<string>;
 type MessageHandler = (message: string) => void;
 type ClientSubmitHandler = (client: Omit<Client, 'id'>) => Promise<string>;
+type ClientUpdateHandler = (clientId: string, client: Omit<Client, 'id'>) => Promise<string>;
+type ClientDeleteHandler = (client: Client) => Promise<string>;
 type JobTypeSubmitHandler = (name: string) => Promise<string>;
+type JobTypeDeleteHandler = (name: string) => Promise<string>;
 type EmployeeSubmitHandler = (employee: NewEmployee) => Promise<string>;
 type EmployeeUpdateHandler = (employeeId: string, updates: EmployeeUpdate) => Promise<string>;
 
@@ -123,16 +132,17 @@ function showActionPopup(message: string) {
 
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
+  { id: 'create', label: '업무 생성', icon: Plus },
   { id: 'inbox', label: '받은 업무', icon: ClipboardList },
   { id: 'sent', label: '보낸 업무', icon: MessageSquareText },
-  { id: 'create', label: '업무 생성', icon: Plus },
   { id: 'reports', label: '보고·제안', icon: FileText },
+  { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
+  { id: 'calendar', label: '캘린더', icon: CalendarClock },
   { id: 'clients', label: '업체', icon: Building2 },
 ];
 
 const adminNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'employees', label: '직원 관리', icon: UserCog },
-  { id: 'jobTypes', label: '담당업무 관리', icon: BriefcaseBusiness },
   { id: 'settings', label: '설정', icon: Settings },
 ];
 
@@ -192,9 +202,9 @@ const seedTasks: Task[] = [
 ];
 
 const seedClients: Client[] = [
-  { id: '1', name: 'A식당', manager: '인성이형', phone: '010-0000-0000', memo: '일본 여행 계정 섭외 관심' },
-  { id: '2', name: 'B뷰티샵', manager: '디자인팀장', phone: '010-1111-2222', memo: '상세페이지와 릴스 패키지 문의' },
-  { id: '3', name: '온고', manager: '대표', phone: '010-3333-4444', memo: '일본 이커머스 진출 준비' },
+  { id: '1', name: 'A식당', manager: '인성이형', phone: '010-0000-0000', region: '서울', memo: '일본 여행 계정 섭외 관심' },
+  { id: '2', name: 'B뷰티샵', manager: '디자인팀장', phone: '010-1111-2222', region: '경기', memo: '상세페이지와 릴스 패키지 문의' },
+  { id: '3', name: '온고', manager: '대표', phone: '010-3333-4444', region: '평택', memo: '일본 이커머스 진출 준비' },
 ];
 
 const seedEmployees: Employee[] = [
@@ -288,13 +298,30 @@ const hasValidMobilePhoneLength = (value: string) => {
 
 function formatDueDate(value: string | null | undefined) {
   if (!value) return '미정';
-  return new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric' }).format(new Date(value));
+  return new Intl.DateTimeFormat('ko-KR', {
+    month: 'numeric',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
 }
 
 function parseDueDate(value: string) {
   if (!value.trim()) return null;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function formatTaskTypeLabel(type: string) {
+  return type === '영업 브리핑' ? '브리핑' : type;
+}
+
+function getTaskReadLabel(task: Task) {
+  return task.status === '대기' ? '안읽음' : '읽음';
+}
+
+function isUnreadForUser(task: Task, currentUser: AppUser) {
+  return task.status === '대기' && (task.assigneeId === currentUser.id || task.to === currentUser.name);
 }
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -328,6 +355,7 @@ function App() {
   const [popupMessage, setPopupMessage] = useState('');
   const [forwardHistory, setForwardHistory] = useState<ActiveView[]>([]);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
@@ -386,7 +414,7 @@ function App() {
         .order('created_at', { ascending: true }),
       supabase
         .from('clients')
-        .select('id, name, contact_name, phone, memo, created_by')
+        .select('id, name, contact_name, phone, region, memo, created_by')
         .order('created_at', { ascending: false }),
       supabase
         .from('tasks')
@@ -425,6 +453,7 @@ function App() {
       assigneeId: task.assignee_id,
       clientId: task.client_id,
       client: task.client?.name || '내부',
+      dueAt: task.due_at,
       due: formatDueDate(task.due_at),
       status: statusFromDb[task.status] || '대기',
       priority: priorityFromDb[task.priority] || '보통',
@@ -470,6 +499,7 @@ function App() {
       name: client.name,
       manager: nextEmployees.find((employee) => employee.id === client.created_by)?.name || '미지정',
       phone: client.phone || '',
+      region: client.region || '',
       memo: client.memo || '',
     }));
 
@@ -485,6 +515,12 @@ function App() {
   useEffect(() => {
     loadBackendData();
   }, [currentUser?.id, currentUser?.isPrototype]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const taskId = new URLSearchParams(window.location.search).get('taskId');
+    if (taskId) setSelectedTaskId(taskId);
+  }, [currentUser?.id, tasks.length]);
 
   useEffect(() => {
     const handleActionComplete = (event: Event) => {
@@ -541,6 +577,11 @@ function App() {
     [tasks],
   );
 
+  const selectedTask = useMemo(
+    () => tasks.find((task) => task.id === selectedTaskId) || null,
+    [selectedTaskId, tasks],
+  );
+
   const dueSoonTasks = useMemo(
     () =>
       inboxTasks.filter((task) => task.due !== '미정' && task.due !== '검토 대기' && task.status !== '완료'),
@@ -555,10 +596,10 @@ function App() {
 
   const dashboardStats = useMemo(
     () => [
-      { label: '받은 업무', value: inboxTasks.length, hint: '내 담당 기준', tone: 'silver' },
-      { label: '진행중', value: inboxTasks.filter((task) => task.status === '진행중').length, hint: '담당자 확인중', tone: 'blue' },
-      { label: '완료 요청', value: inboxTasks.filter((task) => task.status === '완료 요청').length, hint: '검토 필요', tone: 'amber' },
-      { label: '마감 임박', value: dueSoonTasks.length, hint: '마감일 입력 기준', tone: 'red' },
+      { label: '받은 업무', value: inboxTasks.length, hint: '내 담당 기준', tone: 'silver', target: 'inbox' as ActiveView },
+      { label: '진행중', value: inboxTasks.filter((task) => task.status === '진행중').length, hint: '담당자 확인중', tone: 'blue', target: 'inbox' as ActiveView },
+      { label: '완료 요청', value: inboxTasks.filter((task) => task.status === '완료 요청').length, hint: '검토 필요', tone: 'amber', target: 'inbox' as ActiveView },
+      { label: '마감 임박', value: dueSoonTasks.length, hint: '마감일 입력 기준', tone: 'red', target: 'calendar' as ActiveView },
     ],
     [dueSoonTasks.length, inboxTasks],
   );
@@ -661,7 +702,10 @@ function App() {
       ? recipientIds.map((id) => employees.find((employee) => employee.id === id))
       : uniqueRecipients.map((name) => employees.find((employee) => employee.name === name))
     ).filter((employee): employee is Employee => Boolean(employee));
-    const client = clients.find((item) => item.name === task.client);
+    const client = task.clientId
+      ? clients.find((item) => item.id === task.clientId)
+      : clients.find((item) => item.name === task.client);
+    const clientId = client?.id || null;
 
     if (!assignees.length) {
       const message = '실제 등록된 담당자를 한 명 이상 선택해주세요.';
@@ -678,7 +722,7 @@ function App() {
         priority: priorityToDb[task.priority],
         creator_id: currentUser.id,
         assignee_id: assignee?.id || null,
-        client_id: client?.id || null,
+        client_id: clientId,
         due_at: parseDueDate(task.due),
       }));
 
@@ -734,6 +778,7 @@ function App() {
         name: client.name,
         contact_name: client.manager,
         phone: client.phone,
+        region: client.region,
         memo: client.memo,
         created_by: currentUser.id,
       });
@@ -752,6 +797,51 @@ function App() {
     return '업체를 추가했습니다.';
   };
 
+  const updateClient = async (clientId: string, client: Omit<Client, 'id'>): Promise<string> => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('clients')
+        .update({
+          name: client.name,
+          contact_name: client.manager,
+          phone: client.phone,
+          region: client.region,
+          memo: client.memo,
+        })
+        .eq('id', clientId);
+
+      if (error) {
+        const message = `업체 저장 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '업체가 저장되었습니다.';
+    }
+
+    setClients((current) => current.map((item) => (item.id === clientId ? { id: clientId, ...client } : item)));
+    return '업체가 저장되었습니다.';
+  };
+
+  const deleteClient = async (client: Client): Promise<string> => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('clients').delete().eq('id', client.id);
+
+      if (error) {
+        const message = `업체 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '업체가 삭제되었습니다.';
+    }
+
+    setClients((current) => current.filter((item) => item.id !== client.id));
+    return '업체가 삭제되었습니다.';
+  };
+
   const addJobType = async (name: string): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { error } = await supabase.from('job_types').insert({ name });
@@ -768,6 +858,24 @@ function App() {
 
     setJobTypes((current) => [name, ...current]);
     return '담당업무를 추가했습니다.';
+  };
+
+  const deleteJobType = async (name: string): Promise<string> => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('job_types').update({ is_active: false }).eq('name', name);
+
+      if (error) {
+        const message = `담당업무 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '담당업무를 삭제했습니다.';
+    }
+
+    setJobTypes((current) => current.filter((jobType) => jobType !== name));
+    return '담당업무를 삭제했습니다.';
   };
 
   const addEmployee = async (employee: NewEmployee): Promise<string> => {
@@ -1025,7 +1133,7 @@ function App() {
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
         onNavigate={(view) => {
-          if (!isAdmin && (view === 'employees' || view === 'jobTypes')) return;
+          if (!isAdmin && view === 'employees') return;
           navigateTo(view);
           setSidebarOpen(false);
         }}
@@ -1059,8 +1167,12 @@ function App() {
           <Dashboard
             stats={dashboardStats}
             tasks={inboxTasks}
+            sentTasks={sentTasks}
+            reportTasks={reportTasks}
+            clients={clients}
             employees={employees}
-            onCreateClick={() => navigateTo('create')}
+            onNavigate={navigateTo}
+            onOpenTask={(task) => setSelectedTaskId(task.id)}
             onCreateTask={createTask}
             onDeleteTask={deleteTask}
             onUpdateTaskStatus={updateTaskStatus}
@@ -1068,16 +1180,20 @@ function App() {
           />
         ) : null}
         {activeView === 'inbox' ? (
-          <TaskListPage title="받은 업무" tasks={inboxTasks} currentUser={currentUser} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage title="받은 업무" tasks={inboxTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'sent' ? (
-          <TaskListPage title="보낸 업무" tasks={sentTasks} currentUser={currentUser} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage title="보낸 업무" tasks={sentTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
-          <ReportsPage tasks={tasks} currentUser={currentUser} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <ReportsPage tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
-        {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} /> : null}
+        {activeView === 'allTasks' ? (
+          <TaskListPage title="전체 업무보기" tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+        ) : null}
+        {activeView === 'calendar' ? <CalendarPage tasks={tasks} onOpenTask={(task) => setSelectedTaskId(task.id)} /> : null}
+        {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} onDeleteClient={deleteClient} onUpdateClient={updateClient} /> : null}
         {activeView === 'employees' && isAdmin ? (
           <EmployeesPage
             employees={employees}
@@ -1086,7 +1202,6 @@ function App() {
             onUpdateEmployee={updateEmployee}
           />
         ) : null}
-        {activeView === 'jobTypes' && isAdmin ? <JobTypesPage employees={employees} jobTypes={jobTypes} onAddJobType={addJobType} /> : null}
         {activeView === 'settings' ? (
           <SettingsPage
             backendStatus={backendStatus}
@@ -1098,11 +1213,14 @@ function App() {
             pushLoading={pushLoading}
             pushStatus={pushStatus}
             onRegisterPush={handleRegisterPush}
+            onAddJobType={addJobType}
+            onDeleteJobType={deleteJobType}
             onUpdateOwnProfile={updateOwnProfile}
             onThemeChange={setThemeMode}
           />
         ) : null}
       </main>
+      <TaskDetailModal task={selectedTask} currentUser={currentUser} onClose={() => setSelectedTaskId(null)} />
       <CompletionPopup message={popupMessage} onClose={() => setPopupMessage('')} />
     </div>
   );
@@ -1221,6 +1339,8 @@ function Sidebar({
   onNavigate: (view: ActiveView) => void;
   showAdmin: boolean;
 }) {
+  const [adminOpen, setAdminOpen] = useState(false);
+
   return (
     <aside className="sidebar" data-open={open}>
       <div className="brand-row">
@@ -1236,7 +1356,7 @@ function Sidebar({
           const Icon = item.icon;
           const badge = badges[item.id] || 0;
           return (
-            <button className="nav-button" data-active={activeView === item.id} key={item.id} onClick={() => onNavigate(item.id)}>
+            <button className="nav-button" data-active={activeView === item.id} data-featured={item.id === 'create'} key={item.id} onClick={() => onNavigate(item.id)}>
               <Icon size={18} />
               <span>{item.label}</span>
               {badge > 0 ? <small>{badge}</small> : null}
@@ -1246,39 +1366,47 @@ function Sidebar({
       </nav>
 
       <div className="sidebar-bottom-layer">
-        {showAdmin ? (
-          <div className="sidebar-section">
-            <p>관리</p>
-            {adminNavItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <button className="nav-button compact" data-active={activeView === item.id} key={item.id} onClick={() => onNavigate(item.id)}>
-                  <Icon size={18} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="sidebar-section">
-            <p>계정</p>
-            <button className="nav-button compact" data-active={activeView === 'settings'} onClick={() => onNavigate('settings')}>
-              <Settings size={18} />
-              <span>설정</span>
-            </button>
-          </div>
-        )}
+        {adminOpen ? (
+          showAdmin ? (
+            <div className="sidebar-section">
+              <p>관리</p>
+              {adminNavItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button className="nav-button compact" data-active={activeView === item.id} key={item.id} onClick={() => onNavigate(item.id)}>
+                    <Icon size={18} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+              <button className="nav-button compact" onClick={onLogout} type="button">
+                <LogOut size={18} />
+                <span>로그아웃</span>
+              </button>
+            </div>
+          ) : (
+            <div className="sidebar-section">
+              <p>계정</p>
+              <button className="nav-button compact" data-active={activeView === 'settings'} onClick={() => onNavigate('settings')}>
+                <Settings size={18} />
+                <span>설정</span>
+              </button>
+              <button className="nav-button compact" onClick={onLogout} type="button">
+                <LogOut size={18} />
+                <span>로그아웃</span>
+              </button>
+            </div>
+          )
+        ) : null}
 
-        <div className="profile-card">
+        <button className="profile-card" onClick={() => setAdminOpen((open) => !open)} type="button">
           <CircleUserRound size={34} />
           <div>
             <strong>{currentUser.name}</strong>
             <span>{currentUser.role}</span>
           </div>
-          <button className="logout-button" aria-label="로그아웃" onClick={onLogout} title="로그아웃">
-            <LogOut size={17} />
-          </button>
-        </div>
+          <ChevronDown size={18} />
+        </button>
       </div>
     </aside>
   );
@@ -1397,6 +1525,18 @@ function ThemeSwitcher({ value, onChange }: { value: ThemeMode; onChange: (mode:
 }
 
 function CompletionPopup({ message, onClose }: { message: string; onClose: () => void }) {
+  useEffect(() => {
+    if (!message) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [message, onClose]);
+
   if (!message) return null;
 
   return (
@@ -1413,21 +1553,91 @@ function CompletionPopup({ message, onClose }: { message: string; onClose: () =>
   );
 }
 
+function TaskDetailModal({
+  task,
+  currentUser,
+  onClose,
+}: {
+  task: Task | null;
+  currentUser: AppUser;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    if (!task) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, task]);
+
+  if (!task) return null;
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <article className="modal-card task-detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">{formatTaskTypeLabel(task.type)}</p>
+            <h2>{task.title}</h2>
+          </div>
+          <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="task-detail-meta">
+          <span>보낸 사람: {task.from}</span>
+          <span>
+            받는 사람: {task.to}
+            <strong className="read-badge" data-read={getTaskReadLabel(task)}>{getTaskReadLabel(task)}</strong>
+          </span>
+          <span>관련 업체: {task.client}</span>
+          <span>마감기한: {task.due}</span>
+          <span>상태: {task.status}</span>
+        </div>
+        <div className="task-detail-body">
+          <h3>내용</h3>
+          <p>{task.summary || '내용이 없습니다.'}</p>
+        </div>
+        <div className="attachment-row">
+          <Paperclip size={17} />
+          <span>첨부파일은 Supabase Storage 연결 후 표시됩니다.</span>
+        </div>
+        {isUnreadForUser(task, currentUser) ? <p className="admin-note">새 업무 표시: 아직 대기 상태입니다.</p> : null}
+        <button className="primary-action wide" onClick={onClose} type="button">
+          확인
+        </button>
+      </article>
+    </div>
+  );
+}
+
 function Dashboard({
   stats,
   tasks,
+  sentTasks,
+  reportTasks,
+  clients,
   employees,
   currentUser,
-  onCreateClick,
+  onNavigate,
+  onOpenTask,
   onCreateTask,
   onDeleteTask,
   onUpdateTaskStatus,
 }: {
-  stats: Array<{ label: string; value: number; hint: string; tone: string }>;
+  stats: Array<{ label: string; value: number; hint: string; tone: string; target: ActiveView }>;
   tasks: Task[];
+  sentTasks: Task[];
+  reportTasks: Task[];
+  clients: Client[];
   employees: Employee[];
   currentUser: AppUser;
-  onCreateClick: () => void;
+  onNavigate: (view: ActiveView) => void;
+  onOpenTask: (task: Task) => void;
   onCreateTask: TaskSubmitHandler;
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
@@ -1442,20 +1652,23 @@ function Dashboard({
             직원이 대표에게 보고하고, 팀끼리 요청을 넘기고, 업무 상태와 첨부 내역을 한 흐름에 쌓는 내부 업무 허브.
           </p>
         </div>
-        <button className="primary-action" onClick={onCreateClick} type="button">
-          <Plus size={18} />
-          업무 생성
-        </button>
       </section>
 
       <section className="stats-grid" aria-label="업무 요약">
         {stats.map((item) => (
-          <article className="stat-card" data-tone={item.tone} key={item.label}>
+          <button className="stat-card" data-tone={item.tone} key={item.label} onClick={() => onNavigate(item.target)} type="button">
             <span>{item.label}</span>
             <strong>{item.value}</strong>
             <small>{item.hint}</small>
-          </article>
+          </button>
         ))}
+      </section>
+
+      <section className="dashboard-lists">
+        <DashboardMiniList title="받은 업무" eyebrow="Inbox" tasks={tasks} target="inbox" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+        <DashboardMiniList title="보낸 업무" eyebrow="Sent" tasks={sentTasks} target="sent" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+        <DashboardMiniList title="보고·제안" eyebrow="Reports" tasks={reportTasks} target="reports" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+        <DashboardClientList clients={clients} onNavigate={() => onNavigate('clients')} />
       </section>
 
       <section className="content-grid">
@@ -1474,7 +1687,7 @@ function Dashboard({
 
           <div className="task-list">
             {tasks.slice(0, 4).map((task) => (
-              <TaskCard key={task.id} task={task} currentUser={currentUser} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
+              <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
             ))}
           </div>
         </div>
@@ -1488,16 +1701,86 @@ function Dashboard({
   );
 }
 
+function DashboardMiniList({
+  title,
+  eyebrow,
+  tasks,
+  target,
+  currentUser,
+  onNavigate,
+  onOpenTask,
+}: {
+  title: string;
+  eyebrow: string;
+  tasks: Task[];
+  target: ActiveView;
+  currentUser: AppUser;
+  onNavigate: (view: ActiveView) => void;
+  onOpenTask: (task: Task) => void;
+}) {
+  return (
+    <section className="dashboard-mini-panel">
+      <button className="dashboard-mini-head" onClick={() => onNavigate(target)} type="button">
+        <span>
+          <small>{eyebrow}</small>
+          <strong>{title}</strong>
+        </span>
+        <ChevronDown size={16} />
+      </button>
+      <div className="mini-task-list">
+        {tasks.slice(0, 5).map((task) => (
+          <button
+            className="mini-task-row"
+            data-unread={isUnreadForUser(task, currentUser)}
+            key={task.id}
+            onClick={() => onOpenTask(task)}
+            type="button"
+          >
+            <span>{task.title}</span>
+            <small>{task.due}</small>
+          </button>
+        ))}
+        {!tasks.length ? <p className="mini-empty">표시할 항목이 없습니다.</p> : null}
+      </div>
+    </section>
+  );
+}
+
+function DashboardClientList({ clients, onNavigate }: { clients: Client[]; onNavigate: () => void }) {
+  return (
+    <section className="dashboard-mini-panel">
+      <button className="dashboard-mini-head" onClick={onNavigate} type="button">
+        <span>
+          <small>Clients</small>
+          <strong>업체</strong>
+        </span>
+        <ChevronDown size={16} />
+      </button>
+      <div className="mini-task-list">
+        {clients.slice(0, 5).map((client) => (
+          <button className="mini-task-row" key={client.id} onClick={onNavigate} type="button">
+            <span>{client.name}</span>
+            <small>{client.manager}</small>
+          </button>
+        ))}
+        {!clients.length ? <p className="mini-empty">등록된 업체가 없습니다.</p> : null}
+      </div>
+    </section>
+  );
+}
+
 function TaskListPage({
   title,
   tasks,
   currentUser,
+  onOpenTask,
   onDeleteTask,
   onUpdateTaskStatus,
 }: {
   title: string;
   tasks: Task[];
   currentUser: AppUser;
+  onOpenTask: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
@@ -1524,7 +1807,7 @@ function TaskListPage({
         <div className="task-list">
           {filteredTasks.length ? (
             filteredTasks.map((task) => (
-              <TaskCard key={task.id} task={task} currentUser={currentUser} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
+              <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
             ))
           ) : (
             <EmptyState text="조건에 맞는 업무가 없습니다." />
@@ -1562,12 +1845,14 @@ function TaskCreatePage({
 function ReportsPage({
   tasks,
   currentUser,
+  onOpenTask,
   onCreateTask,
   onDeleteTask,
   onUpdateTaskStatus,
 }: {
   tasks: Task[];
   currentUser: AppUser;
+  onOpenTask: (task: Task) => void;
   onCreateTask: TaskSubmitHandler;
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
@@ -1592,7 +1877,7 @@ function ReportsPage({
           </div>
           <div className="task-list">
             {reportTasks.map((task) => (
-              <TaskCard key={task.id} task={task} currentUser={currentUser} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
+              <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
             ))}
           </div>
         </div>
@@ -1604,15 +1889,110 @@ function ReportsPage({
   );
 }
 
+function CalendarPage({ tasks, onOpenTask }: { tasks: Task[]; onOpenTask: (task: Task) => void }) {
+  const [mode, setMode] = useState<'일' | '주' | '월'>('월');
+  const datedTasks = tasks
+    .filter((task) => task.dueAt)
+    .map((task) => ({ task, date: new Date(task.dueAt || '') }))
+    .filter((item) => !Number.isNaN(item.date.getTime()))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
+  const today = new Date();
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay());
+  const monthDays = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const hours = Array.from({ length: 14 }, (_, index) => index + 8);
+
+  const tasksForDay = (date: Date) =>
+    datedTasks.filter(({ date: dueDate }) => dueDate.toDateString() === date.toDateString());
+
+  return (
+    <section className="page-shell">
+      <div className="page-head">
+        <div>
+          <p className="eyebrow">Calendar</p>
+          <h1>캘린더</h1>
+        </div>
+        <div className="filters">
+          {(['일', '주', '월'] as const).map((item) => (
+            <button data-active={mode === item} key={item} onClick={() => setMode(item)} type="button">
+              {item}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="page-card calendar-panel" data-mode={mode}>
+        {mode === '월' ? (
+          <div className="month-grid">
+            {Array.from({ length: monthDays }, (_, index) => {
+              const day = new Date(today.getFullYear(), today.getMonth(), index + 1);
+              const dayTasks = tasksForDay(day);
+              return (
+                <div className="month-cell" key={day.toISOString()}>
+                  <strong>{index + 1}</strong>
+                  {dayTasks.slice(0, 3).map(({ task, date }) => (
+                    <button key={task.id} onClick={() => onOpenTask(task)} type="button">
+                      {date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} {task.title}
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className={mode === '주' ? 'week-timeline' : 'day-timeline'}>
+            {hours.map((hour) => {
+              const columns = mode === '주'
+                ? Array.from({ length: 7 }, (_, index) => {
+                    const day = new Date(startOfWeek);
+                    day.setDate(startOfWeek.getDate() + index);
+                    return day;
+                  })
+                : [today];
+
+              return (
+                <div className="time-row" key={hour}>
+                  <span>{String(hour).padStart(2, '0')}:00</span>
+                  {columns.map((day) => {
+                    const dayTasks = tasksForDay(day).filter(({ date }) => date.getHours() === hour);
+                    return (
+                      <div className="time-slot" key={`${day.toDateString()}-${hour}`}>
+                        {dayTasks.map(({ task }) => (
+                          <button className="calendar-task-pill" key={task.id} onClick={() => onOpenTask(task)} type="button">
+                            {task.title}
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function ClientsPage({
   clients,
   onAddClient,
+  onDeleteClient,
+  onUpdateClient,
 }: {
   clients: Client[];
   onAddClient: ClientSubmitHandler;
+  onDeleteClient: ClientDeleteHandler;
+  onUpdateClient: ClientUpdateHandler;
 }) {
-  const [form, setForm] = useState({ name: '', manager: '인성이형', phone: '', memo: '' });
+  const [regions, setRegions] = useState(['서울', '경기', '제주', '부산', '대구', '평택']);
+  const [newRegion, setNewRegion] = useState('');
+  const [form, setForm] = useState({ name: '', manager: '인성이형', phone: '', region: regions[0], memo: '' });
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [editForm, setEditForm] = useState<Omit<Client, 'id'>>({ name: '', manager: '', phone: '', region: regions[0], memo: '' });
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState('');
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1621,7 +2001,53 @@ function ClientsPage({
     const message = await onAddClient(form);
     setLoading(false);
     showActionPopup(message);
-    if (!message.includes('실패')) setForm({ name: '', manager: '인성이형', phone: '', memo: '' });
+    if (!message.includes('실패')) setForm({ name: '', manager: '인성이형', phone: '', region: regions[0] || '', memo: '' });
+  };
+
+  const openEdit = (client: Client) => {
+    setEditingClient(client);
+    setEditForm({
+      name: client.name,
+      manager: client.manager,
+      phone: formatMobilePhone(client.phone),
+      region: client.region || regions[0] || '',
+      memo: client.memo,
+    });
+  };
+
+  const saveEdit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!editingClient || actionLoading) return;
+    if (!window.confirm('업체 정보를 저장하시겠습니까?')) return;
+    setActionLoading('save');
+    const message = await onUpdateClient(editingClient.id, editForm);
+    setActionLoading('');
+    showActionPopup(message);
+    if (!message.includes('실패')) setEditingClient(null);
+  };
+
+  const removeClient = async (client: Client) => {
+    if (actionLoading) return;
+    if (!window.confirm(`${client.name} 업체를 삭제하시겠습니까?`)) return;
+    setActionLoading(client.id);
+    const message = await onDeleteClient(client);
+    setActionLoading('');
+    showActionPopup(message);
+  };
+
+  const addRegion = () => {
+    const nextRegion = newRegion.trim();
+    if (!nextRegion || regions.includes(nextRegion)) return;
+    setRegions((current) => [...current, nextRegion]);
+    setForm((current) => ({ ...current, region: nextRegion }));
+    setEditForm((current) => ({ ...current, region: nextRegion }));
+    setNewRegion('');
+  };
+
+  const deleteRegion = (region: string) => {
+    setRegions((current) => current.filter((item) => item !== region));
+    setForm((current) => ({ ...current, region: current.region === region ? regions.find((item) => item !== region) || '' : current.region }));
+    setEditForm((current) => ({ ...current, region: current.region === region ? regions.find((item) => item !== region) || '' : current.region }));
   };
 
   return (
@@ -1641,7 +2067,14 @@ function ClientsPage({
                 <strong>{client.name}</strong>
                 <span>담당: {client.manager}</span>
                 <span>{client.phone}</span>
+                <span>지역: {client.region || '미지정'}</span>
                 <p>{client.memo}</p>
+                <div className="client-actions">
+                  <button className="secondary-action" onClick={() => openEdit(client)} type="button">수정</button>
+                  <button className="secondary-action danger-action" disabled={actionLoading === client.id} onClick={() => removeClient(client)} type="button">
+                    {actionLoading === client.id ? '진행중...' : '삭제'}
+                  </button>
+                </div>
               </article>
             ))}
           </div>
@@ -1669,6 +2102,13 @@ function ClientsPage({
             />
           </label>
           <label>
+            지역
+            <select value={form.region} onChange={(event) => setForm({ ...form, region: event.target.value })}>
+              {regions.map((region) => <option key={region}>{region}</option>)}
+            </select>
+          </label>
+          <RegionEditor regions={regions} newRegion={newRegion} onAdd={addRegion} onChangeNewRegion={setNewRegion} onDelete={deleteRegion} />
+          <label>
             메모
             <textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
           </label>
@@ -1678,7 +2118,84 @@ function ClientsPage({
           </button>
         </form>
       </div>
+      {editingClient ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setEditingClient(null)}>
+          <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={saveEdit}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Edit Client</p>
+                <h2>업체 수정</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setEditingClient(null)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              업체명
+              <input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} />
+            </label>
+            <label>
+              담당자
+              <input value={editForm.manager} onChange={(event) => setEditForm({ ...editForm, manager: event.target.value })} />
+            </label>
+            <label>
+              전화번호
+              <input
+                inputMode="numeric"
+                maxLength={13}
+                value={editForm.phone}
+                onChange={(event) => setEditForm({ ...editForm, phone: formatMobilePhone(event.target.value) })}
+              />
+            </label>
+            <label>
+              지역
+              <select value={editForm.region} onChange={(event) => setEditForm({ ...editForm, region: event.target.value })}>
+                {regions.map((region) => <option key={region}>{region}</option>)}
+              </select>
+            </label>
+            <RegionEditor regions={regions} newRegion={newRegion} onAdd={addRegion} onChangeNewRegion={setNewRegion} onDelete={deleteRegion} />
+            <label>
+              메모
+              <textarea value={editForm.memo} onChange={(event) => setEditForm({ ...editForm, memo: event.target.value })} />
+            </label>
+            <button className="primary-action wide" disabled={actionLoading === 'save'} type="submit">
+              <CheckCircle2 size={17} />
+              {actionLoading === 'save' ? '진행중...' : '저장'}
+            </button>
+          </form>
+        </div>
+      ) : null}
     </section>
+  );
+}
+
+function RegionEditor({
+  regions,
+  newRegion,
+  onAdd,
+  onChangeNewRegion,
+  onDelete,
+}: {
+  regions: string[];
+  newRegion: string;
+  onAdd: () => void;
+  onChangeNewRegion: (region: string) => void;
+  onDelete: (region: string) => void;
+}) {
+  return (
+    <div className="region-editor">
+      <div className="multi-picker compact">
+        {regions.map((region) => (
+          <button className="select-chip" key={region} onClick={() => onDelete(region)} type="button">
+            {region} 삭제
+          </button>
+        ))}
+      </div>
+      <div className="inline-form">
+        <input value={newRegion} onChange={(event) => onChangeNewRegion(event.target.value)} placeholder="지역 추가" />
+        <button className="secondary-action" onClick={onAdd} type="button">추가</button>
+      </div>
+    </div>
   );
 }
 
@@ -2026,6 +2543,8 @@ function SettingsPage({
   pushStatus,
   themeMode,
   onRegisterPush,
+  onAddJobType,
+  onDeleteJobType,
   onUpdateOwnProfile,
   onThemeChange,
 }: {
@@ -2038,6 +2557,8 @@ function SettingsPage({
   pushStatus: string;
   themeMode: ThemeMode;
   onRegisterPush: () => void;
+  onAddJobType: JobTypeSubmitHandler;
+  onDeleteJobType: JobTypeDeleteHandler;
   onUpdateOwnProfile: (updates: OwnProfileUpdate) => Promise<string>;
   onThemeChange: (mode: ThemeMode) => void;
 }) {
@@ -2051,6 +2572,8 @@ function SettingsPage({
   });
   const [profileStatus, setProfileStatus] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [jobTypeOpen, setJobTypeOpen] = useState(false);
 
   useEffect(() => {
     setProfileForm({
@@ -2111,60 +2634,167 @@ function SettingsPage({
             </button>
           </div>
         </div>
-        <form className="page-card form-stack" onSubmit={submitProfile}>
-          <div>
-            <p className="eyebrow">My Profile</p>
-            <h2>내 정보 수정</h2>
+        <div className="page-card settings-card">
+          <h2>관리</h2>
+          <div className="settings-shortcuts">
+            <button className="secondary-action" onClick={() => setProfileOpen(true)} type="button">내 정보 수정</button>
+            <button className="secondary-action" onClick={() => setJobTypeOpen(true)} type="button">담당업무 관리</button>
+            <button className="secondary-action" onClick={() => showActionPopup('업무유형 관리는 다음 배치에서 DB 테이블과 함께 연결하겠습니다.')} type="button">업무유형 추가/삭제</button>
           </div>
-          <label>
-            이름
-            <input value={profileForm.name} onChange={(event) => setProfileForm({ ...profileForm, name: event.target.value })} />
-          </label>
-          <label>
-            전화번호
-            <input
-              inputMode="numeric"
-              maxLength={13}
-              value={profileForm.phone}
-              onChange={(event) => setProfileForm({ ...profileForm, phone: formatMobilePhone(event.target.value) })}
-            />
-          </label>
-          <label>
-            담당업무
-            <select value={profileForm.jobType} onChange={(event) => setProfileForm({ ...profileForm, jobType: event.target.value })}>
-              {jobTypes.map((jobType) => <option key={jobType}>{jobType}</option>)}
-            </select>
-          </label>
-          <label>
-            새 비밀번호
-            <input
-              autoComplete="new-password"
-              type="password"
-              value={profileForm.password}
-              onChange={(event) => setProfileForm({ ...profileForm, password: event.target.value })}
-            />
-          </label>
-          <label>
-            새 비밀번호 확인
-            <input
-              autoComplete="new-password"
-              type="password"
-              value={profileForm.passwordConfirm}
-              onChange={(event) => setProfileForm({ ...profileForm, passwordConfirm: event.target.value })}
-            />
-          </label>
-          {profileStatus ? <p className="admin-note">{profileStatus}</p> : null}
-          <button className="primary-action wide" disabled={profileLoading} type="submit">
-            <CheckCircle2 size={17} />
-            {profileLoading ? '진행중...' : '내 정보 저장'}
-          </button>
-        </form>
+        </div>
         <div className="page-card settings-card settings-backend">
           <h2>백엔드</h2>
           <p>{backendStatus}</p>
         </div>
       </div>
+      {profileOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setProfileOpen(false)}>
+          <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={submitProfile}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">My Profile</p>
+                <h2>내 정보 수정</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setProfileOpen(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              이름
+              <input value={profileForm.name} onChange={(event) => setProfileForm({ ...profileForm, name: event.target.value })} />
+            </label>
+            <label>
+              전화번호
+              <input
+                inputMode="numeric"
+                maxLength={13}
+                value={profileForm.phone}
+                onChange={(event) => setProfileForm({ ...profileForm, phone: formatMobilePhone(event.target.value) })}
+              />
+            </label>
+            <label>
+              담당업무
+              <select value={profileForm.jobType} onChange={(event) => setProfileForm({ ...profileForm, jobType: event.target.value })}>
+                {jobTypes.map((jobType) => <option key={jobType}>{jobType}</option>)}
+              </select>
+            </label>
+            <label>
+              새 비밀번호
+              <input
+                autoComplete="new-password"
+                type="password"
+                value={profileForm.password}
+                onChange={(event) => setProfileForm({ ...profileForm, password: event.target.value })}
+              />
+            </label>
+            <label>
+              새 비밀번호 확인
+              <input
+                autoComplete="new-password"
+                type="password"
+                value={profileForm.passwordConfirm}
+                onChange={(event) => setProfileForm({ ...profileForm, passwordConfirm: event.target.value })}
+              />
+            </label>
+            {profileStatus ? <p className="admin-note">{profileStatus}</p> : null}
+            <button className="primary-action wide" disabled={profileLoading} type="submit">
+              <CheckCircle2 size={17} />
+              {profileLoading ? '진행중...' : '내 정보 저장'}
+            </button>
+          </form>
+        </div>
+      ) : null}
+      {jobTypeOpen ? (
+        <JobTypeModal
+          employees={employees}
+          jobTypes={jobTypes}
+          onAddJobType={onAddJobType}
+          onClose={() => setJobTypeOpen(false)}
+          onDeleteJobType={onDeleteJobType}
+        />
+      ) : null}
     </section>
+  );
+}
+
+function JobTypeModal({
+  employees,
+  jobTypes,
+  onAddJobType,
+  onDeleteJobType,
+  onClose,
+}: {
+  employees: Employee[];
+  jobTypes: string[];
+  onAddJobType: JobTypeSubmitHandler;
+  onDeleteJobType: JobTypeDeleteHandler;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [loadingName, setLoadingName] = useState('');
+
+  const add = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!name.trim() || loadingName) return;
+    setLoadingName('add');
+    const message = await onAddJobType(name.trim());
+    setLoadingName('');
+    showActionPopup(message);
+    if (!message.includes('실패')) setName('');
+  };
+
+  const remove = async (jobType: string) => {
+    if (loadingName) return;
+    if (!window.confirm(`${jobType} 담당업무를 삭제할까요?`)) return;
+    setLoadingName(jobType);
+    const message = await onDeleteJobType(jobType);
+    setLoadingName('');
+    showActionPopup(message);
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <article className="modal-card form-stack" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">Job Type</p>
+            <h2>담당업무 관리</h2>
+          </div>
+          <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="job-type-list compact-list">
+          {jobTypes.map((jobType) => {
+            const assignedEmployees = employees.filter((employee) => employee.jobType === jobType);
+            return (
+              <article className="job-type-card" draggable key={jobType}>
+                <div className="job-type-head">
+                  <strong>{jobType}</strong>
+                  <small>{assignedEmployees.length}명</small>
+                </div>
+                <div className="job-type-members">
+                  {assignedEmployees.length ? assignedEmployees.map((employee) => <span className="member-chip" key={employee.id}>{employee.name}</span>) : <p>배정된 직원이 없습니다.</p>}
+                </div>
+                <button className="secondary-action danger-action" disabled={loadingName === jobType} onClick={() => remove(jobType)} type="button">
+                  {loadingName === jobType ? '진행중...' : '삭제'}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+        <form className="form-stack" onSubmit={add}>
+          <label>
+            담당업무명
+            <input value={name} onChange={(event) => setName(event.target.value)} />
+          </label>
+          <button className="primary-action wide" disabled={Boolean(loadingName)} type="submit">
+            <Plus size={17} />
+            {loadingName === 'add' ? '진행중...' : '추가'}
+          </button>
+        </form>
+      </article>
+    </div>
   );
 }
 
@@ -2181,7 +2811,7 @@ function TaskForm({
     type: '영업 브리핑' as TaskType,
     title: '',
     toIds: employees[1]?.id ? [employees[1].id] : [],
-    client: clients[0]?.name || '',
+    clientId: clients[0]?.id || '',
     due: '',
     priority: '보통' as Priority,
     summary: '',
@@ -2197,6 +2827,13 @@ function TaskForm({
       return { ...current, toIds: employees[0]?.id ? [employees[0].id] : [] };
     });
   }, [employees]);
+
+  useEffect(() => {
+    setForm((current) => {
+      if (current.clientId && clients.some((client) => client.id === current.clientId)) return current;
+      return { ...current, clientId: clients[0]?.id || '' };
+    });
+  }, [clients]);
 
   const toggleRecipient = (id: string) => {
     setForm((current) => ({
@@ -2223,13 +2860,15 @@ function TaskForm({
     setError('');
     setLoading(true);
     setStatus('전송중입니다.');
+    const selectedClient = clients.find((client) => client.id === form.clientId);
     const message = await onSubmit({
       title: form.title,
       from: '인성이형',
       to: validRecipients[0] || '',
       toIds: validRecipientIds,
       toList: validRecipients,
-      client: form.client,
+      clientId: selectedClient?.id || undefined,
+      client: selectedClient?.name || '내부',
       due: form.due || '미정',
       priority: form.priority,
       type: form.type,
@@ -2246,13 +2885,7 @@ function TaskForm({
       <label>
         유형
         <select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as TaskType })}>
-          <option>영업 브리핑</option>
-          <option>디자인 요청</option>
-          <option>보고</option>
-          <option>제안</option>
-          <option>확인 요청</option>
-          <option>촬영 요청</option>
-          <option>시장 조사</option>
+          {taskTypeOptions.map((item) => <option key={item}>{item}</option>)}
         </select>
       </label>
       <label>
@@ -2273,13 +2906,14 @@ function TaskForm({
       </label>
       <label>
         관련 업체
-        <select value={form.client} onChange={(event) => setForm({ ...form, client: event.target.value })}>
-          {clients.map((client) => <option key={client.id}>{client.name}</option>)}
+        <select value={form.clientId} onChange={(event) => setForm({ ...form, clientId: event.target.value })}>
+          <option value="">내부</option>
+          {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
         </select>
       </label>
       <label>
-        마감일
-        <input type="date" value={form.due} onChange={(event) => setForm({ ...form, due: event.target.value })} />
+        마감기한
+        <input type="datetime-local" value={form.due} onChange={(event) => setForm({ ...form, due: event.target.value })} />
       </label>
       <label>
         우선순위
@@ -2379,6 +3013,7 @@ function TaskComposer({
   const [title, setTitle] = useState('A업체 미팅 내용 전달');
   const [summary, setSummary] = useState('미팅 내용, 요청사항, 다음 액션을 정리해서 전달합니다.');
   const [type, setType] = useState<TaskType>('영업 브리핑');
+  const [due, setDue] = useState('');
   const [toIds, setToIds] = useState<string[]>(employees[0]?.id ? [employees[0].id] : []);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
@@ -2400,7 +3035,7 @@ function TaskComposer({
       <div className="section-head tight">
         <div>
           <p className="eyebrow">Quick Send</p>
-          <h2>업무 전달</h2>
+          <h2>빠른 업무 전달</h2>
         </div>
         <ShieldCheck size={22} />
       </div>
@@ -2409,11 +3044,7 @@ function TaskComposer({
         <label>
           유형
           <select value={type} onChange={(event) => setType(event.target.value as TaskType)}>
-            <option>영업 브리핑</option>
-            <option>디자인 요청</option>
-            <option>보고</option>
-            <option>제안</option>
-            <option>확인 요청</option>
+            {taskTypeOptions.map((item) => <option key={item}>{item}</option>)}
           </select>
         </label>
         <label>
@@ -2439,6 +3070,10 @@ function TaskComposer({
         <label>
           요청 내용
           <textarea value={summary} onChange={(event) => setSummary(event.target.value)} />
+        </label>
+        <label>
+          마감기한
+          <input type="datetime-local" value={due} onChange={(event) => setDue(event.target.value)} />
         </label>
         <div className="attachment-row">
           <Paperclip size={17} />
@@ -2470,8 +3105,8 @@ function TaskComposer({
               toIds: validRecipientIds,
               toList: validRecipients,
               from: '인성이형',
-              client: 'A업체',
-              due: '미정',
+              client: '내부',
+              due: due || '미정',
               priority: '보통',
             });
             setLoading(false);
@@ -2492,11 +3127,13 @@ function TaskComposer({
 function TaskCard({
   task,
   currentUser,
+  onOpenTask,
   onDeleteTask,
   onUpdateStatus,
 }: {
   task: Task;
   currentUser: AppUser;
+  onOpenTask?: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
@@ -2529,15 +3166,18 @@ function TaskCard({
   };
 
   return (
-    <article className="task-card">
+    <article className="task-card" data-unread={isUnreadForUser(task, currentUser)}>
       <div className="task-main">
         <div className="task-title-row">
-          <span className="task-type">{task.type}</span>
+          <span className="task-type">{formatTaskTypeLabel(task.type)}</span>
           <span className="priority" data-priority={task.priority}>
             {task.priority}
           </span>
+          <span className="read-badge" data-read={getTaskReadLabel(task)}>{getTaskReadLabel(task)}</span>
         </div>
-        <h3>{task.title}</h3>
+        <button className="task-title-button" onClick={() => onOpenTask?.(task)} type="button">
+          {task.title}
+        </button>
         <p>{task.summary}</p>
         <div className="task-meta">
           <span>{task.from} → {task.to}</span>
@@ -2557,18 +3197,21 @@ function TaskCard({
             <MoreHorizontal size={18} />
           </button>
           {menuOpen ? (
-            <div className="task-menu-popover">
-              {statusActions.map((status) => (
-                <button disabled={task.status === status || Boolean(loadingStatus)} key={status} onClick={() => updateStatus(status)} type="button">
-                  {loadingStatus === status ? '진행중...' : status}
-                </button>
-              ))}
-              {canDelete ? (
-                <button className="danger-menu-item" disabled={deleteLoading || Boolean(loadingStatus)} onClick={deleteCurrentTask} type="button">
-                  {deleteLoading ? '진행중...' : '삭제'}
-                </button>
-              ) : null}
-            </div>
+            <>
+              <button className="menu-scrim" aria-label="업무 메뉴 닫기" onClick={() => setMenuOpen(false)} type="button" />
+              <div className="task-menu-popover">
+                {statusActions.map((status) => (
+                  <button disabled={task.status === status || Boolean(loadingStatus)} key={status} onClick={() => updateStatus(status)} type="button">
+                    {loadingStatus === status ? '진행중...' : status}
+                  </button>
+                ))}
+                {canDelete ? (
+                  <button className="danger-menu-item" disabled={deleteLoading || Boolean(loadingStatus)} onClick={deleteCurrentTask} type="button">
+                    {deleteLoading ? '진행중...' : '삭제'}
+                  </button>
+                ) : null}
+              </div>
+            </>
           ) : null}
         </div>
       </div>
@@ -2582,7 +3225,7 @@ function TeamLoad({ employees }: { employees: Employee[] }) {
       <div className="section-head tight">
         <div>
           <p className="eyebrow">Team</p>
-          <h2>담당자 현황</h2>
+          <h2>팀 구성원</h2>
         </div>
         <Users size={22} />
       </div>
