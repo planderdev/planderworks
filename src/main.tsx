@@ -97,6 +97,16 @@ type EmployeeUpdate = Pick<Employee, 'name' | 'phone' | 'jobType' | 'role'> & {
   password?: string;
 };
 
+type OwnProfileUpdate = Pick<Employee, 'name' | 'phone' | 'jobType'> & {
+  password?: string;
+};
+
+type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers'> & {
+  status?: TaskStatus;
+  watchers?: string[];
+  toList?: string[];
+};
+
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
   { id: 'inbox', label: '받은 업무', icon: ClipboardList },
@@ -297,6 +307,8 @@ function App() {
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [jobTypes, setJobTypes] = useState(seedJobTypes);
   const [backendStatus, setBackendStatus] = useState('프로토타입 데이터');
+  const [pushStatus, setPushStatus] = useState('종 버튼을 누르면 이 기기 업무 푸시알림을 켤 수 있습니다.');
+  const [pushLoading, setPushLoading] = useState(false);
 
   useEffect(() => {
     applyTheme(themeMode);
@@ -512,52 +524,69 @@ function App() {
     setCurrentUser(null);
   };
 
-  const createTask = async (task: Omit<Task, 'id' | 'status' | 'watchers'> & { status?: TaskStatus; watchers?: string[] }) => {
-    const assignee = employees.find((employee) => employee.name === task.to);
+  const createTask = async (task: TaskDraft) => {
+    const recipients = (task.toList?.length ? task.toList : [task.to]).filter(Boolean);
+    const uniqueRecipients = Array.from(new Set(recipients));
+    const assignees = uniqueRecipients
+      .map((name) => employees.find((employee) => employee.name === name))
+      .filter((employee): employee is Employee => Boolean(employee));
     const client = clients.find((item) => item.name === task.client);
 
+    if (!uniqueRecipients.length) {
+      setBackendStatus('업무를 받을 담당자를 선택해주세요.');
+      return;
+    }
+
     if (supabase && currentUser && !currentUser.isPrototype) {
+      const rows = (assignees.length ? assignees : uniqueRecipients.map(() => null)).map((assignee, index) => ({
+        title: task.title,
+        description: task.summary,
+        task_type: task.type,
+        status: statusToDb[task.status || '대기'],
+        priority: priorityToDb[task.priority],
+        creator_id: currentUser.id,
+        assignee_id: assignee?.id || null,
+        client_id: client?.id || null,
+        due_at: parseDueDate(task.due),
+        // If an old draft has a name that is not in profiles, keep one row visible as unassigned.
+        ...(assignee ? {} : { title: `${task.title} (${uniqueRecipients[index] || '미지정'})` }),
+      }));
+
       const { data, error } = await supabase
         .from('tasks')
-        .insert({
-          title: task.title,
-          description: task.summary,
-          task_type: task.type,
-          status: statusToDb[task.status || '대기'],
-          priority: priorityToDb[task.priority],
-          creator_id: currentUser.id,
-          assignee_id: assignee?.id || null,
-          client_id: client?.id || null,
-          due_at: parseDueDate(task.due),
-        })
-        .select('id')
-        .single();
+        .insert(rows)
+        .select('id');
 
       if (error) {
         setBackendStatus(`업무 저장 실패: ${error.message}`);
         return;
       }
 
-      if (data?.id) {
-        await supabase.functions.invoke('send-task-notification', {
-          body: { taskId: data.id },
-        });
-      }
+      await Promise.all(
+        (data || []).map((createdTask) =>
+          supabase.functions.invoke('send-task-notification', {
+            body: { taskId: createdTask.id },
+          }),
+        ),
+      );
 
       await loadBackendData();
-      setActiveView('inbox');
+      setBackendStatus(`업무 ${data?.length || rows.length}건을 전송했습니다.`);
+      setActiveView('sent');
       return;
     }
 
-    const nextTask: Task = {
-      id: String(Date.now()),
+    const nextTasks: Task[] = uniqueRecipients.map((recipient, index) => ({
+      id: `${Date.now()}-${index}`,
       status: task.status || '대기',
       watchers: task.watchers || [],
       ...task,
-    };
+      from: currentUser?.name || task.from,
+      to: recipient,
+    }));
 
-    setTasks((current) => [nextTask, ...current]);
-    setActiveView('inbox');
+    setTasks((current) => [...nextTasks, ...current]);
+    setActiveView('sent');
   };
 
   const addClient = async (client: Omit<Client, 'id'>) => {
@@ -652,23 +681,66 @@ function App() {
     );
   };
 
-  const updateOwnProfile = async (updates: Pick<Employee, 'name' | 'phone' | 'jobType'>) => {
+  const updateOwnProfile = async (updates: OwnProfileUpdate) => {
     if (!currentUser) return '로그인이 필요합니다.';
 
-    const target = employees.find((employee) => employee.id === currentUser.id);
+    if (supabase && !currentUser.isPrototype) {
+      const { data: jobTypeData, error: jobTypeError } = await supabase
+        .from('job_types')
+        .select('id')
+        .eq('name', updates.jobType)
+        .single();
 
-    if (!target && !currentUser.isPrototype) {
-      return '프로필 정보를 찾을 수 없습니다.';
+      if (jobTypeError) return `담당업무 조회 실패: ${jobTypeError.message}`;
+
+      if (updates.password) {
+        const { error: passwordError } = await supabase.auth.updateUser({ password: updates.password });
+        if (passwordError) return `비밀번호 변경 실패: ${passwordError.message}`;
+      }
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          name: updates.name,
+          phone: updates.phone,
+          job_type_id: jobTypeData.id,
+        })
+        .eq('id', currentUser.id);
+
+      if (profileError) return `내 정보 저장 실패: ${profileError.message}`;
+
+      await loadBackendData();
+      return updates.password ? '내 정보와 비밀번호가 저장되었습니다.' : '내 정보가 저장되었습니다.';
     }
 
-    await updateEmployee(currentUser.id, {
-      name: updates.name,
-      phone: updates.phone,
-      jobType: updates.jobType,
-      role: target?.role || (currentUser.accountRole === 'admin' ? '관리자' : '사용자'),
-    });
+    setEmployees((current) =>
+      current.map((employee) =>
+        employee.id === currentUser.id
+          ? { ...employee, name: updates.name, phone: updates.phone, jobType: updates.jobType }
+          : employee,
+      ),
+    );
 
     return '내 정보가 저장되었습니다.';
+  };
+
+  const updateTaskStatus = async (taskId: string, status: TaskStatus) => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('tasks')
+        .update({ status: statusToDb[status] })
+        .eq('id', taskId);
+
+      if (error) {
+        setBackendStatus(`업무 상태 변경 실패: ${error.message}`);
+        return;
+      }
+
+      await loadBackendData();
+      return;
+    }
+
+    setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, status } : task)));
   };
 
   const registerPushNotifications = async () => {
@@ -694,12 +766,24 @@ function App() {
 
     const registration = await navigator.serviceWorker.register('/sw.js');
     const existingSubscription = await registration.pushManager.getSubscription();
-    const subscription =
-      existingSubscription ||
-      (await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-      }));
+
+    if (existingSubscription) {
+      const endpoint = existingSubscription.endpoint;
+      await existingSubscription.unsubscribe();
+
+      const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+
+      if (error) {
+        return `푸시 구독 해제 실패: ${error.message}`;
+      }
+
+      return '이 기기 업무 푸시알림이 꺼졌습니다.';
+    }
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    });
     const subscriptionJson = subscription.toJSON();
 
     const { error } = await supabase.from('push_subscriptions').upsert(
@@ -718,6 +802,13 @@ function App() {
     }
 
     return '이 기기에서 업무 푸시알림이 켜졌습니다.';
+  };
+
+  const handleRegisterPush = async () => {
+    if (pushLoading) return;
+    setPushLoading(true);
+    setPushStatus(await registerPushNotifications());
+    setPushLoading(false);
   };
 
   if (!authReady) {
@@ -764,7 +855,10 @@ function App() {
       <main className="workspace">
         <Topbar
           currentUser={currentUser}
+          pushLoading={pushLoading}
+          pushStatus={pushStatus}
           themeMode={themeMode}
+          onRegisterPush={handleRegisterPush}
           onThemeChange={setThemeMode}
           onMenuClick={() => setSidebarOpen(true)}
         />
@@ -776,12 +870,13 @@ function App() {
             employees={employees}
             onCreateClick={() => setActiveView('create')}
             onCreateTask={createTask}
+            onUpdateTaskStatus={updateTaskStatus}
           />
         ) : null}
-        {activeView === 'inbox' ? <TaskListPage title="받은 업무" tasks={inboxTasks} /> : null}
-        {activeView === 'sent' ? <TaskListPage title="보낸 업무" tasks={sentTasks} /> : null}
+        {activeView === 'inbox' ? <TaskListPage title="받은 업무" tasks={inboxTasks} onUpdateTaskStatus={updateTaskStatus} /> : null}
+        {activeView === 'sent' ? <TaskListPage title="보낸 업무" tasks={sentTasks} onUpdateTaskStatus={updateTaskStatus} /> : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} onCreateTask={createTask} /> : null}
-        {activeView === 'reports' ? <ReportsPage tasks={tasks} onCreateTask={createTask} /> : null}
+        {activeView === 'reports' ? <ReportsPage tasks={tasks} onCreateTask={createTask} onUpdateTaskStatus={updateTaskStatus} /> : null}
         {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} /> : null}
         {activeView === 'employees' && isAdmin ? (
           <EmployeesPage
@@ -799,7 +894,9 @@ function App() {
             employees={employees}
             jobTypes={jobTypes}
             themeMode={themeMode}
-            onRegisterPush={registerPushNotifications}
+            pushLoading={pushLoading}
+            pushStatus={pushStatus}
+            onRegisterPush={handleRegisterPush}
             onUpdateOwnProfile={updateOwnProfile}
             onThemeChange={setThemeMode}
           />
@@ -987,12 +1084,18 @@ function Sidebar({
 
 function Topbar({
   currentUser,
+  pushLoading,
+  pushStatus,
   themeMode,
+  onRegisterPush,
   onThemeChange,
   onMenuClick,
 }: {
   currentUser: AppUser;
+  pushLoading: boolean;
+  pushStatus: string;
   themeMode: ThemeMode;
+  onRegisterPush: () => void;
   onThemeChange: (mode: ThemeMode) => void;
   onMenuClick: () => void;
 }) {
@@ -1009,7 +1112,14 @@ function Topbar({
 
       <div className="top-actions">
         <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
-        <button className="icon-button" aria-label="알림">
+        <button
+          className="icon-button"
+          aria-label="푸시알림 설정"
+          disabled={pushLoading}
+          onClick={onRegisterPush}
+          title={pushStatus}
+          type="button"
+        >
           <Bell size={19} />
         </button>
         <button className="account-button">
@@ -1055,12 +1165,14 @@ function Dashboard({
   employees,
   onCreateClick,
   onCreateTask,
+  onUpdateTaskStatus,
 }: {
   stats: Array<{ label: string; value: number; hint: string; tone: string }>;
   tasks: Task[];
   employees: Employee[];
   onCreateClick: () => void;
-  onCreateTask: (task: Omit<Task, 'id' | 'status' | 'watchers'> & { status?: TaskStatus; watchers?: string[] }) => void;
+  onCreateTask: (task: TaskDraft) => void;
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void;
 }) {
   return (
     <>
@@ -1104,13 +1216,13 @@ function Dashboard({
 
           <div className="task-list">
             {tasks.slice(0, 4).map((task) => (
-              <TaskCard key={task.id} task={task} />
+              <TaskCard key={task.id} task={task} onUpdateStatus={onUpdateTaskStatus} />
             ))}
           </div>
         </div>
 
         <aside className="side-panel">
-          <TaskComposer onCreateTask={onCreateTask} />
+          <TaskComposer employees={employees} onCreateTask={onCreateTask} />
           <TeamLoad employees={employees} />
         </aside>
       </section>
@@ -1118,7 +1230,15 @@ function Dashboard({
   );
 }
 
-function TaskListPage({ title, tasks }: { title: string; tasks: Task[] }) {
+function TaskListPage({
+  title,
+  tasks,
+  onUpdateTaskStatus,
+}: {
+  title: string;
+  tasks: Task[];
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void;
+}) {
   const [status, setStatus] = useState<'전체' | TaskStatus>('전체');
   const filteredTasks = status === '전체' ? tasks : tasks.filter((task) => task.status === status);
 
@@ -1140,7 +1260,11 @@ function TaskListPage({ title, tasks }: { title: string; tasks: Task[] }) {
 
       <div className="task-board page-card">
         <div className="task-list">
-          {filteredTasks.length ? filteredTasks.map((task) => <TaskCard key={task.id} task={task} />) : <EmptyState text="조건에 맞는 업무가 없습니다." />}
+          {filteredTasks.length ? (
+            filteredTasks.map((task) => <TaskCard key={task.id} task={task} onUpdateStatus={onUpdateTaskStatus} />)
+          ) : (
+            <EmptyState text="조건에 맞는 업무가 없습니다." />
+          )}
         </div>
       </div>
     </section>
@@ -1154,7 +1278,7 @@ function TaskCreatePage({
 }: {
   clients: Client[];
   employees: Employee[];
-  onCreateTask: (task: Omit<Task, 'id' | 'status' | 'watchers'> & { status?: TaskStatus; watchers?: string[] }) => void;
+  onCreateTask: (task: TaskDraft) => void;
 }) {
   return (
     <section className="page-shell">
@@ -1174,9 +1298,11 @@ function TaskCreatePage({
 function ReportsPage({
   tasks,
   onCreateTask,
+  onUpdateTaskStatus,
 }: {
   tasks: Task[];
-  onCreateTask: (task: Omit<Task, 'id' | 'status' | 'watchers'> & { status?: TaskStatus; watchers?: string[] }) => void;
+  onCreateTask: (task: TaskDraft) => void;
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void;
 }) {
   const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안' || task.type === '영업 브리핑');
 
@@ -1197,7 +1323,7 @@ function ReportsPage({
             </div>
           </div>
           <div className="task-list">
-            {reportTasks.map((task) => <TaskCard key={task.id} task={task} />)}
+            {reportTasks.map((task) => <TaskCard key={task.id} task={task} onUpdateStatus={onUpdateTaskStatus} />)}
           </div>
         </div>
         <div className="page-card">
@@ -1261,7 +1387,12 @@ function ClientsPage({
           </label>
           <label>
             전화번호
-            <input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} />
+            <input
+              inputMode="numeric"
+              maxLength={13}
+              value={form.phone}
+              onChange={(event) => setForm({ ...form, phone: formatMobilePhone(event.target.value) })}
+            />
           </label>
           <label>
             메모
@@ -1600,6 +1731,8 @@ function SettingsPage({
   currentUser,
   employees,
   jobTypes,
+  pushLoading,
+  pushStatus,
   themeMode,
   onRegisterPush,
   onUpdateOwnProfile,
@@ -1609,18 +1742,20 @@ function SettingsPage({
   currentUser: AppUser;
   employees: Employee[];
   jobTypes: string[];
+  pushLoading: boolean;
+  pushStatus: string;
   themeMode: ThemeMode;
-  onRegisterPush: () => Promise<string>;
-  onUpdateOwnProfile: (updates: Pick<Employee, 'name' | 'phone' | 'jobType'>) => Promise<string>;
+  onRegisterPush: () => void;
+  onUpdateOwnProfile: (updates: OwnProfileUpdate) => Promise<string>;
   onThemeChange: (mode: ThemeMode) => void;
 }) {
-  const [pushStatus, setPushStatus] = useState('이 기기에서 푸시알림을 켜면 새 업무 배정 시 알림을 받을 수 있습니다.');
-  const [pushLoading, setPushLoading] = useState(false);
   const currentEmployee = employees.find((employee) => employee.id === currentUser.id);
   const [profileForm, setProfileForm] = useState({
     name: currentEmployee?.name || currentUser.name,
     phone: formatMobilePhone(currentEmployee?.phone || ''),
     jobType: currentEmployee?.jobType || currentUser.role,
+    password: '',
+    passwordConfirm: '',
   });
   const [profileStatus, setProfileStatus] = useState('');
 
@@ -1629,14 +1764,10 @@ function SettingsPage({
       name: currentEmployee?.name || currentUser.name,
       phone: formatMobilePhone(currentEmployee?.phone || ''),
       jobType: currentEmployee?.jobType || currentUser.role,
+      password: '',
+      passwordConfirm: '',
     });
   }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.jobType, currentUser.name, currentUser.role]);
-
-  const handleRegisterPush = async () => {
-    setPushLoading(true);
-    setPushStatus(await onRegisterPush());
-    setPushLoading(false);
-  };
 
   const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1644,7 +1775,19 @@ function SettingsPage({
       setProfileStatus('전화번호는 숫자 11자리로 입력해주세요.');
       return;
     }
-    setProfileStatus(await onUpdateOwnProfile(profileForm));
+    if (profileForm.password && profileForm.password !== profileForm.passwordConfirm) {
+      setProfileStatus('비밀번호 확인이 맞지 않습니다.');
+      return;
+    }
+    setProfileStatus(
+      await onUpdateOwnProfile({
+        name: profileForm.name,
+        phone: profileForm.phone,
+        jobType: profileForm.jobType,
+        password: profileForm.password || undefined,
+      }),
+    );
+    setProfileForm((current) => ({ ...current, password: '', passwordConfirm: '' }));
   };
 
   return (
@@ -1685,6 +1828,24 @@ function SettingsPage({
               {jobTypes.map((jobType) => <option key={jobType}>{jobType}</option>)}
             </select>
           </label>
+          <label>
+            새 비밀번호
+            <input
+              autoComplete="new-password"
+              type="password"
+              value={profileForm.password}
+              onChange={(event) => setProfileForm({ ...profileForm, password: event.target.value })}
+            />
+          </label>
+          <label>
+            새 비밀번호 확인
+            <input
+              autoComplete="new-password"
+              type="password"
+              value={profileForm.passwordConfirm}
+              onChange={(event) => setProfileForm({ ...profileForm, passwordConfirm: event.target.value })}
+            />
+          </label>
           {profileStatus ? <p className="admin-note">{profileStatus}</p> : null}
           <button className="primary-action wide" type="submit">
             <CheckCircle2 size={17} />
@@ -1699,7 +1860,7 @@ function SettingsPage({
         <div className="page-card settings-card">
           <h2>푸시알림</h2>
           <p>{pushStatus}</p>
-          <button className="primary-action" disabled={pushLoading} onClick={handleRegisterPush} type="button">
+          <button className="primary-action" disabled={pushLoading} onClick={onRegisterPush} type="button">
             <Bell size={17} />
             {pushLoading ? '설정중' : '이 기기 알림 켜기'}
           </button>
@@ -1720,24 +1881,34 @@ function TaskForm({
 }: {
   clients: Client[];
   employees: Employee[];
-  onSubmit: (task: Omit<Task, 'id' | 'status' | 'watchers'> & { status?: TaskStatus; watchers?: string[] }) => void;
+  onSubmit: (task: TaskDraft) => void;
 }) {
   const [form, setForm] = useState({
     type: '영업 브리핑' as TaskType,
     title: '',
-    to: employees[1]?.name || '대표',
+    toList: employees[1]?.name ? [employees[1].name] : [],
     client: clients[0]?.name || '',
     due: '',
     priority: '보통' as Priority,
     summary: '',
   });
 
+  const toggleRecipient = (name: string) => {
+    setForm((current) => ({
+      ...current,
+      toList: current.toList.includes(name)
+        ? current.toList.filter((item) => item !== name)
+        : [...current.toList, name],
+    }));
+  };
+
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     onSubmit({
       title: form.title,
       from: '인성이형',
-      to: form.to,
+      to: form.toList[0] || '',
+      toList: form.toList,
       client: form.client,
       due: form.due || '미정',
       priority: form.priority,
@@ -1763,9 +1934,19 @@ function TaskForm({
       </label>
       <label>
         받는 사람
-        <select value={form.to} onChange={(event) => setForm({ ...form, to: event.target.value })}>
-          {employees.map((employee) => <option key={employee.id}>{employee.name}</option>)}
-        </select>
+        <div className="multi-picker">
+          {employees.map((employee) => (
+            <button
+              className="select-chip"
+              data-selected={form.toList.includes(employee.name)}
+              key={employee.id}
+              onClick={() => toggleRecipient(employee.name)}
+              type="button"
+            >
+              {employee.name}
+            </button>
+          ))}
+        </div>
       </label>
       <label>
         관련 업체
@@ -1808,7 +1989,7 @@ function TaskForm({
 function ReportForm({
   onCreateTask,
 }: {
-  onCreateTask: (task: Omit<Task, 'id' | 'status' | 'watchers'> & { status?: TaskStatus; watchers?: string[] }) => void;
+  onCreateTask: (task: TaskDraft) => void;
 }) {
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
@@ -1853,14 +2034,20 @@ function ReportForm({
 }
 
 function TaskComposer({
+  employees,
   onCreateTask,
 }: {
-  onCreateTask: (task: Omit<Task, 'id' | 'status' | 'watchers'> & { status?: TaskStatus; watchers?: string[] }) => void;
+  employees: Employee[];
+  onCreateTask: (task: TaskDraft) => void;
 }) {
   const [title, setTitle] = useState('A업체 미팅 내용 전달');
   const [summary, setSummary] = useState('미팅 내용, 요청사항, 다음 액션을 정리해서 전달합니다.');
   const [type, setType] = useState<TaskType>('영업 브리핑');
-  const [to, setTo] = useState('대표');
+  const [toList, setToList] = useState<string[]>(employees[0]?.name ? [employees[0].name] : []);
+
+  const toggleRecipient = (name: string) => {
+    setToList((current) => (current.includes(name) ? current.filter((item) => item !== name) : [...current, name]));
+  };
 
   return (
     <section className="compose-panel">
@@ -1889,12 +2076,19 @@ function TaskComposer({
         </label>
         <label>
           받는 사람
-          <select value={to} onChange={(event) => setTo(event.target.value)}>
-            <option>대표</option>
-            <option>디자인팀장</option>
-            <option>개발팀</option>
-            <option>일본 마케팅</option>
-          </select>
+          <div className="multi-picker compact">
+            {employees.map((employee) => (
+              <button
+                className="select-chip"
+                data-selected={toList.includes(employee.name)}
+                key={employee.id}
+                onClick={() => toggleRecipient(employee.name)}
+                type="button"
+              >
+                {employee.name}
+              </button>
+            ))}
+          </div>
         </label>
         <label>
           요청 내용
@@ -1906,7 +2100,19 @@ function TaskComposer({
         </div>
         <button
           className="primary-action wide"
-          onClick={() => onCreateTask({ title, summary, type, to, from: '인성이형', client: 'A업체', due: '미정', priority: '보통' })}
+          onClick={() =>
+            onCreateTask({
+              title,
+              summary,
+              type,
+              to: toList[0] || '',
+              toList,
+              from: '인성이형',
+              client: 'A업체',
+              due: '미정',
+              priority: '보통',
+            })
+          }
           type="button"
         >
           <CheckCircle2 size={17} />
@@ -1917,7 +2123,21 @@ function TaskComposer({
   );
 }
 
-function TaskCard({ task }: { task: Task }) {
+function TaskCard({
+  task,
+  onUpdateStatus,
+}: {
+  task: Task;
+  onUpdateStatus: (taskId: string, status: TaskStatus) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const statusActions: TaskStatus[] = ['진행중', '완료 요청', '보류', '완료'];
+
+  const updateStatus = (status: TaskStatus) => {
+    onUpdateStatus(task.id, status);
+    setMenuOpen(false);
+  };
+
   return (
     <article className="task-card">
       <div className="task-main">
@@ -1942,9 +2162,20 @@ function TaskCard({ task }: { task: Task }) {
         <span className="status" data-status={task.status}>
           {task.status}
         </span>
-        <button className="icon-button" aria-label="업무 메뉴">
-          <MoreHorizontal size={18} />
-        </button>
+        <div className="task-menu">
+          <button className="icon-button" aria-label="업무 메뉴" onClick={() => setMenuOpen((open) => !open)} type="button">
+            <MoreHorizontal size={18} />
+          </button>
+          {menuOpen ? (
+            <div className="task-menu-popover">
+              {statusActions.map((status) => (
+                <button disabled={task.status === status} key={status} onClick={() => updateStatus(status)} type="button">
+                  {status}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </div>
     </article>
   );
