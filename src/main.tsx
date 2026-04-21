@@ -109,6 +109,15 @@ type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers'> & {
 };
 
 type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
+type MessageHandler = (message: string) => void;
+type ClientSubmitHandler = (client: Omit<Client, 'id'>) => Promise<string>;
+type JobTypeSubmitHandler = (name: string) => Promise<string>;
+type EmployeeSubmitHandler = (employee: NewEmployee) => Promise<string>;
+type EmployeeUpdateHandler = (employeeId: string, updates: EmployeeUpdate) => Promise<string>;
+
+function showActionPopup(message: string) {
+  window.dispatchEvent(new CustomEvent('plander-action-complete', { detail: message }));
+}
 
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
@@ -313,6 +322,7 @@ function App() {
   const [pushStatus, setPushStatus] = useState('종 버튼을 누르면 이 기기 업무 푸시알림을 켤 수 있습니다.');
   const [pushLoading, setPushLoading] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [popupMessage, setPopupMessage] = useState('');
 
   useEffect(() => {
     applyTheme(themeMode);
@@ -469,6 +479,16 @@ function App() {
   useEffect(() => {
     loadBackendData();
   }, [currentUser?.id, currentUser?.isPrototype]);
+
+  useEffect(() => {
+    const handleActionComplete = (event: Event) => {
+      const message = (event as CustomEvent<string>).detail;
+      if (message) setPopupMessage(message);
+    };
+
+    window.addEventListener('plander-action-complete', handleActionComplete);
+    return () => window.removeEventListener('plander-action-complete', handleActionComplete);
+  }, []);
 
   useEffect(() => {
     if (!currentUser || currentUser.isPrototype || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -631,7 +651,7 @@ function App() {
     return `업무 ${nextTasks.length}건을 전송했습니다.`;
   };
 
-  const addClient = async (client: Omit<Client, 'id'>) => {
+  const addClient = async (client: Omit<Client, 'id'>): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { error } = await supabase.from('clients').insert({
         name: client.name,
@@ -642,34 +662,38 @@ function App() {
       });
 
       if (error) {
-        setBackendStatus(`업체 저장 실패: ${error.message}`);
-        return;
+        const message = `업체 저장 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
       }
 
       await loadBackendData();
-      return;
+      return '업체를 추가했습니다.';
     }
 
     setClients((current) => [{ id: String(Date.now()), ...client }, ...current]);
+    return '업체를 추가했습니다.';
   };
 
-  const addJobType = async (name: string) => {
+  const addJobType = async (name: string): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { error } = await supabase.from('job_types').insert({ name });
 
       if (error) {
-        setBackendStatus(`담당업무 저장 실패: ${error.message}`);
-        return;
+        const message = `담당업무 저장 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
       }
 
       await loadBackendData();
-      return;
+      return '담당업무를 추가했습니다.';
     }
 
     setJobTypes((current) => [name, ...current]);
+    return '담당업무를 추가했습니다.';
   };
 
-  const addEmployee = async (employee: NewEmployee) => {
+  const addEmployee = async (employee: NewEmployee): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { data, error } = await supabase.functions.invoke('create-user', {
         body: {
@@ -683,20 +707,22 @@ function App() {
       });
 
       if (error || data?.error) {
-        setBackendStatus(`계정 생성 실패: ${data?.error || error?.message}`);
-        return;
+        const message = `계정 생성 실패: ${data?.error || error?.message}`;
+        setBackendStatus(message);
+        return message;
       }
 
       await loadBackendData();
-      return;
+      return '계정을 생성했습니다.';
     }
 
     const { password: _password, ...employeeProfile } = employee;
     void _password;
     setEmployees((current) => [{ id: String(Date.now()), load: 0, ...employeeProfile }, ...current]);
+    return '계정을 생성했습니다.';
   };
 
-  const updateEmployee = async (employeeId: string, updates: EmployeeUpdate) => {
+  const updateEmployee = async (employeeId: string, updates: EmployeeUpdate): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { data, error } = await supabase.functions.invoke('update-user', {
         body: {
@@ -710,17 +736,19 @@ function App() {
       });
 
       if (error || data?.error) {
-        setBackendStatus(`직원 정보 수정 실패: ${data?.error || error?.message}`);
-        return;
+        const message = `직원 정보 수정 실패: ${data?.error || error?.message}`;
+        setBackendStatus(message);
+        return message;
       }
 
       await loadBackendData();
-      return;
+      return updates.password ? '직원 정보와 비밀번호를 저장했습니다.' : '직원 정보를 저장했습니다.';
     }
 
     setEmployees((current) =>
       current.map((employee) => (employee.id === employeeId ? { ...employee, ...updates } : employee)),
     );
+    return updates.password ? '직원 정보와 비밀번호를 저장했습니다.' : '직원 정보를 저장했습니다.';
   };
 
   const updateOwnProfile = async (updates: OwnProfileUpdate) => {
@@ -766,7 +794,7 @@ function App() {
     return '내 정보가 저장되었습니다.';
   };
 
-  const updateTaskStatus = async (taskId: string, status: TaskStatus) => {
+  const updateTaskStatus = async (taskId: string, status: TaskStatus): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { error } = await supabase
         .from('tasks')
@@ -774,15 +802,17 @@ function App() {
         .eq('id', taskId);
 
       if (error) {
-        setBackendStatus(`업무 상태 변경 실패: ${error.message}`);
-        return;
+        const message = `업무 상태 변경 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
       }
 
       await loadBackendData();
-      return;
+      return `업무 상태를 ${status}(으)로 변경했습니다.`;
     }
 
     setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, status } : task)));
+    return `업무 상태를 ${status}(으)로 변경했습니다.`;
   };
 
   const registerPushNotifications = async () => {
@@ -851,7 +881,9 @@ function App() {
   const handleRegisterPush = async () => {
     if (pushLoading) return;
     setPushLoading(true);
-    setPushStatus(await registerPushNotifications());
+    const message = await registerPushNotifications();
+    setPushStatus(message);
+    showActionPopup(message);
     setPushLoading(false);
   };
 
@@ -948,6 +980,7 @@ function App() {
           />
         ) : null}
       </main>
+      <CompletionPopup message={popupMessage} onClose={() => setPopupMessage('')} />
     </div>
   );
 }
@@ -1034,7 +1067,7 @@ function LoginScreen({
           {error ? <p className="auth-error">{error}</p> : null}
           <button className="primary-action wide" disabled={loading} type="submit">
             <ShieldCheck size={17} />
-            {loading ? '로그인중' : '로그인'}
+            {loading ? '진행중...' : '로그인'}
           </button>
         </form>
 
@@ -1208,6 +1241,23 @@ function ThemeSwitcher({ value, onChange }: { value: ThemeMode; onChange: (mode:
   );
 }
 
+function CompletionPopup({ message, onClose }: { message: string; onClose: () => void }) {
+  if (!message) return null;
+
+  return (
+    <div className="modal-backdrop action-popup-backdrop" role="presentation" onClick={onClose}>
+      <div className="action-popup" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <CheckCircle2 size={26} />
+        <h2>완료</h2>
+        <p>{message}</p>
+        <button className="primary-action wide" onClick={onClose} type="button">
+          확인
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Dashboard({
   stats,
   tasks,
@@ -1221,7 +1271,7 @@ function Dashboard({
   employees: Employee[];
   onCreateClick: () => void;
   onCreateTask: TaskSubmitHandler;
-  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void;
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   return (
     <>
@@ -1286,7 +1336,7 @@ function TaskListPage({
 }: {
   title: string;
   tasks: Task[];
-  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void;
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const [status, setStatus] = useState<'전체' | TaskStatus>('전체');
   const filteredTasks = status === '전체' ? tasks : tasks.filter((task) => task.status === status);
@@ -1351,7 +1401,7 @@ function ReportsPage({
 }: {
   tasks: Task[];
   onCreateTask: TaskSubmitHandler;
-  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => void;
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안' || task.type === '영업 브리핑');
 
@@ -1388,15 +1438,19 @@ function ClientsPage({
   onAddClient,
 }: {
   clients: Client[];
-  onAddClient: (client: Omit<Client, 'id'>) => void;
+  onAddClient: ClientSubmitHandler;
 }) {
   const [form, setForm] = useState({ name: '', manager: '인성이형', phone: '', memo: '' });
+  const [loading, setLoading] = useState(false);
 
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!form.name.trim()) return;
-    onAddClient(form);
-    setForm({ name: '', manager: '인성이형', phone: '', memo: '' });
+    if (!form.name.trim() || loading) return;
+    setLoading(true);
+    const message = await onAddClient(form);
+    setLoading(false);
+    showActionPopup(message);
+    if (!message.includes('실패')) setForm({ name: '', manager: '인성이형', phone: '', memo: '' });
   };
 
   return (
@@ -1447,9 +1501,9 @@ function ClientsPage({
             메모
             <textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
           </label>
-          <button className="primary-action wide" type="submit">
+          <button className="primary-action wide" disabled={loading} type="submit">
             <Plus size={17} />
-            업체 추가
+            {loading ? '진행중...' : '업체 추가'}
           </button>
         </form>
       </div>
@@ -1465,8 +1519,8 @@ function EmployeesPage({
 }: {
   employees: Employee[];
   jobTypes: string[];
-  onAddEmployee: (employee: NewEmployee) => void;
-  onUpdateEmployee: (employeeId: string, updates: EmployeeUpdate) => void;
+  onAddEmployee: EmployeeSubmitHandler;
+  onUpdateEmployee: EmployeeUpdateHandler;
 }) {
   const [form, setForm] = useState({
     name: '',
@@ -1487,6 +1541,8 @@ function EmployeesPage({
     passwordConfirm: '',
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
 
   const openEdit = (employee: Employee) => {
     setError('');
@@ -1501,8 +1557,9 @@ function EmployeesPage({
     });
   };
 
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (loading) return;
     setError('');
 
     if (form.password !== form.passwordConfirm) {
@@ -1515,7 +1572,8 @@ function EmployeesPage({
       return;
     }
 
-    onAddEmployee({
+    setLoading(true);
+    const message = await onAddEmployee({
       name: form.name || form.email.split('@')[0],
       email: form.email,
       password: form.password,
@@ -1523,11 +1581,16 @@ function EmployeesPage({
       jobType: form.jobType,
       role: form.role,
     });
-    setForm({ name: '', email: '', password: '', passwordConfirm: '', phone: '', jobType: jobTypes[0] || '', role: '사용자' });
+    setLoading(false);
+    showActionPopup(message);
+    if (!message.includes('실패')) {
+      setForm({ name: '', email: '', password: '', passwordConfirm: '', phone: '', jobType: jobTypes[0] || '', role: '사용자' });
+    }
   };
 
-  const submitEdit = (event: React.FormEvent<HTMLFormElement>) => {
+  const submitEdit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (editLoading) return;
     setError('');
     if (!editingEmployee) return;
 
@@ -1541,14 +1604,17 @@ function EmployeesPage({
       return;
     }
 
-    onUpdateEmployee(editingEmployee.id, {
+    setEditLoading(true);
+    const message = await onUpdateEmployee(editingEmployee.id, {
       name: editForm.name,
       phone: editForm.phone,
       jobType: editForm.jobType,
       role: editForm.role,
       password: editForm.password || undefined,
     });
-    setEditingEmployee(null);
+    setEditLoading(false);
+    showActionPopup(message);
+    if (!message.includes('실패')) setEditingEmployee(null);
   };
 
   return (
@@ -1626,9 +1692,9 @@ function EmployeesPage({
             </select>
           </label>
           {error ? <p className="auth-error">{error}</p> : null}
-          <button className="primary-action wide" type="submit">
+          <button className="primary-action wide" disabled={loading} type="submit">
             <Plus size={17} />
-            계정 추가
+            {loading ? '진행중...' : '계정 추가'}
           </button>
           </form>
         </div>
@@ -1691,9 +1757,9 @@ function EmployeesPage({
               </select>
             </label>
             {error ? <p className="auth-error">{error}</p> : null}
-            <button className="primary-action wide" type="submit">
+            <button className="primary-action wide" disabled={editLoading} type="submit">
               <CheckCircle2 size={17} />
-              정보 저장
+              {editLoading ? '진행중...' : '정보 저장'}
             </button>
           </form>
         </div>
@@ -1709,15 +1775,19 @@ function JobTypesPage({
 }: {
   employees: Employee[];
   jobTypes: string[];
-  onAddJobType: (name: string) => void;
+  onAddJobType: JobTypeSubmitHandler;
 }) {
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!name.trim()) return;
-    onAddJobType(name.trim());
-    setName('');
+    if (!name.trim() || loading) return;
+    setLoading(true);
+    const message = await onAddJobType(name.trim());
+    setLoading(false);
+    showActionPopup(message);
+    if (!message.includes('실패')) setName('');
   };
 
   return (
@@ -1765,9 +1835,9 @@ function JobTypesPage({
             담당업무명
             <input value={name} onChange={(event) => setName(event.target.value)} />
           </label>
-          <button className="primary-action wide" type="submit">
+          <button className="primary-action wide" disabled={loading} type="submit">
             <Plus size={17} />
-            추가
+            {loading ? '진행중...' : '추가'}
           </button>
         </form>
       </div>
@@ -1809,6 +1879,7 @@ function SettingsPage({
     passwordConfirm: '',
   });
   const [profileStatus, setProfileStatus] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     setProfileForm({
@@ -1822,6 +1893,7 @@ function SettingsPage({
 
   const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (profileLoading) return;
     if (!hasValidMobilePhoneLength(profileForm.phone)) {
       setProfileStatus('전화번호는 숫자 11자리로 입력해주세요.');
       return;
@@ -1830,14 +1902,16 @@ function SettingsPage({
       setProfileStatus('비밀번호 확인이 맞지 않습니다.');
       return;
     }
-    setProfileStatus(
-      await onUpdateOwnProfile({
+    setProfileLoading(true);
+    const message = await onUpdateOwnProfile({
         name: profileForm.name,
         phone: profileForm.phone,
         jobType: profileForm.jobType,
         password: profileForm.password || undefined,
-      }),
-    );
+      });
+    setProfileLoading(false);
+    setProfileStatus(message);
+    showActionPopup(message);
     setProfileForm((current) => ({ ...current, password: '', passwordConfirm: '' }));
   };
 
@@ -1898,9 +1972,9 @@ function SettingsPage({
             />
           </label>
           {profileStatus ? <p className="admin-note">{profileStatus}</p> : null}
-          <button className="primary-action wide" type="submit">
+          <button className="primary-action wide" disabled={profileLoading} type="submit">
             <CheckCircle2 size={17} />
-            내 정보 저장
+            {profileLoading ? '진행중...' : '내 정보 저장'}
           </button>
         </form>
         <div className="page-card settings-card">
@@ -1913,7 +1987,7 @@ function SettingsPage({
           <p>{pushStatus}</p>
           <button className="primary-action" disabled={pushLoading} onClick={onRegisterPush} type="button">
             <Bell size={17} />
-            {pushLoading ? '설정중' : pushEnabled ? '이 기기 알림 끄기' : '이 기기 알림 켜기'}
+            {pushLoading ? '진행중...' : pushEnabled ? '이 기기 알림 끄기' : '이 기기 알림 켜기'}
           </button>
         </div>
         <div className="page-card settings-card">
@@ -1945,6 +2019,7 @@ function TaskForm({
   });
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setForm((current) => {
@@ -1965,6 +2040,7 @@ function TaskForm({
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (loading) return;
     const validRecipientIds = form.toIds.filter((id) => employees.some((employee) => employee.id === id));
     const validRecipients = validRecipientIds
       .map((id) => employees.find((employee) => employee.id === id)?.name)
@@ -1976,8 +2052,9 @@ function TaskForm({
     }
 
     setError('');
+    setLoading(true);
     setStatus('전송중입니다.');
-    await onSubmit({
+    const message = await onSubmit({
       title: form.title,
       from: '인성이형',
       to: validRecipients[0] || '',
@@ -1989,8 +2066,10 @@ function TaskForm({
       type: form.type,
       summary: form.summary,
     });
-    setStatus('업무를 전송했습니다. 보낸 업무에서 확인해주세요.');
-    setForm({ ...form, title: '', summary: '' });
+    setLoading(false);
+    setStatus(message);
+    showActionPopup(message);
+    if (!message.includes('실패')) setForm({ ...form, title: '', summary: '' });
   };
 
   return (
@@ -2055,9 +2134,9 @@ function TaskForm({
       </div>
       {error ? <p className="auth-error span-2">{error}</p> : null}
       {status ? <p className="admin-note span-2">{status}</p> : null}
-      <button className="primary-action span-2" type="submit">
+      <button className="primary-action span-2" disabled={loading} type="submit">
         <CheckCircle2 size={17} />
-        업무 전송
+        {loading ? '진행중...' : '업무 전송'}
       </button>
     </form>
   );
@@ -2071,9 +2150,13 @@ function ReportForm({
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
   const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (loading) return;
+    setLoading(true);
+    setStatus('전송중입니다.');
     const message = await onCreateTask({
       title,
       summary,
@@ -2085,9 +2168,13 @@ function ReportForm({
       type: '보고',
       status: '대기',
     });
+    setLoading(false);
     setStatus(message);
-    setTitle('');
-    setSummary('');
+    showActionPopup(message);
+    if (!message.includes('실패')) {
+      setTitle('');
+      setSummary('');
+    }
   };
 
   return (
@@ -2105,9 +2192,9 @@ function ReportForm({
         <textarea required value={summary} onChange={(event) => setSummary(event.target.value)} />
       </label>
       {status ? <p className="admin-note">{status}</p> : null}
-      <button className="primary-action wide" type="submit">
+      <button className="primary-action wide" disabled={loading} type="submit">
         <CheckCircle2 size={17} />
-        보고 전송
+        {loading ? '진행중...' : '보고 전송'}
       </button>
     </form>
   );
@@ -2126,6 +2213,7 @@ function TaskComposer({
   const [toIds, setToIds] = useState<string[]>(employees[0]?.id ? [employees[0].id] : []);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setToIds((current) => {
@@ -2192,6 +2280,7 @@ function TaskComposer({
         <button
           className="primary-action wide"
           onClick={async () => {
+            if (loading) return;
             const validRecipientIds = toIds.filter((id) => employees.some((employee) => employee.id === id));
             const validRecipients = validRecipientIds
               .map((id) => employees.find((employee) => employee.id === id)?.name)
@@ -2202,8 +2291,9 @@ function TaskComposer({
               return;
             }
             setError('');
+            setLoading(true);
             setStatus('전송중입니다.');
-            setStatus(await onCreateTask({
+            const message = await onCreateTask({
               title,
               summary,
               type,
@@ -2214,12 +2304,16 @@ function TaskComposer({
               client: 'A업체',
               due: '미정',
               priority: '보통',
-            }));
+            });
+            setLoading(false);
+            setStatus(message);
+            showActionPopup(message);
           }}
+          disabled={loading}
           type="button"
         >
           <CheckCircle2 size={17} />
-          전달하기
+          {loading ? '진행중...' : '전달하기'}
         </button>
       </div>
     </section>
@@ -2231,13 +2325,18 @@ function TaskCard({
   onUpdateStatus,
 }: {
   task: Task;
-  onUpdateStatus: (taskId: string, status: TaskStatus) => void;
+  onUpdateStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState<TaskStatus | null>(null);
   const statusActions: TaskStatus[] = ['진행중', '완료 요청', '보류', '완료'];
 
-  const updateStatus = (status: TaskStatus) => {
-    onUpdateStatus(task.id, status);
+  const updateStatus = async (status: TaskStatus) => {
+    if (loadingStatus) return;
+    setLoadingStatus(status);
+    const message = await onUpdateStatus(task.id, status);
+    setLoadingStatus(null);
+    showActionPopup(message);
     setMenuOpen(false);
   };
 
@@ -2272,8 +2371,8 @@ function TaskCard({
           {menuOpen ? (
             <div className="task-menu-popover">
               {statusActions.map((status) => (
-                <button disabled={task.status === status} key={status} onClick={() => updateStatus(status)} type="button">
-                  {status}
+                <button disabled={task.status === status || Boolean(loadingStatus)} key={status} onClick={() => updateStatus(status)} type="button">
+                  {loadingStatus === status ? '진행중...' : status}
                 </button>
               ))}
             </div>

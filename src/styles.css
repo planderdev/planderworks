@@ -506,6 +506,13 @@ h1 {
   white-space: nowrap;
 }
 
+.primary-action:disabled,
+.secondary-action:disabled,
+.task-menu-popover button:disabled {
+  opacity: 0.68;
+  cursor: wait;
+}
+
 .primary-action.wide {
   width: 100%;
 }
@@ -1048,6 +1055,38 @@ h1 {
   color: var(--text);
   background: var(--panel);
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+}
+
+.action-popup-backdrop {
+  z-index: 120;
+}
+
+.action-popup {
+  width: min(360px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 22px;
+  color: var(--text);
+  background: var(--panel);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.38);
+  text-align: center;
+}
+
+.action-popup h2,
+.action-popup p {
+  margin: 0;
+}
+
+.action-popup h2 {
+  font-size: 1.12rem;
+}
+
+.action-popup p {
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .modal-head {
