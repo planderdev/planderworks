@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import type { Session } from '@supabase/supabase-js';
 import {
   Bell,
+  BellOff,
   BriefcaseBusiness,
   Building2,
   CalendarClock,
@@ -1098,6 +1099,8 @@ function Sidebar({
   onNavigate: (view: ActiveView) => void;
   showAdmin: boolean;
 }) {
+  const PushIcon = pushEnabled ? Bell : BellOff;
+
   return (
     <aside className="sidebar" data-open={open}>
       <div className="brand-row">
@@ -1202,7 +1205,7 @@ function Topbar({
           title={pushStatus}
           type="button"
         >
-          <Bell size={19} />
+          <PushIcon size={19} />
         </button>
         <button className="account-button">
           <CircleUserRound size={20} />
