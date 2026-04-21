@@ -22,10 +22,12 @@ import {
   MoreHorizontal,
   Paperclip,
   Plus,
+  Reply,
   Search,
   Settings,
   ShieldCheck,
   Sun,
+  Trash2,
   UserCog,
   Users,
   X,
@@ -95,6 +97,7 @@ type TaskFile = {
 type TaskComment = {
   id: string;
   taskId: string;
+  parentId?: string | null;
   userId?: string;
   author: string;
   content: string;
@@ -143,7 +146,8 @@ type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'comments' 
 
 type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
 type TaskDeleteHandler = (task: Task) => Promise<string>;
-type TaskCommentSubmitHandler = (task: Task, content: string) => Promise<string>;
+type TaskCommentSubmitHandler = (task: Task, content: string, parentCommentId?: string | null) => Promise<string>;
+type TaskCommentDeleteHandler = (task: Task, comment: TaskComment) => Promise<string>;
 type MessageHandler = (message: string) => void;
 type ClientSubmitHandler = (client: Omit<Client, 'id'>) => Promise<string>;
 type ClientUpdateHandler = (clientId: string, client: Omit<Client, 'id'>) => Promise<string>;
@@ -560,7 +564,7 @@ function App() {
         .order('created_at', { ascending: false }),
       supabase
         .from('task_comments')
-        .select('id, task_id, user_id, content, created_at, user:profiles!task_comments_user_id_fkey(name)')
+        .select('id, task_id, parent_comment_id, user_id, content, created_at, user:profiles!task_comments_user_id_fkey(name)')
         .order('created_at', { ascending: true }),
     ]);
 
@@ -574,6 +578,7 @@ function App() {
       const nextComment: TaskComment = {
         id: comment.id,
         taskId: comment.task_id,
+        parentId: comment.parent_comment_id,
         userId: comment.user_id,
         author: comment.user?.name || '알 수 없음',
         content: comment.content,
@@ -1343,15 +1348,19 @@ function App() {
     setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, readAt } : item)));
   };
 
-  const addTaskComment = async (task: Task, content: string): Promise<string> => {
+  const addTaskComment = async (task: Task, content: string, parentCommentId: string | null = null): Promise<string> => {
     const nextContent = content.trim();
     if (!nextContent) return '댓글 내용을 입력해주세요.';
+
+    const parentComment = parentCommentId ? task.comments.find((comment) => comment.id === parentCommentId) : null;
+    if (parentComment?.parentId) return '대댓글에는 답글을 달 수 없습니다.';
 
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { data, error } = await supabase
         .from('task_comments')
         .insert({
           task_id: task.id,
+          parent_comment_id: parentCommentId,
           user_id: currentUser.id,
           content: nextContent,
         })
@@ -1377,6 +1386,7 @@ function App() {
     const nextComment: TaskComment = {
       id: `${Date.now()}`,
       taskId: task.id,
+      parentId: parentCommentId,
       userId: currentUser?.id,
       author: currentUser?.name || '나',
       content: nextContent,
@@ -1392,6 +1402,40 @@ function App() {
     );
 
     return '댓글이 등록되었습니다.';
+  };
+
+  const deleteTaskComment = async (task: Task, comment: TaskComment): Promise<string> => {
+    if (!currentUser || comment.userId !== currentUser.id) return '내가 쓴 댓글만 삭제할 수 있습니다.';
+
+    if (!(await requestActionConfirm('댓글을 삭제하시겠습니까?'))) return '댓글 삭제를 취소했습니다.';
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('task_comments')
+        .delete()
+        .eq('id', comment.id)
+        .eq('user_id', currentUser.id);
+
+      if (error) {
+        const message = `댓글 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '댓글이 삭제되었습니다.';
+    }
+
+    const deleteIds = new Set([comment.id, ...task.comments.filter((item) => item.parentId === comment.id).map((item) => item.id)]);
+    setTasks((current) =>
+      current.map((item) =>
+        item.id === task.id
+          ? { ...item, comments: item.comments.filter((taskComment) => !deleteIds.has(taskComment.id)) }
+          : item,
+      ),
+    );
+
+    return '댓글이 삭제되었습니다.';
   };
 
   const openTaskFile = async (file: TaskFile) => {
@@ -1633,7 +1677,7 @@ function App() {
           />
         ) : null}
       </main>
-      <TaskDetailModal task={selectedTask} currentUser={currentUser} onAddComment={addTaskComment} onClose={() => setSelectedTaskId(null)} onDownloadFile={openTaskFile} onMarkRead={markTaskRead} />
+      <TaskDetailModal task={selectedTask} currentUser={currentUser} onAddComment={addTaskComment} onClose={() => setSelectedTaskId(null)} onDeleteComment={deleteTaskComment} onDownloadFile={openTaskFile} onMarkRead={markTaskRead} />
       <ConfirmPopup
         request={confirmRequest}
         onResolve={(id, confirmed) => {
@@ -2022,6 +2066,7 @@ function TaskDetailModal({
   currentUser,
   onAddComment,
   onClose,
+  onDeleteComment,
   onDownloadFile,
   onMarkRead,
 }: {
@@ -2029,16 +2074,23 @@ function TaskDetailModal({
   currentUser: AppUser;
   onAddComment: TaskCommentSubmitHandler;
   onClose: () => void;
+  onDeleteComment: TaskCommentDeleteHandler;
   onDownloadFile: (file: TaskFile) => void;
   onMarkRead: (task: Task) => void;
 }) {
   const [comment, setComment] = useState('');
   const [commentStatus, setCommentStatus] = useState('');
   const [commentLoading, setCommentLoading] = useState(false);
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
 
   useEffect(() => {
     setComment('');
     setCommentStatus('');
+    setReplyTargetId(null);
+    setReplyText('');
   }, [task?.id]);
 
   useEffect(() => {
@@ -2056,6 +2108,9 @@ function TaskDetailModal({
 
   if (!task) return null;
 
+  const rootComments = task.comments.filter((item) => !item.parentId);
+  const getReplies = (commentId: string) => task.comments.filter((item) => item.parentId === commentId);
+
   const submitComment = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (commentLoading) return;
@@ -2069,6 +2124,72 @@ function TaskDetailModal({
       showActionPopup(message);
     }
   };
+
+  const submitReply = async (event: React.FormEvent<HTMLFormElement>, parentCommentId: string) => {
+    event.preventDefault();
+    if (replyLoading) return;
+    setReplyLoading(true);
+    setCommentStatus('답글 등록중입니다.');
+    const message = await onAddComment(task, replyText, parentCommentId);
+    setReplyLoading(false);
+    setCommentStatus(message);
+    if (!message.includes('실패') && !message.includes('입력')) {
+      setReplyText('');
+      setReplyTargetId(null);
+      showActionPopup(message);
+    }
+  };
+
+  const removeComment = async (item: TaskComment) => {
+    if (deleteLoadingId) return;
+    setDeleteLoadingId(item.id);
+    const message = await onDeleteComment(task, item);
+    setDeleteLoadingId(null);
+    setCommentStatus(message);
+    if (!message.includes('실패') && !message.includes('취소')) showActionPopup(message);
+  };
+
+  const renderComment = (item: TaskComment, isReply = false) => (
+    <article className="comment-item" data-own={item.userId === currentUser.id} data-reply={isReply} key={item.id}>
+      <div className="comment-head">
+        <div>
+          <strong>{item.author}</strong>
+          <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+        </div>
+        <div className="comment-actions">
+          {!isReply ? (
+            <button className="icon-button" aria-label="답글" onClick={() => setReplyTargetId(replyTargetId === item.id ? null : item.id)} type="button">
+              <Reply size={15} />
+            </button>
+          ) : null}
+          {item.userId === currentUser.id ? (
+            <button className="icon-button danger-icon" aria-label="삭제" disabled={deleteLoadingId === item.id} onClick={() => removeComment(item)} type="button">
+              <Trash2 size={15} />
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <p>{item.content}</p>
+      {!isReply && replyTargetId === item.id ? (
+        <form className="comment-form reply-form" onSubmit={(event) => submitReply(event, item.id)}>
+          <textarea
+            value={replyText}
+            onChange={(event) => setReplyText(event.target.value)}
+            placeholder={`${item.author}에게 답글`}
+            rows={2}
+          />
+          <div className="comment-form-actions">
+            <button className="secondary-action" disabled={replyLoading} onClick={() => setReplyTargetId(null)} type="button">
+              취소
+            </button>
+            <button className="primary-action" disabled={replyLoading} type="submit">
+              {replyLoading ? '진행중...' : '답글 등록'}
+            </button>
+          </div>
+        </form>
+      ) : null}
+    </article>
+  );
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -2113,15 +2234,16 @@ function TaskDetailModal({
         <div className="task-comments">
           <h3>댓글</h3>
           <div className="comment-list">
-            {task.comments.length ? (
-              task.comments.map((item) => (
-                <article className="comment-item" data-own={item.userId === currentUser.id} key={item.id}>
-                  <div>
-                    <strong>{item.author}</strong>
-                    <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
-                  </div>
-                  <p>{item.content}</p>
-                </article>
+            {rootComments.length ? (
+              rootComments.map((item) => (
+                <div className="comment-thread" key={item.id}>
+                  {renderComment(item)}
+                  {getReplies(item.id).length ? (
+                    <div className="reply-list">
+                      {getReplies(item.id).map((reply) => renderComment(reply, true))}
+                    </div>
+                  ) : null}
+                </div>
               ))
             ) : (
               <p className="mini-empty">아직 댓글이 없습니다.</p>
@@ -3612,6 +3734,10 @@ function TaskForm({
       setError('받는 담당자를 한 명 이상 선택해주세요.');
       return;
     }
+    if (!form.type || !form.clientId || !form.due || !form.priority || !form.title.trim() || !form.summary.trim()) {
+      setError('첨부파일을 제외한 모든 항목을 입력해주세요.');
+      return;
+    }
 
     setError('');
     setLoading(true);
@@ -3624,8 +3750,8 @@ function TaskForm({
       toIds: validRecipientIds,
       toList: validRecipients,
       clientId: selectedClient?.id || undefined,
-      client: selectedClient?.name || '내부',
-      due: form.due || '미정',
+      client: selectedClient?.name || '',
+      due: form.due,
       priority: form.priority,
       type: form.type,
       summary: form.summary,
@@ -3644,7 +3770,7 @@ function TaskForm({
     <form className="form-grid" onSubmit={submit}>
       <label>
         유형
-        <select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as TaskType })}>
+        <select required value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as TaskType })}>
           {typeOptions.map((item) => <option key={item}>{item}</option>)}
         </select>
       </label>
@@ -3666,18 +3792,18 @@ function TaskForm({
       </label>
       <label>
         관련 업체
-        <select value={form.clientId} onChange={(event) => setForm({ ...form, clientId: event.target.value })}>
-          <option value="">내부</option>
+        <select required value={form.clientId} onChange={(event) => setForm({ ...form, clientId: event.target.value })}>
+          <option value="">업체 선택</option>
           {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
         </select>
       </label>
       <label>
         마감기한
-        <input type="datetime-local" value={form.due} onChange={(event) => setForm({ ...form, due: event.target.value })} />
+        <input required type="datetime-local" value={form.due} onChange={(event) => setForm({ ...form, due: event.target.value })} />
       </label>
       <label>
         우선순위
-        <select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value as Priority })}>
+        <select required value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value as Priority })}>
           <option>높음</option>
           <option>보통</option>
           <option>낮음</option>
@@ -3698,7 +3824,6 @@ function TaskForm({
           onChange={(event) => setFiles(Array.from(event.target.files || []))}
           type="file"
         />
-        <span>{files.length ? `${files.length}개 첨부 선택됨` : '첨부파일 선택'}</span>
       </div>
       {error ? <p className="auth-error span-2">{error}</p> : null}
       {status ? <p className="admin-note span-2">{status}</p> : null}
@@ -3816,13 +3941,13 @@ function TaskComposer({
       <div className="form-stack">
         <label>
           유형
-          <select value={type} onChange={(event) => setType(event.target.value as TaskType)}>
+          <select required value={type} onChange={(event) => setType(event.target.value as TaskType)}>
             {typeOptions.map((item) => <option key={item}>{item}</option>)}
           </select>
         </label>
         <label>
           제목
-          <input value={title} onChange={(event) => setTitle(event.target.value)} />
+          <input required value={title} onChange={(event) => setTitle(event.target.value)} />
         </label>
         <label>
           받는 사람
@@ -3842,16 +3967,15 @@ function TaskComposer({
         </label>
         <label>
           요청 내용
-          <textarea value={summary} onChange={(event) => setSummary(event.target.value)} />
+          <textarea required value={summary} onChange={(event) => setSummary(event.target.value)} />
         </label>
         <label>
           마감기한
-          <input type="datetime-local" value={due} onChange={(event) => setDue(event.target.value)} />
+          <input required type="datetime-local" value={due} onChange={(event) => setDue(event.target.value)} />
         </label>
         <div className="attachment-row">
           <Paperclip size={17} />
           <input multiple onChange={(event) => setFiles(Array.from(event.target.files || []))} type="file" />
-          <span>{files.length ? `${files.length}개 첨부 선택됨` : '파일 첨부'}</span>
         </div>
         {error ? <p className="auth-error">{error}</p> : null}
         {status ? <p className="admin-note">{status}</p> : null}
@@ -3868,6 +3992,10 @@ function TaskComposer({
               setError('받는 담당자를 한 명 이상 선택해주세요.');
               return;
             }
+            if (!type || !title.trim() || !summary.trim() || !due) {
+              setError('첨부파일을 제외한 모든 항목을 입력해주세요.');
+              return;
+            }
             setError('');
             setLoading(true);
             setStatus('전송중입니다.');
@@ -3880,7 +4008,7 @@ function TaskComposer({
               toList: validRecipients,
               from: '인성이형',
               client: '내부',
-              due: due || '미정',
+              due,
               priority: '보통',
               files,
             });

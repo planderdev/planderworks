@@ -91,11 +91,32 @@ create table if not exists public.task_watchers (
 create table if not exists public.task_comments (
   id uuid primary key default gen_random_uuid(),
   task_id uuid not null references public.tasks(id) on delete cascade,
+  parent_comment_id uuid references public.task_comments(id) on delete cascade,
   user_id uuid not null references public.profiles(id),
   comment_type text not null default 'comment',
   content text not null,
   created_at timestamptz not null default now()
 );
+
+create index if not exists task_comments_parent_comment_id_idx
+on public.task_comments(parent_comment_id);
+
+create or replace function public.is_valid_comment_parent(parent_id uuid, child_task_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select parent_id is null
+    or exists (
+      select 1
+      from public.task_comments parent
+      where parent.id = parent_id
+        and parent.task_id = child_task_id
+        and parent.parent_comment_id is null
+    );
+$$;
 
 create table if not exists public.task_files (
   id uuid primary key default gen_random_uuid(),
@@ -444,7 +465,14 @@ with check (
         and task_watchers.user_id = auth.uid()
     )
   )
+  and public.is_valid_comment_parent(parent_comment_id, task_id)
 );
+
+drop policy if exists "users delete own comments" on public.task_comments;
+create policy "users delete own comments"
+on public.task_comments for delete
+to authenticated
+using (user_id = auth.uid() or public.current_user_role() = 'admin');
 
 drop policy if exists "task participants read files" on public.task_files;
 drop policy if exists "authenticated users read task file records" on public.task_files;
