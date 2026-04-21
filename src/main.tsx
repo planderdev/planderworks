@@ -46,6 +46,7 @@ type Priority = '높음' | '보통' | '낮음';
 type TaskType = '영업 브리핑' | '디자인 요청' | '보고' | '제안' | '확인 요청' | '촬영 요청' | '시장 조사';
 
 type AppUser = {
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -53,10 +54,13 @@ type AppUser = {
 };
 
 type Task = {
-  id: number;
+  id: string;
   title: string;
   from: string;
   to: string;
+  creatorId?: string;
+  assigneeId?: string;
+  clientId?: string;
   client: string;
   due: string;
   status: TaskStatus;
@@ -67,7 +71,7 @@ type Task = {
 };
 
 type Client = {
-  id: number;
+  id: string;
   name: string;
   manager: string;
   phone: string;
@@ -75,13 +79,17 @@ type Client = {
 };
 
 type Employee = {
-  id: number;
+  id: string;
   name: string;
   email: string;
   phone: string;
   jobType: string;
   role: '관리자' | '매니저' | '직원';
   load: number;
+};
+
+type NewEmployee = Omit<Employee, 'id' | 'load'> & {
+  password?: string;
 };
 
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType; badge?: number }> = [
@@ -101,7 +109,7 @@ const adminNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementT
 
 const seedTasks: Task[] = [
   {
-    id: 1,
+    id: '1',
     title: 'A식당 일본 나노 인플루언서 섭외 브리핑',
     from: '인성이형',
     to: '대표',
@@ -114,7 +122,7 @@ const seedTasks: Task[] = [
     watchers: ['대표', '운영팀'],
   },
   {
-    id: 2,
+    id: '2',
     title: 'B뷰티샵 상세페이지 톤앤매너 요청',
     from: '인성이형',
     to: '디자인팀장',
@@ -127,7 +135,7 @@ const seedTasks: Task[] = [
     watchers: ['인성이형'],
   },
   {
-    id: 3,
+    id: '3',
     title: '온고 조청 브랜드 일본 판매 채널 조사',
     from: '대표',
     to: '인성이형',
@@ -140,7 +148,7 @@ const seedTasks: Task[] = [
     watchers: ['대표', '디자인팀장'],
   },
   {
-    id: 4,
+    id: '4',
     title: '제주 숙소 릴스 촬영 일정 확인',
     from: '운영팀',
     to: '인성이형',
@@ -155,16 +163,16 @@ const seedTasks: Task[] = [
 ];
 
 const seedClients: Client[] = [
-  { id: 1, name: 'A식당', manager: '인성이형', phone: '010-0000-0000', memo: '일본 여행 계정 섭외 관심' },
-  { id: 2, name: 'B뷰티샵', manager: '디자인팀장', phone: '010-1111-2222', memo: '상세페이지와 릴스 패키지 문의' },
-  { id: 3, name: '온고', manager: '대표', phone: '010-3333-4444', memo: '일본 이커머스 진출 준비' },
+  { id: '1', name: 'A식당', manager: '인성이형', phone: '010-0000-0000', memo: '일본 여행 계정 섭외 관심' },
+  { id: '2', name: 'B뷰티샵', manager: '디자인팀장', phone: '010-1111-2222', memo: '상세페이지와 릴스 패키지 문의' },
+  { id: '3', name: '온고', manager: '대표', phone: '010-3333-4444', memo: '일본 이커머스 진출 준비' },
 ];
 
 const seedEmployees: Employee[] = [
-  { id: 1, name: '인성이형', email: 'insung@plander.co.kr', phone: '010-0000-0000', jobType: '일본 마케팅', role: '관리자', load: 7 },
-  { id: 2, name: '대표', email: 'ceo@plander.co.kr', phone: '010-1111-1111', jobType: '경영·영업', role: '관리자', load: 5 },
-  { id: 3, name: '디자인팀장', email: 'design@plander.co.kr', phone: '010-2222-2222', jobType: 'UIUX·브랜딩', role: '매니저', load: 9 },
-  { id: 4, name: '개발팀', email: 'dev@plander.co.kr', phone: '010-3333-3333', jobType: '웹·앱 개발', role: '직원', load: 4 },
+  { id: '1', name: '인성이형', email: 'insung@plander.co.kr', phone: '010-0000-0000', jobType: '일본 마케팅', role: '관리자', load: 7 },
+  { id: '2', name: '대표', email: 'ceo@plander.co.kr', phone: '010-1111-1111', jobType: '경영·영업', role: '관리자', load: 5 },
+  { id: '3', name: '디자인팀장', email: 'design@plander.co.kr', phone: '010-2222-2222', jobType: 'UIUX·브랜딩', role: '매니저', load: 9 },
+  { id: '4', name: '개발팀', email: 'dev@plander.co.kr', phone: '010-3333-3333', jobType: '웹·앱 개발', role: '직원', load: 4 },
 ];
 
 const seedJobTypes = ['일본 마케팅', '국내 마케팅', '디자인', '개발', '영업', '운영', '대표', '회계·정산'];
@@ -184,11 +192,78 @@ function getUserFromSession(session: Session | null): AppUser | null {
   if (!session?.user.email) return null;
 
   return {
+    id: session.user.id,
     name: session.user.user_metadata?.name || session.user.email.split('@')[0],
     email: session.user.email,
     role: session.user.user_metadata?.job_type || 'Plander',
     isPrototype: false,
   };
+}
+
+const statusToDb: Record<TaskStatus, string> = {
+  대기: 'pending',
+  진행중: 'in_progress',
+  보류: 'blocked',
+  '완료 요청': 'completion_requested',
+  완료: 'completed',
+};
+
+const statusFromDb: Record<string, TaskStatus> = {
+  pending: '대기',
+  in_progress: '진행중',
+  blocked: '보류',
+  completion_requested: '완료 요청',
+  completed: '완료',
+  rejected: '보류',
+  cancelled: '보류',
+};
+
+const priorityToDb: Record<Priority, string> = {
+  낮음: 'low',
+  보통: 'normal',
+  높음: 'high',
+};
+
+const priorityFromDb: Record<string, Priority> = {
+  low: '낮음',
+  normal: '보통',
+  high: '높음',
+};
+
+const roleToDb: Record<Employee['role'], string> = {
+  관리자: 'admin',
+  매니저: 'manager',
+  직원: 'staff',
+};
+
+const roleFromDb: Record<string, Employee['role']> = {
+  admin: '관리자',
+  manager: '매니저',
+  staff: '직원',
+};
+
+function formatDueDate(value: string | null | undefined) {
+  if (!value) return '미정';
+  return new Intl.DateTimeFormat('ko-KR', { month: 'long', day: 'numeric' }).format(new Date(value));
+}
+
+function parseDueDate(value: string) {
+  if (!value.trim()) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; i += 1) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+
+  return outputArray;
 }
 
 function App() {
@@ -201,6 +276,7 @@ function App() {
   const [clients, setClients] = useState<Client[]>(seedClients);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [jobTypes, setJobTypes] = useState(seedJobTypes);
+  const [backendStatus, setBackendStatus] = useState('프로토타입 데이터');
 
   useEffect(() => {
     applyTheme(themeMode);
@@ -239,18 +315,137 @@ function App() {
     };
   }, []);
 
+  const loadBackendData = async () => {
+    if (!supabase || !currentUser || currentUser.isPrototype) {
+      return;
+    }
+
+    setBackendStatus('Supabase 동기화중');
+
+    const [profilesResult, jobTypesResult, clientsResult, tasksResult] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, email, name, phone, role, job_types(name)')
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('job_types')
+        .select('name')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('clients')
+        .select('id, name, contact_name, phone, memo, created_by')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('tasks')
+        .select(`
+          id,
+          title,
+          description,
+          task_type,
+          status,
+          priority,
+          due_at,
+          creator_id,
+          assignee_id,
+          client_id,
+          creator:profiles!tasks_creator_id_fkey(name),
+          assignee:profiles!tasks_assignee_id_fkey(name),
+          client:clients(name),
+          task_watchers(user:profiles(name))
+        `)
+        .order('created_at', { ascending: false }),
+    ]);
+
+    if (profilesResult.error || jobTypesResult.error || clientsResult.error || tasksResult.error) {
+      setBackendStatus('Supabase 테이블 준비 필요');
+      return;
+    }
+
+    const rawTasks = (tasksResult.data || []) as any[];
+
+    const nextTasks: Task[] = rawTasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      from: task.creator?.name || '알 수 없음',
+      to: task.assignee?.name || '미지정',
+      creatorId: task.creator_id,
+      assigneeId: task.assignee_id,
+      clientId: task.client_id,
+      client: task.client?.name || '내부',
+      due: formatDueDate(task.due_at),
+      status: statusFromDb[task.status] || '대기',
+      priority: priorityFromDb[task.priority] || '보통',
+      type: task.task_type || '업무 요청',
+      summary: task.description || '',
+      watchers: (task.task_watchers || []).map((watcher: any) => watcher.user?.name).filter(Boolean),
+    }));
+
+    const loadByUser = new Map<string, number>();
+    nextTasks.forEach((task) => {
+      if (!task.assigneeId) return;
+      loadByUser.set(task.assigneeId, (loadByUser.get(task.assigneeId) || 0) + 1);
+    });
+
+    const nextEmployees: Employee[] = ((profilesResult.data || []) as any[]).map((profile) => ({
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      phone: profile.phone || '',
+      jobType: profile.job_types?.name || '미지정',
+      role: roleFromDb[profile.role] || '직원',
+      load: loadByUser.get(profile.id) || 0,
+    }));
+
+    const currentProfile = nextEmployees.find((employee) => employee.id === currentUser.id);
+
+    if (currentProfile) {
+      setCurrentUser((user) =>
+        user
+          ? {
+              ...user,
+              name: currentProfile.name,
+              role: currentProfile.jobType,
+              email: currentProfile.email,
+            }
+          : user,
+      );
+    }
+
+    const nextClients: Client[] = ((clientsResult.data || []) as any[]).map((client) => ({
+      id: client.id,
+      name: client.name,
+      manager: nextEmployees.find((employee) => employee.id === client.created_by)?.name || '미지정',
+      phone: client.phone || '',
+      memo: client.memo || '',
+    }));
+
+    const nextJobTypes = (jobTypesResult.data || []).map((jobType) => jobType.name);
+
+    setTasks(nextTasks);
+    setEmployees(nextEmployees.length ? nextEmployees : seedEmployees);
+    setClients(nextClients.length ? nextClients : seedClients);
+    setJobTypes(nextJobTypes.length ? nextJobTypes : seedJobTypes);
+    setBackendStatus('Supabase 연결됨');
+  };
+
+  useEffect(() => {
+    loadBackendData();
+  }, [currentUser?.id, currentUser?.isPrototype]);
+
   const dashboardStats = useMemo(
     () => [
-      { label: '받은 업무', value: tasks.filter((task) => task.to === '인성이형').length, hint: '내 담당 기준', tone: 'silver' },
+      { label: '받은 업무', value: tasks.filter((task) => task.assigneeId === currentUser?.id || task.to === currentUser?.name || task.to === '인성이형').length, hint: '내 담당 기준', tone: 'silver' },
       { label: '진행중', value: tasks.filter((task) => task.status === '진행중').length, hint: '담당자 확인중', tone: 'blue' },
       { label: '완료 요청', value: tasks.filter((task) => task.status === '완료 요청').length, hint: '검토 필요', tone: 'amber' },
       { label: '마감 임박', value: 3, hint: '48시간 이내', tone: 'red' },
     ],
-    [tasks],
+    [currentUser?.id, currentUser?.name, tasks],
   );
 
   const handlePrototypeLogin = () => {
     setCurrentUser({
+      id: 'prototype',
       name: '인성이형',
       email: 'prototype@plander.co.kr',
       role: '일본 마케팅',
@@ -268,9 +463,45 @@ function App() {
     setCurrentUser(null);
   };
 
-  const createTask = (task: Omit<Task, 'id' | 'status' | 'watchers'> & { status?: TaskStatus; watchers?: string[] }) => {
+  const createTask = async (task: Omit<Task, 'id' | 'status' | 'watchers'> & { status?: TaskStatus; watchers?: string[] }) => {
+    const assignee = employees.find((employee) => employee.name === task.to);
+    const client = clients.find((item) => item.name === task.client);
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert({
+          title: task.title,
+          description: task.summary,
+          task_type: task.type,
+          status: statusToDb[task.status || '대기'],
+          priority: priorityToDb[task.priority],
+          creator_id: currentUser.id,
+          assignee_id: assignee?.id || null,
+          client_id: client?.id || null,
+          due_at: parseDueDate(task.due),
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        setBackendStatus(`업무 저장 실패: ${error.message}`);
+        return;
+      }
+
+      if (data?.id) {
+        await supabase.functions.invoke('send-task-notification', {
+          body: { taskId: data.id },
+        });
+      }
+
+      await loadBackendData();
+      setActiveView('inbox');
+      return;
+    }
+
     const nextTask: Task = {
-      id: Date.now(),
+      id: String(Date.now()),
       status: task.status || '대기',
       watchers: task.watchers || [],
       ...task,
@@ -278,6 +509,120 @@ function App() {
 
     setTasks((current) => [nextTask, ...current]);
     setActiveView('inbox');
+  };
+
+  const addClient = async (client: Omit<Client, 'id'>) => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('clients').insert({
+        name: client.name,
+        contact_name: client.manager,
+        phone: client.phone,
+        memo: client.memo,
+        created_by: currentUser.id,
+      });
+
+      if (error) {
+        setBackendStatus(`업체 저장 실패: ${error.message}`);
+        return;
+      }
+
+      await loadBackendData();
+      return;
+    }
+
+    setClients((current) => [{ id: String(Date.now()), ...client }, ...current]);
+  };
+
+  const addJobType = async (name: string) => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('job_types').insert({ name });
+
+      if (error) {
+        setBackendStatus(`담당업무 저장 실패: ${error.message}`);
+        return;
+      }
+
+      await loadBackendData();
+      return;
+    }
+
+    setJobTypes((current) => [name, ...current]);
+  };
+
+  const addEmployee = async (employee: NewEmployee) => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { data, error } = await supabase.functions.invoke('create-user', {
+        body: {
+          name: employee.name,
+          email: employee.email,
+          password: employee.password,
+          phone: employee.phone,
+          jobType: employee.jobType,
+          role: roleToDb[employee.role],
+        },
+      });
+
+      if (error || data?.error) {
+        setBackendStatus(`계정 생성 실패: ${data?.error || error?.message}`);
+        return;
+      }
+
+      await loadBackendData();
+      return;
+    }
+
+    const { password: _password, ...employeeProfile } = employee;
+    void _password;
+    setEmployees((current) => [{ id: String(Date.now()), load: 0, ...employeeProfile }, ...current]);
+  };
+
+  const registerPushNotifications = async () => {
+    if (!supabase || !currentUser || currentUser.isPrototype) {
+      return '실제 로그인 후 푸시알림을 켤 수 있습니다.';
+    }
+
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      return '이 브라우저는 웹푸시를 지원하지 않습니다.';
+    }
+
+    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+
+    if (!vapidPublicKey) {
+      return 'VAPID public key가 설정되지 않았습니다.';
+    }
+
+    const permission = await Notification.requestPermission();
+
+    if (permission !== 'granted') {
+      return '브라우저 알림 권한이 허용되지 않았습니다.';
+    }
+
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    const existingSubscription = await registration.pushManager.getSubscription();
+    const subscription =
+      existingSubscription ||
+      (await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      }));
+    const subscriptionJson = subscription.toJSON();
+
+    const { error } = await supabase.from('push_subscriptions').upsert(
+      {
+        user_id: currentUser.id,
+        endpoint: subscriptionJson.endpoint,
+        p256dh: subscriptionJson.keys?.p256dh,
+        auth: subscriptionJson.keys?.auth,
+        user_agent: navigator.userAgent,
+      },
+      { onConflict: 'endpoint' },
+    );
+
+    if (error) {
+      return `푸시 구독 저장 실패: ${error.message}`;
+    }
+
+    return '이 기기에서 업무 푸시알림이 켜졌습니다.';
   };
 
   if (!authReady) {
@@ -327,20 +672,27 @@ function App() {
         {activeView === 'dashboard' ? (
           <Dashboard stats={dashboardStats} tasks={tasks} employees={employees} onCreateTask={createTask} />
         ) : null}
-        {activeView === 'inbox' ? <TaskListPage title="받은 업무" tasks={tasks.filter((task) => task.to === '인성이형' || task.to === currentUser.name)} /> : null}
-        {activeView === 'sent' ? <TaskListPage title="보낸 업무" tasks={tasks.filter((task) => task.from === '인성이형' || task.from === currentUser.name)} /> : null}
+        {activeView === 'inbox' ? <TaskListPage title="받은 업무" tasks={tasks.filter((task) => task.assigneeId === currentUser.id || task.to === '인성이형' || task.to === currentUser.name)} /> : null}
+        {activeView === 'sent' ? <TaskListPage title="보낸 업무" tasks={tasks.filter((task) => task.creatorId === currentUser.id || task.from === '인성이형' || task.from === currentUser.name)} /> : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? <ReportsPage tasks={tasks} onCreateTask={createTask} /> : null}
-        {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={(client) => setClients((current) => [{ id: Date.now(), ...client }, ...current])} /> : null}
+        {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} /> : null}
         {activeView === 'employees' ? (
           <EmployeesPage
             employees={employees}
             jobTypes={jobTypes}
-            onAddEmployee={(employee) => setEmployees((current) => [{ id: Date.now(), load: 0, ...employee }, ...current])}
+            onAddEmployee={addEmployee}
           />
         ) : null}
-        {activeView === 'jobTypes' ? <JobTypesPage jobTypes={jobTypes} onAddJobType={(name) => setJobTypes((current) => [name, ...current])} /> : null}
-        {activeView === 'settings' ? <SettingsPage themeMode={themeMode} onThemeChange={setThemeMode} /> : null}
+        {activeView === 'jobTypes' ? <JobTypesPage jobTypes={jobTypes} onAddJobType={addJobType} /> : null}
+        {activeView === 'settings' ? (
+          <SettingsPage
+            backendStatus={backendStatus}
+            themeMode={themeMode}
+            onRegisterPush={registerPushNotifications}
+            onThemeChange={setThemeMode}
+          />
+        ) : null}
       </main>
     </div>
   );
@@ -804,7 +1156,7 @@ function EmployeesPage({
 }: {
   employees: Employee[];
   jobTypes: string[];
-  onAddEmployee: (employee: Omit<Employee, 'id' | 'load'>) => void;
+  onAddEmployee: (employee: NewEmployee) => void;
 }) {
   const [form, setForm] = useState({
     name: '',
@@ -829,6 +1181,7 @@ function EmployeesPage({
     onAddEmployee({
       name: form.name || form.email.split('@')[0],
       email: form.email,
+      password: form.password,
       phone: form.phone,
       jobType: form.jobType,
       role: form.role,
@@ -947,7 +1300,26 @@ function JobTypesPage({ jobTypes, onAddJobType }: { jobTypes: string[]; onAddJob
   );
 }
 
-function SettingsPage({ themeMode, onThemeChange }: { themeMode: ThemeMode; onThemeChange: (mode: ThemeMode) => void }) {
+function SettingsPage({
+  backendStatus,
+  themeMode,
+  onRegisterPush,
+  onThemeChange,
+}: {
+  backendStatus: string;
+  themeMode: ThemeMode;
+  onRegisterPush: () => Promise<string>;
+  onThemeChange: (mode: ThemeMode) => void;
+}) {
+  const [pushStatus, setPushStatus] = useState('이 기기에서 푸시알림을 켜면 새 업무 배정 시 알림을 받을 수 있습니다.');
+  const [pushLoading, setPushLoading] = useState(false);
+
+  const handleRegisterPush = async () => {
+    setPushLoading(true);
+    setPushStatus(await onRegisterPush());
+    setPushLoading(false);
+  };
+
   return (
     <section className="page-shell">
       <div className="page-head">
@@ -959,9 +1331,21 @@ function SettingsPage({ themeMode, onThemeChange }: { themeMode: ThemeMode; onTh
 
       <div className="split-layout">
         <div className="page-card settings-card">
+          <h2>백엔드</h2>
+          <p>{backendStatus}</p>
+        </div>
+        <div className="page-card settings-card">
           <h2>테마</h2>
           <p>사이드바는 Plander 블랙을 유지하고, 업무 영역은 라이트/다크/시스템 설정을 따릅니다.</p>
           <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
+        </div>
+        <div className="page-card settings-card">
+          <h2>푸시알림</h2>
+          <p>{pushStatus}</p>
+          <button className="primary-action" disabled={pushLoading} onClick={handleRegisterPush} type="button">
+            <Bell size={17} />
+            {pushLoading ? '설정중' : '이 기기 알림 켜기'}
+          </button>
         </div>
         <div className="page-card settings-card">
           <h2>첨부파일</h2>
