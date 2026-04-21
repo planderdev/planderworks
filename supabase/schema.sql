@@ -22,6 +22,14 @@ create table if not exists public.job_types (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.task_types (
+  id uuid primary key default gen_random_uuid(),
+  name text not null unique,
+  is_active boolean not null default true,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text not null unique,
@@ -67,6 +75,7 @@ create table if not exists public.tasks (
   client_id uuid references public.clients(id) on delete set null,
   project_id uuid references public.projects(id) on delete set null,
   due_at timestamptz,
+  read_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -225,7 +234,21 @@ values
   ('회계·정산')
 on conflict (name) do nothing;
 
+insert into public.task_types (name, sort_order)
+values
+  ('영업 브리핑', 10),
+  ('디자인 요청', 20),
+  ('보고', 30),
+  ('제안', 40),
+  ('확인 요청', 50),
+  ('촬영 요청', 60),
+  ('시장 조사', 70)
+on conflict (name) do update
+set is_active = true,
+    sort_order = excluded.sort_order;
+
 alter table public.job_types enable row level security;
+alter table public.task_types enable row level security;
 alter table public.profiles enable row level security;
 alter table public.clients enable row level security;
 alter table public.projects enable row level security;
@@ -245,6 +268,19 @@ using (true);
 drop policy if exists "admins manage job types" on public.job_types;
 create policy "admins manage job types"
 on public.job_types for all
+to authenticated
+using (public.current_user_role() = 'admin')
+with check (public.current_user_role() = 'admin');
+
+drop policy if exists "task types are readable" on public.task_types;
+create policy "task types are readable"
+on public.task_types for select
+to authenticated
+using (true);
+
+drop policy if exists "admins manage task types" on public.task_types;
+create policy "admins manage task types"
+on public.task_types for all
 to authenticated
 using (public.current_user_role() = 'admin')
 with check (public.current_user_role() = 'admin');
@@ -307,19 +343,11 @@ to authenticated
 with check (created_by = auth.uid());
 
 drop policy if exists "task participants read tasks" on public.tasks;
-create policy "task participants read tasks"
+drop policy if exists "authenticated users read tasks" on public.tasks;
+create policy "authenticated users read tasks"
 on public.tasks for select
 to authenticated
-using (
-  creator_id = auth.uid()
-  or assignee_id = auth.uid()
-  or public.current_user_role() = 'admin'
-  or exists (
-    select 1 from public.task_watchers
-    where task_watchers.task_id = tasks.id
-      and task_watchers.user_id = auth.uid()
-  )
-);
+using (true);
 
 drop policy if exists "users create tasks" on public.tasks;
 create policy "users create tasks"
@@ -385,22 +413,11 @@ to authenticated
 with check (user_id = auth.uid());
 
 drop policy if exists "task participants read files" on public.task_files;
-create policy "task participants read files"
+drop policy if exists "authenticated users read task file records" on public.task_files;
+create policy "authenticated users read task file records"
 on public.task_files for select
 to authenticated
-using (
-  public.current_user_role() = 'admin'
-  or exists (
-    select 1 from public.tasks
-    where tasks.id = task_files.task_id
-      and (tasks.creator_id = auth.uid() or tasks.assignee_id = auth.uid())
-  )
-  or exists (
-    select 1 from public.task_watchers
-    where task_watchers.task_id = task_files.task_id
-      and task_watchers.user_id = auth.uid()
-  )
-);
+using (true);
 
 drop policy if exists "task participants create file records" on public.task_files;
 create policy "task participants create file records"
@@ -420,3 +437,34 @@ create policy "activity logs are readable to admins"
 on public.activity_logs for select
 to authenticated
 using (public.current_user_role() = 'admin');
+
+insert into storage.buckets (id, name, public, file_size_limit)
+values ('task-files', 'task-files', false, 52428800)
+on conflict (id) do update
+set public = false,
+    file_size_limit = 52428800;
+
+drop policy if exists "authenticated read task files" on storage.objects;
+create policy "authenticated read task files"
+on storage.objects for select
+to authenticated
+using (bucket_id = 'task-files');
+
+drop policy if exists "authenticated upload task files" on storage.objects;
+create policy "authenticated upload task files"
+on storage.objects for insert
+to authenticated
+with check (bucket_id = 'task-files');
+
+drop policy if exists "authenticated update own task files" on storage.objects;
+create policy "authenticated update own task files"
+on storage.objects for update
+to authenticated
+using (bucket_id = 'task-files' and owner = auth.uid())
+with check (bucket_id = 'task-files' and owner = auth.uid());
+
+drop policy if exists "authenticated delete own task files" on storage.objects;
+create policy "authenticated delete own task files"
+on storage.objects for delete
+to authenticated
+using (bucket_id = 'task-files' and owner = auth.uid());

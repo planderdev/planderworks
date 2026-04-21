@@ -45,9 +45,9 @@ type ActiveView =
   | 'settings';
 type TaskStatus = '대기' | '진행중' | '완료 요청' | '보류' | '완료';
 type Priority = '높음' | '보통' | '낮음';
-type TaskType = '영업 브리핑' | '디자인 요청' | '보고' | '제안' | '확인 요청' | '촬영 요청' | '시장 조사';
+type TaskType = string;
 
-const taskTypeOptions: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
+const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 
 type AppUser = {
   id: string;
@@ -68,12 +68,22 @@ type Task = {
   clientId?: string;
   client: string;
   dueAt?: string | null;
+  readAt?: string | null;
   due: string;
   status: TaskStatus;
   priority: Priority;
   type: TaskType;
   summary: string;
   watchers: string[];
+  files: TaskFile[];
+};
+
+type TaskFile = {
+  id: string;
+  name: string;
+  path: string;
+  size?: number | null;
+  mimeType?: string | null;
 };
 
 type Client = {
@@ -107,12 +117,13 @@ type OwnProfileUpdate = Pick<Employee, 'name' | 'phone' | 'jobType'> & {
   password?: string;
 };
 
-type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers'> & {
+type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'dueAt' | 'readAt'> & {
   status?: TaskStatus;
   watchers?: string[];
   toIds?: string[];
   toList?: string[];
   clientId?: string;
+  files?: File[];
 };
 
 type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
@@ -123,6 +134,8 @@ type ClientUpdateHandler = (clientId: string, client: Omit<Client, 'id'>) => Pro
 type ClientDeleteHandler = (client: Client) => Promise<string>;
 type JobTypeSubmitHandler = (name: string) => Promise<string>;
 type JobTypeDeleteHandler = (name: string) => Promise<string>;
+type TaskTypeSubmitHandler = (name: string) => Promise<string>;
+type TaskTypeDeleteHandler = (name: string) => Promise<string>;
 type EmployeeSubmitHandler = (employee: NewEmployee) => Promise<string>;
 type EmployeeUpdateHandler = (employeeId: string, updates: EmployeeUpdate) => Promise<string>;
 
@@ -159,6 +172,7 @@ const seedTasks: Task[] = [
     type: '영업 브리핑',
     summary: '일본인 한국여행 계정 8명 후보와 촬영 가능 일정 정리 필요',
     watchers: ['대표', '운영팀'],
+    files: [],
   },
   {
     id: '2',
@@ -172,6 +186,7 @@ const seedTasks: Task[] = [
     type: '디자인 요청',
     summary: '일본 현지 고객용 상세페이지 레퍼런스와 시술 메뉴 번역본 전달',
     watchers: ['인성이형'],
+    files: [],
   },
   {
     id: '3',
@@ -185,6 +200,7 @@ const seedTasks: Task[] = [
     type: '시장 조사',
     summary: '라쿠텐, 아마존 재팬, 큐텐 입점 조건 비교 및 예상 비용 보고',
     watchers: ['대표', '디자인팀장'],
+    files: [],
   },
   {
     id: '4',
@@ -198,6 +214,7 @@ const seedTasks: Task[] = [
     type: '촬영 요청',
     summary: '비 오는 날 대체 촬영 컷 구성과 인플루언서 이동 동선 확인',
     watchers: ['운영팀'],
+    files: [],
   },
 ];
 
@@ -317,11 +334,11 @@ function formatTaskTypeLabel(type: string) {
 }
 
 function getTaskReadLabel(task: Task) {
-  return task.status === '대기' ? '안읽음' : '읽음';
+  return task.readAt ? '읽음' : '안읽음';
 }
 
 function isUnreadForUser(task: Task, currentUser: AppUser) {
-  return task.status === '대기' && (task.assigneeId === currentUser.id || task.to === currentUser.name);
+  return !task.readAt && (task.assigneeId === currentUser.id || task.to === currentUser.name);
 }
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -348,6 +365,7 @@ function App() {
   const [clients, setClients] = useState<Client[]>(seedClients);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [jobTypes, setJobTypes] = useState(seedJobTypes);
+  const [taskTypes, setTaskTypes] = useState(fallbackTaskTypes);
   const [backendStatus, setBackendStatus] = useState('프로토타입 데이터');
   const [pushStatus, setPushStatus] = useState('종 버튼을 누르면 이 기기 업무 푸시알림을 켤 수 있습니다.');
   const [pushLoading, setPushLoading] = useState(false);
@@ -402,7 +420,7 @@ function App() {
 
     setBackendStatus('Supabase 동기화중');
 
-    const [profilesResult, jobTypesResult, clientsResult, tasksResult] = await Promise.all([
+    const [profilesResult, jobTypesResult, taskTypesResult, clientsResult, tasksResult] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, email, name, phone, role, job_types(name)')
@@ -412,6 +430,11 @@ function App() {
         .select('name')
         .eq('is_active', true)
         .order('created_at', { ascending: true }),
+      supabase
+        .from('task_types')
+        .select('name')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true }),
       supabase
         .from('clients')
         .select('id, name, contact_name, phone, region, memo, created_by')
@@ -426,18 +449,20 @@ function App() {
           status,
           priority,
           due_at,
+          read_at,
           creator_id,
           assignee_id,
           client_id,
           creator:profiles!tasks_creator_id_fkey(name),
           assignee:profiles!tasks_assignee_id_fkey(name),
           client:clients(name),
-          task_watchers(user:profiles(name))
+          task_watchers(user:profiles(name)),
+          task_files(id, file_name, file_path, file_size, mime_type)
         `)
         .order('created_at', { ascending: false }),
     ]);
 
-    if (profilesResult.error || jobTypesResult.error || clientsResult.error || tasksResult.error) {
+    if (profilesResult.error || jobTypesResult.error || taskTypesResult.error || clientsResult.error || tasksResult.error) {
       setBackendStatus('Supabase 테이블 준비 필요');
       return;
     }
@@ -454,12 +479,20 @@ function App() {
       clientId: task.client_id,
       client: task.client?.name || '내부',
       dueAt: task.due_at,
+      readAt: task.read_at,
       due: formatDueDate(task.due_at),
       status: statusFromDb[task.status] || '대기',
       priority: priorityFromDb[task.priority] || '보통',
       type: task.task_type || '업무 요청',
       summary: task.description || '',
       watchers: (task.task_watchers || []).map((watcher: any) => watcher.user?.name).filter(Boolean),
+      files: (task.task_files || []).map((file: any) => ({
+        id: file.id,
+        name: file.file_name,
+        path: file.file_path,
+        size: file.file_size,
+        mimeType: file.mime_type,
+      })),
     }));
 
     const loadByUser = new Map<string, number>();
@@ -504,11 +537,13 @@ function App() {
     }));
 
     const nextJobTypes = (jobTypesResult.data || []).map((jobType) => jobType.name);
+    const nextTaskTypes = (taskTypesResult.data || []).map((taskType) => taskType.name);
 
     setTasks(nextTasks);
     setEmployees(nextEmployees.length ? nextEmployees : seedEmployees);
     setClients(nextClients.length ? nextClients : seedClients);
     setJobTypes(nextJobTypes.length ? nextJobTypes : seedJobTypes);
+    setTaskTypes(nextTaskTypes.length ? nextTaskTypes : fallbackTaskTypes);
     setBackendStatus('Supabase 연결됨');
   };
 
@@ -694,6 +729,43 @@ function App() {
     setCurrentUser(null);
   };
 
+  const uploadTaskFiles = async (taskId: string, files: File[] = []) => {
+    if (!supabase || !currentUser || !files.length) return null;
+
+    const uploadedFiles: Array<{
+      task_id: string;
+      uploaded_by: string;
+      file_name: string;
+      file_path: string;
+      file_size: number;
+      mime_type: string;
+    }> = [];
+
+    for (const file of files) {
+      const safeName = file.name.replace(/[^\w.\-가-힣]/g, '_');
+      const filePath = `${taskId}/${Date.now()}-${safeName}`;
+      const { error: uploadError } = await supabase.storage.from('task-files').upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+      });
+
+      if (uploadError) return uploadError.message;
+
+      uploadedFiles.push({
+        task_id: taskId,
+        uploaded_by: currentUser.id,
+        file_name: file.name,
+        file_path: filePath,
+        file_size: file.size,
+        mime_type: file.type,
+      });
+    }
+
+    if (!uploadedFiles.length) return null;
+    const { error } = await supabase.from('task_files').insert(uploadedFiles);
+    return error?.message || null;
+  };
+
   const createTask = async (task: TaskDraft): Promise<string> => {
     const recipientIds = Array.from(new Set(task.toIds || []));
     const recipients = (task.toList?.length ? task.toList : [task.to]).filter(Boolean);
@@ -737,6 +809,15 @@ function App() {
         return message;
       }
 
+      for (const createdTask of data || []) {
+        const fileError = await uploadTaskFiles(createdTask.id, task.files || []);
+        if (fileError) {
+          const message = `첨부파일 저장 실패: ${fileError}`;
+          setBackendStatus(message);
+          return message;
+        }
+      }
+
       await Promise.all(
         (data || []).map((createdTask) =>
           supabase.functions.invoke('send-task-notification', {
@@ -762,6 +843,13 @@ function App() {
       status: task.status || '대기',
       watchers: task.watchers || [],
       ...task,
+      files: (task.files || []).map((file, fileIndex) => ({
+        id: `${Date.now()}-${index}-${fileIndex}`,
+        name: file.name,
+        path: '',
+        size: file.size,
+        mimeType: file.type,
+      })),
       from: currentUser?.name || task.from,
       to: assignee.name,
     }));
@@ -876,6 +964,45 @@ function App() {
 
     setJobTypes((current) => current.filter((jobType) => jobType !== name));
     return '담당업무를 삭제했습니다.';
+  };
+
+  const addTaskType = async (name: string): Promise<string> => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('task_types').insert({
+        name,
+        sort_order: (taskTypes.length + 1) * 10,
+      });
+
+      if (error) {
+        const message = `업무유형 저장 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '업무유형을 추가했습니다.';
+    }
+
+    setTaskTypes((current) => [name, ...current]);
+    return '업무유형을 추가했습니다.';
+  };
+
+  const deleteTaskType = async (name: string): Promise<string> => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('task_types').update({ is_active: false }).eq('name', name);
+
+      if (error) {
+        const message = `업무유형 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '업무유형을 삭제했습니다.';
+    }
+
+    setTaskTypes((current) => current.filter((taskType) => taskType !== name));
+    return '업무유형을 삭제했습니다.';
   };
 
   const addEmployee = async (employee: NewEmployee): Promise<string> => {
@@ -998,6 +1125,36 @@ function App() {
 
     setTasks((current) => current.map((task) => (task.id === taskId ? { ...task, status } : task)));
     return `업무 상태를 ${status}(으)로 변경했습니다.`;
+  };
+
+  const markTaskRead = async (task: Task) => {
+    if (!currentUser || task.readAt || task.assigneeId !== currentUser.id) return;
+    const readAt = new Date().toISOString();
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase.from('tasks').update({ read_at: readAt }).eq('id', task.id).eq('assignee_id', currentUser.id);
+      if (error) {
+        setBackendStatus(`읽음 처리 실패: ${error.message}`);
+        return;
+      }
+    }
+
+    setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, readAt } : item)));
+  };
+
+  const openTaskFile = async (file: TaskFile) => {
+    if (!file.path || !supabase || currentUser?.isPrototype) {
+      showActionPopup('프로토타입 첨부파일은 미리보기만 가능합니다.');
+      return;
+    }
+
+    const { data, error } = await supabase.storage.from('task-files').createSignedUrl(file.path, 60 * 10);
+    if (error || !data?.signedUrl) {
+      showActionPopup(`첨부파일 열기 실패: ${error?.message || 'URL 생성 실패'}`);
+      return;
+    }
+
+    window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
   };
 
   const deleteTask = async (task: Task): Promise<string> => {
@@ -1171,6 +1328,7 @@ function App() {
             reportTasks={reportTasks}
             clients={clients}
             employees={employees}
+            taskTypes={taskTypes}
             onNavigate={navigateTo}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
             onCreateTask={createTask}
@@ -1185,7 +1343,7 @@ function App() {
         {activeView === 'sent' ? (
           <TaskListPage title="보낸 업무" tasks={sentTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
-        {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} onCreateTask={createTask} /> : null}
+        {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
           <ReportsPage tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
@@ -1198,6 +1356,7 @@ function App() {
           <EmployeesPage
             employees={employees}
             jobTypes={jobTypes}
+            taskTypes={taskTypes}
             onAddEmployee={addEmployee}
             onUpdateEmployee={updateEmployee}
           />
@@ -1215,12 +1374,14 @@ function App() {
             onRegisterPush={handleRegisterPush}
             onAddJobType={addJobType}
             onDeleteJobType={deleteJobType}
+            onAddTaskType={addTaskType}
+            onDeleteTaskType={deleteTaskType}
             onUpdateOwnProfile={updateOwnProfile}
             onThemeChange={setThemeMode}
           />
         ) : null}
       </main>
-      <TaskDetailModal task={selectedTask} currentUser={currentUser} onClose={() => setSelectedTaskId(null)} />
+      <TaskDetailModal task={selectedTask} currentUser={currentUser} onClose={() => setSelectedTaskId(null)} onDownloadFile={openTaskFile} onMarkRead={markTaskRead} />
       <CompletionPopup message={popupMessage} onClose={() => setPopupMessage('')} />
     </div>
   );
@@ -1557,13 +1718,18 @@ function TaskDetailModal({
   task,
   currentUser,
   onClose,
+  onDownloadFile,
+  onMarkRead,
 }: {
   task: Task | null;
   currentUser: AppUser;
   onClose: () => void;
+  onDownloadFile: (file: TaskFile) => void;
+  onMarkRead: (task: Task) => void;
 }) {
   useEffect(() => {
     if (!task) return;
+    onMarkRead(task);
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Enter' || event.key === 'Escape') {
         event.preventDefault();
@@ -1572,7 +1738,7 @@ function TaskDetailModal({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, task]);
+  }, [onClose, onMarkRead, task]);
 
   if (!task) return null;
 
@@ -1602,9 +1768,19 @@ function TaskDetailModal({
           <h3>내용</h3>
           <p>{task.summary || '내용이 없습니다.'}</p>
         </div>
-        <div className="attachment-row">
-          <Paperclip size={17} />
-          <span>첨부파일은 Supabase Storage 연결 후 표시됩니다.</span>
+        <div className="detail-files">
+          <h3>첨부파일</h3>
+          {task.files.length ? (
+            task.files.map((file) => (
+              <button className="file-row" key={file.id} onClick={() => onDownloadFile(file)} type="button">
+                <Paperclip size={16} />
+                <span>{file.name}</span>
+                <small>{file.size ? `${Math.ceil(file.size / 1024)}KB` : '파일'}</small>
+              </button>
+            ))
+          ) : (
+            <p>첨부파일이 없습니다.</p>
+          )}
         </div>
         {isUnreadForUser(task, currentUser) ? <p className="admin-note">새 업무 표시: 아직 대기 상태입니다.</p> : null}
         <button className="primary-action wide" onClick={onClose} type="button">
@@ -1622,6 +1798,7 @@ function Dashboard({
   reportTasks,
   clients,
   employees,
+  taskTypes,
   currentUser,
   onNavigate,
   onOpenTask,
@@ -1635,6 +1812,7 @@ function Dashboard({
   reportTasks: Task[];
   clients: Client[];
   employees: Employee[];
+  taskTypes: string[];
   currentUser: AppUser;
   onNavigate: (view: ActiveView) => void;
   onOpenTask: (task: Task) => void;
@@ -1693,7 +1871,7 @@ function Dashboard({
         </div>
 
         <aside className="side-panel">
-          <TaskComposer employees={employees} onCreateTask={onCreateTask} />
+          <TaskComposer employees={employees} taskTypes={taskTypes} onCreateTask={onCreateTask} />
           <TeamLoad employees={employees} />
         </aside>
       </section>
@@ -1821,10 +1999,12 @@ function TaskListPage({
 function TaskCreatePage({
   clients,
   employees,
+  taskTypes,
   onCreateTask,
 }: {
   clients: Client[];
   employees: Employee[];
+  taskTypes: string[];
   onCreateTask: TaskSubmitHandler;
 }) {
   return (
@@ -1836,7 +2016,7 @@ function TaskCreatePage({
         </div>
       </div>
       <div className="page-card">
-        <TaskForm clients={clients} employees={employees} onSubmit={onCreateTask} />
+        <TaskForm clients={clients} employees={employees} taskTypes={taskTypes} onSubmit={onCreateTask} />
       </div>
     </section>
   );
@@ -2538,6 +2718,7 @@ function SettingsPage({
   currentUser,
   employees,
   jobTypes,
+  taskTypes,
   pushEnabled,
   pushLoading,
   pushStatus,
@@ -2545,6 +2726,8 @@ function SettingsPage({
   onRegisterPush,
   onAddJobType,
   onDeleteJobType,
+  onAddTaskType,
+  onDeleteTaskType,
   onUpdateOwnProfile,
   onThemeChange,
 }: {
@@ -2552,6 +2735,7 @@ function SettingsPage({
   currentUser: AppUser;
   employees: Employee[];
   jobTypes: string[];
+  taskTypes: string[];
   pushEnabled: boolean;
   pushLoading: boolean;
   pushStatus: string;
@@ -2559,6 +2743,8 @@ function SettingsPage({
   onRegisterPush: () => void;
   onAddJobType: JobTypeSubmitHandler;
   onDeleteJobType: JobTypeDeleteHandler;
+  onAddTaskType: TaskTypeSubmitHandler;
+  onDeleteTaskType: TaskTypeDeleteHandler;
   onUpdateOwnProfile: (updates: OwnProfileUpdate) => Promise<string>;
   onThemeChange: (mode: ThemeMode) => void;
 }) {
@@ -2574,6 +2760,7 @@ function SettingsPage({
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [jobTypeOpen, setJobTypeOpen] = useState(false);
+  const [taskTypeOpen, setTaskTypeOpen] = useState(false);
 
   useEffect(() => {
     setProfileForm({
@@ -2639,7 +2826,7 @@ function SettingsPage({
           <div className="settings-shortcuts">
             <button className="secondary-action" onClick={() => setProfileOpen(true)} type="button">내 정보 수정</button>
             <button className="secondary-action" onClick={() => setJobTypeOpen(true)} type="button">담당업무 관리</button>
-            <button className="secondary-action" onClick={() => showActionPopup('업무유형 관리는 다음 배치에서 DB 테이블과 함께 연결하겠습니다.')} type="button">업무유형 추가/삭제</button>
+            <button className="secondary-action" onClick={() => setTaskTypeOpen(true)} type="button">업무유형 추가/삭제</button>
           </div>
         </div>
         <div className="page-card settings-card settings-backend">
@@ -2711,6 +2898,17 @@ function SettingsPage({
           onAddJobType={onAddJobType}
           onClose={() => setJobTypeOpen(false)}
           onDeleteJobType={onDeleteJobType}
+        />
+      ) : null}
+      {taskTypeOpen ? (
+        <SimpleTypeModal
+          items={taskTypes}
+          title="업무유형 관리"
+          eyebrow="Task Type"
+          addLabel="업무유형명"
+          onAdd={onAddTaskType}
+          onClose={() => setTaskTypeOpen(false)}
+          onDelete={onDeleteTaskType}
         />
       ) : null}
     </section>
@@ -2798,17 +2996,96 @@ function JobTypeModal({
   );
 }
 
+function SimpleTypeModal({
+  items,
+  title,
+  eyebrow,
+  addLabel,
+  onAdd,
+  onDelete,
+  onClose,
+}: {
+  items: string[];
+  title: string;
+  eyebrow: string;
+  addLabel: string;
+  onAdd: (name: string) => Promise<string>;
+  onDelete: (name: string) => Promise<string>;
+  onClose: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [loadingName, setLoadingName] = useState('');
+
+  const add = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!name.trim() || loadingName) return;
+    setLoadingName('add');
+    const message = await onAdd(name.trim());
+    setLoadingName('');
+    showActionPopup(message);
+    if (!message.includes('실패')) setName('');
+  };
+
+  const remove = async (item: string) => {
+    if (loadingName) return;
+    if (!window.confirm(`${item} 항목을 삭제할까요?`)) return;
+    setLoadingName(item);
+    const message = await onDelete(item);
+    setLoadingName('');
+    showActionPopup(message);
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <article className="modal-card form-stack" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">{eyebrow}</p>
+            <h2>{title}</h2>
+          </div>
+          <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="type-chip-list">
+          {items.map((item) => (
+            <div className="type-row" key={item}>
+              <span>{item}</span>
+              <button className="secondary-action danger-action" disabled={loadingName === item} onClick={() => remove(item)} type="button">
+                {loadingName === item ? '진행중...' : '삭제'}
+              </button>
+            </div>
+          ))}
+        </div>
+        <form className="form-stack" onSubmit={add}>
+          <label>
+            {addLabel}
+            <input value={name} onChange={(event) => setName(event.target.value)} />
+          </label>
+          <button className="primary-action wide" disabled={Boolean(loadingName)} type="submit">
+            <Plus size={17} />
+            {loadingName === 'add' ? '진행중...' : '추가'}
+          </button>
+        </form>
+      </article>
+    </div>
+  );
+}
+
 function TaskForm({
   clients,
   employees,
+  taskTypes,
   onSubmit,
 }: {
   clients: Client[];
   employees: Employee[];
+  taskTypes: string[];
   onSubmit: TaskSubmitHandler;
 }) {
+  const typeOptions = taskTypes.length ? taskTypes : fallbackTaskTypes;
   const [form, setForm] = useState({
-    type: '영업 브리핑' as TaskType,
+    type: typeOptions[0] as TaskType,
     title: '',
     toIds: employees[1]?.id ? [employees[1].id] : [],
     clientId: clients[0]?.id || '',
@@ -2816,6 +3093,7 @@ function TaskForm({
     priority: '보통' as Priority,
     summary: '',
   });
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
@@ -2834,6 +3112,10 @@ function TaskForm({
       return { ...current, clientId: clients[0]?.id || '' };
     });
   }, [clients]);
+
+  useEffect(() => {
+    setForm((current) => (typeOptions.includes(current.type) ? current : { ...current, type: typeOptions[0] || '업무 요청' }));
+  }, [typeOptions.join('|')]);
 
   const toggleRecipient = (id: string) => {
     setForm((current) => ({
@@ -2873,11 +3155,15 @@ function TaskForm({
       priority: form.priority,
       type: form.type,
       summary: form.summary,
+      files,
     });
     setLoading(false);
     setStatus(message);
     showActionPopup(message);
-    if (!message.includes('실패')) setForm({ ...form, title: '', summary: '' });
+    if (!message.includes('실패')) {
+      setForm({ ...form, title: '', summary: '' });
+      setFiles([]);
+    }
   };
 
   return (
@@ -2885,7 +3171,7 @@ function TaskForm({
       <label>
         유형
         <select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as TaskType })}>
-          {taskTypeOptions.map((item) => <option key={item}>{item}</option>)}
+          {typeOptions.map((item) => <option key={item}>{item}</option>)}
         </select>
       </label>
       <label>
@@ -2933,7 +3219,12 @@ function TaskForm({
       </label>
       <div className="attachment-row span-2">
         <Paperclip size={17} />
-        <span>Supabase Storage 첨부 예정</span>
+        <input
+          multiple
+          onChange={(event) => setFiles(Array.from(event.target.files || []))}
+          type="file"
+        />
+        <span>{files.length ? `${files.length}개 첨부 선택됨` : '첨부파일 선택'}</span>
       </div>
       {error ? <p className="auth-error span-2">{error}</p> : null}
       {status ? <p className="admin-note span-2">{status}</p> : null}
@@ -3005,15 +3296,19 @@ function ReportForm({
 
 function TaskComposer({
   employees,
+  taskTypes,
   onCreateTask,
 }: {
   employees: Employee[];
+  taskTypes: string[];
   onCreateTask: TaskSubmitHandler;
 }) {
+  const typeOptions = taskTypes.length ? taskTypes : fallbackTaskTypes;
   const [title, setTitle] = useState('A업체 미팅 내용 전달');
   const [summary, setSummary] = useState('미팅 내용, 요청사항, 다음 액션을 정리해서 전달합니다.');
-  const [type, setType] = useState<TaskType>('영업 브리핑');
+  const [type, setType] = useState<TaskType>(typeOptions[0] || '영업 브리핑');
   const [due, setDue] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [toIds, setToIds] = useState<string[]>(employees[0]?.id ? [employees[0].id] : []);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
@@ -3025,6 +3320,10 @@ function TaskComposer({
       return validRecipientIds.length ? validRecipientIds : employees[0]?.id ? [employees[0].id] : [];
     });
   }, [employees]);
+
+  useEffect(() => {
+    if (!typeOptions.includes(type)) setType(typeOptions[0] || '업무 요청');
+  }, [type, typeOptions.join('|')]);
 
   const toggleRecipient = (id: string) => {
     setToIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -3044,7 +3343,7 @@ function TaskComposer({
         <label>
           유형
           <select value={type} onChange={(event) => setType(event.target.value as TaskType)}>
-            {taskTypeOptions.map((item) => <option key={item}>{item}</option>)}
+            {typeOptions.map((item) => <option key={item}>{item}</option>)}
           </select>
         </label>
         <label>
@@ -3077,7 +3376,8 @@ function TaskComposer({
         </label>
         <div className="attachment-row">
           <Paperclip size={17} />
-          <span>파일 첨부 준비됨</span>
+          <input multiple onChange={(event) => setFiles(Array.from(event.target.files || []))} type="file" />
+          <span>{files.length ? `${files.length}개 첨부 선택됨` : '파일 첨부'}</span>
         </div>
         {error ? <p className="auth-error">{error}</p> : null}
         {status ? <p className="admin-note">{status}</p> : null}
@@ -3108,10 +3408,12 @@ function TaskComposer({
               client: '내부',
               due: due || '미정',
               priority: '보통',
+              files,
             });
             setLoading(false);
             setStatus(message);
             showActionPopup(message);
+            if (!message.includes('실패')) setFiles([]);
           }}
           disabled={loading}
           type="button"
@@ -3145,6 +3447,10 @@ function TaskCard({
     currentUser.accountRole === 'admin' ||
     task.creatorId === currentUser.id ||
     (currentUser.isPrototype && task.from === currentUser.name);
+  const canManage =
+    canDelete ||
+    task.assigneeId === currentUser.id ||
+    (currentUser.isPrototype && task.to === currentUser.name);
 
   const updateStatus = async (status: TaskStatus) => {
     if (loadingStatus) return;
@@ -3192,7 +3498,7 @@ function TaskCard({
         <span className="status" data-status={task.status}>
           {task.status}
         </span>
-        <div className="task-menu">
+        {canManage ? <div className="task-menu">
           <button className="icon-button" aria-label="업무 메뉴" onClick={() => setMenuOpen((open) => !open)} type="button">
             <MoreHorizontal size={18} />
           </button>
@@ -3213,7 +3519,7 @@ function TaskCard({
               </div>
             </>
           ) : null}
-        </div>
+        </div> : null}
       </div>
     </article>
   );
