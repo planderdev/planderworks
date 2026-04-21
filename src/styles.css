@@ -664,7 +664,7 @@ h1 {
 
 .dashboard-flow {
   display: grid;
-  gap: 28px;
+  gap: 18px;
   min-width: 0;
 }
 
