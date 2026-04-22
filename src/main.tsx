@@ -2516,7 +2516,7 @@ function ReportsPage({
           )}
         </div>
         <div className="page-card">
-          <ReportForm onCreateTask={onCreateTask} />
+          <ReportForm employees={employees} onCreateTask={onCreateTask} />
         </div>
       </div>
     </section>
@@ -3836,29 +3836,41 @@ function TaskForm({
 }
 
 function ReportForm({
+  employees,
   onCreateTask,
 }: {
+  employees: Employee[];
   onCreateTask: TaskSubmitHandler;
 }) {
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
+  const [type, setType] = useState<'보고' | '제안'>('보고');
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const adminEmployees = employees.filter((employee) => employee.role === '관리자');
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading) return;
+    if (!adminEmployees.length) {
+      setStatus('관리자 계정이 없어 보고·제안을 보낼 수 없습니다.');
+      return;
+    }
     setLoading(true);
     setStatus('전송중입니다.');
+    const recipientIds = adminEmployees.map((employee) => employee.id);
+    const recipientNames = adminEmployees.map((employee) => employee.name);
     const message = await onCreateTask({
       title,
       summary,
       from: '인성이형',
-      to: '대표',
+      to: recipientNames[0] || '',
+      toIds: recipientIds,
+      toList: recipientNames,
       client: '내부',
       due: '검토 대기',
       priority: '보통',
-      type: '보고',
+      type,
       status: '대기',
     });
     setLoading(false);
@@ -3874,20 +3886,28 @@ function ReportForm({
     <form className="form-stack" onSubmit={submit}>
       <div>
         <p className="eyebrow">New Report</p>
-        <h2>대표에게 보고</h2>
+        <h2>대표에게 보고·제안</h2>
       </div>
+      <label>
+        유형
+        <select value={type} onChange={(event) => setType(event.target.value as '보고' | '제안')}>
+          <option>보고</option>
+          <option>제안</option>
+        </select>
+      </label>
       <label>
         제목
         <input required value={title} onChange={(event) => setTitle(event.target.value)} />
       </label>
       <label>
-        보고 내용
+        내용
         <textarea required value={summary} onChange={(event) => setSummary(event.target.value)} />
       </label>
+      <p className="admin-note">관리자 {adminEmployees.length}명에게 전송됩니다.</p>
       {status ? <p className="admin-note">{status}</p> : null}
       <button className="primary-action wide" disabled={loading} type="submit">
         <CheckCircle2 size={17} />
-        {loading ? '진행중...' : '보고 전송'}
+        {loading ? '진행중...' : '보고·제안 전송'}
       </button>
     </form>
   );
