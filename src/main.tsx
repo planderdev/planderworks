@@ -404,6 +404,17 @@ function parseDueDate(value: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
+function toDateTimeLocalValue(date: Date) {
+  const pad = (number: number) => String(number).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function parseDateTimeLocalValue(value: string) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function formatTaskTypeLabel(type: string) {
   return type === '영업 브리핑' ? '브리핑' : type;
 }
@@ -2324,17 +2335,19 @@ function TaskDetailModal({
             )}
           </div>
           <form className="comment-form" onSubmit={submitComment}>
-            <textarea
-              value={comment}
-              onChange={(event) => setComment(event.target.value)}
-              placeholder="댓글을 입력하세요"
-              rows={3}
-            />
+            <div className="comment-input-row">
+              <textarea
+                value={comment}
+                onChange={(event) => setComment(event.target.value)}
+                placeholder="댓글을 입력하세요"
+                rows={2}
+              />
+              <button className="primary-action comment-submit-button" disabled={commentLoading} type="submit">
+                <MessageSquareText size={16} />
+                {commentLoading ? '진행중...' : '등록'}
+              </button>
+            </div>
             {commentStatus ? <p className="admin-note">{commentStatus}</p> : null}
-            <button className="primary-action wide" disabled={commentLoading} type="submit">
-              <MessageSquareText size={17} />
-              {commentLoading ? '진행중...' : '댓글 등록'}
-            </button>
           </form>
         </div>
         {needsTaskAttention(task, currentUser) ? <p className="admin-note">파란 점 표시: 확인이 필요한 업무입니다.</p> : null}
@@ -4114,33 +4127,147 @@ function DateTimeConfirmField({
   value: string;
   onChange: (value: string) => void;
 }) {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const fieldRef = useRef<HTMLDivElement | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const [monthCursor, setMonthCursor] = useState(() => {
+    const baseDate = parseDateTimeLocalValue(value) || new Date();
+    return new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+  });
+  const draftDate = parseDateTimeLocalValue(draft);
+  const monthStart = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1);
+  const monthGridStart = addCalendarDays(monthStart, -monthStart.getDay());
+  const monthDays = useMemo(() => Array.from({ length: 42 }, (_, index) => addCalendarDays(monthGridStart, index)), [monthGridStart.getTime()]);
+  const hours = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, '0'));
+  const minutes = Array.from({ length: 60 }, (_, index) => String(index).padStart(2, '0'));
+
+  useEffect(() => {
+    setDraft(value);
+    const baseDate = parseDateTimeLocalValue(value);
+    if (baseDate) setMonthCursor(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1));
+  }, [value]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!fieldRef.current?.contains(event.target as Node)) {
+        setDraft(value);
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [isOpen, value]);
+
   const openPicker = () => {
-    const input = inputRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
-    try {
-      input?.showPicker?.();
-    } catch {
-      input?.focus();
-    }
+    const baseDate = parseDateTimeLocalValue(value) || new Date();
+    const nextDraft = value || toDateTimeLocalValue(baseDate);
+    setDraft(nextDraft);
+    setMonthCursor(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1));
+    setIsOpen(true);
+  };
+
+  const updateDraftDate = (day: Date) => {
+    const timeDate = draftDate || new Date();
+    const nextDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), timeDate.getHours(), timeDate.getMinutes());
+    setDraft(toDateTimeLocalValue(nextDate));
+  };
+
+  const updateDraftTime = (type: 'hour' | 'minute', nextValue: string) => {
+    const baseDate = draftDate || new Date();
+    const nextDate = new Date(baseDate);
+    if (type === 'hour') nextDate.setHours(Number(nextValue));
+    if (type === 'minute') nextDate.setMinutes(Number(nextValue));
+    setDraft(toDateTimeLocalValue(nextDate));
+  };
+
+  const confirmDate = () => {
+    onChange(draft || toDateTimeLocalValue(new Date()));
+    setIsOpen(false);
   };
 
   return (
-    <div className="datetime-field">
+    <div className="datetime-field" ref={fieldRef}>
       <input
-        ref={inputRef}
+        className="datetime-display-input"
         required
-        type="datetime-local"
-        value={value}
+        readOnly
+        type="text"
+        value={value ? formatDueDate(value) : ''}
+        placeholder="마감일 선택"
         onClick={openPicker}
-        onChange={(event) => onChange(event.target.value)}
+        onFocus={openPicker}
       />
-      <button
-        className="secondary-action"
-        onClick={() => inputRef.current?.blur()}
-        type="button"
-      >
-        확인
-      </button>
+      {isOpen ? (
+        <div
+          className="datetime-popover"
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              confirmDate();
+            }
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              setDraft(value);
+              setIsOpen(false);
+            }
+          }}
+        >
+          <div className="datetime-popover-head">
+            <button type="button" onClick={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() - 1, 1))}>
+              <ChevronLeft size={16} />
+            </button>
+            <strong>{monthCursor.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long' })}</strong>
+            <button type="button" onClick={() => setMonthCursor(new Date(monthCursor.getFullYear(), monthCursor.getMonth() + 1, 1))}>
+              <ChevronRight size={16} />
+            </button>
+          </div>
+          <div className="datetime-weekdays">
+            {['일', '월', '화', '수', '목', '금', '토'].map((day) => (
+              <span key={day}>{day}</span>
+            ))}
+          </div>
+          <div className="datetime-days">
+            {monthDays.map((day) => {
+              const isSelected = draftDate ? startOfCalendarDay(day).getTime() === startOfCalendarDay(draftDate).getTime() : false;
+              return (
+                <button
+                  data-outside-month={day.getMonth() !== monthCursor.getMonth()}
+                  data-selected={isSelected}
+                  key={day.toISOString()}
+                  onClick={() => updateDraftDate(day)}
+                  type="button"
+                >
+                  {day.getDate()}
+                </button>
+              );
+            })}
+          </div>
+          <div className="datetime-time-row">
+            <select value={draftDate ? String(draftDate.getHours()).padStart(2, '0') : '00'} onChange={(event) => updateDraftTime('hour', event.target.value)}>
+              {hours.map((hour) => (
+                <option key={hour} value={hour}>{hour}시</option>
+              ))}
+            </select>
+            <select value={draftDate ? String(draftDate.getMinutes()).padStart(2, '0') : '00'} onChange={(event) => updateDraftTime('minute', event.target.value)}>
+              {minutes.map((minute) => (
+                <option key={minute} value={minute}>{minute}분</option>
+              ))}
+            </select>
+          </div>
+          <div className="datetime-popover-actions">
+            <button type="button" onClick={() => {
+              setDraft(value);
+              setIsOpen(false);
+            }}>
+              취소
+            </button>
+            <button className="primary-action" type="button" onClick={confirmDate}>
+              확인
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

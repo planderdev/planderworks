@@ -1258,14 +1258,100 @@ h1 {
 }
 
 .datetime-field {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 72px;
-  gap: 8px;
-  align-items: center;
+  position: relative;
 }
 
-.datetime-field .secondary-action {
-  min-height: 46px;
+.datetime-display-input {
+  cursor: pointer;
+}
+
+.datetime-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  width: min(330px, calc(100vw - 48px));
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--card-bg);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+}
+
+.datetime-popover-head,
+.datetime-popover-actions,
+.datetime-time-row {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+}
+
+.datetime-popover-head {
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+}
+
+.datetime-popover-head strong {
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.datetime-popover-head button,
+.datetime-days button {
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--panel-2);
+}
+
+.datetime-popover-head button {
+  display: grid;
+  place-items: center;
+}
+
+.datetime-weekdays,
+.datetime-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.datetime-weekdays span {
+  color: var(--muted);
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.datetime-days button {
+  min-height: 32px;
+  padding: 0;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.datetime-days button[data-outside-month='true'] {
+  opacity: 0.38;
+}
+
+.datetime-days button[data-selected='true'] {
+  border-color: #4b8ef7;
+  color: #ffffff;
+  background: #4b8ef7;
+}
+
+.datetime-time-row {
+  grid-template-columns: 1fr 1fr;
+}
+
+.datetime-popover-actions {
+  grid-template-columns: 1fr 1fr;
+}
+
+.datetime-popover-actions button {
+  min-height: 38px;
 }
 
 .form-grid textarea {
@@ -1428,9 +1514,10 @@ h1 {
 .month-events {
   position: relative;
   z-index: 2;
-  grid-auto-rows: 23px;
+  grid-auto-rows: 20px;
   align-items: start;
-  margin-top: -70px;
+  gap: 2px 8px;
+  margin-top: -82px;
   padding: 0 8px 8px;
   pointer-events: none;
 }
@@ -1449,6 +1536,16 @@ h1 {
 
 .calendar-range-pill small {
   font-size: 0.62rem;
+}
+
+.calendar-panel[data-mode='월'] .calendar-range-pill {
+  min-height: 20px;
+  padding: 0 6px;
+  font-size: 0.68rem;
+}
+
+.calendar-panel[data-mode='월'] .calendar-range-pill small {
+  font-size: 0.58rem;
 }
 
 .week-range-grid {
@@ -1714,6 +1811,13 @@ h1 {
   margin-top: 4px;
 }
 
+.comment-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  gap: 8px;
+  align-items: stretch;
+}
+
 .comment-form textarea {
   width: 100%;
   min-height: 86px;
@@ -1724,6 +1828,15 @@ h1 {
   background: var(--panel-2);
   resize: vertical;
   outline: none;
+}
+
+.comment-input-row textarea {
+  min-height: 58px;
+}
+
+.comment-submit-button {
+  min-height: 58px;
+  padding: 0 10px;
 }
 
 .file-row {
