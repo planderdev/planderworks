@@ -805,7 +805,7 @@ function App() {
   );
 
   const reportTasks = useMemo(
-    () => tasks.filter((task) => task.type === '보고' || task.type === '제안' || task.type === '영업 브리핑'),
+    () => tasks.filter((task) => task.type === '보고' || task.type === '제안'),
     [tasks],
   );
 
@@ -2585,7 +2585,7 @@ function ReportsPage({
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
-  const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안' || task.type === '영업 브리핑');
+  const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안');
 
   return (
     <section className="page-shell">
