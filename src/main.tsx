@@ -412,11 +412,12 @@ function getTaskReadLabel(task: Task) {
   return task.readAt ? '읽음' : '안읽음';
 }
 
-function isUnreadForUser(task: Task, currentUser: AppUser) {
+function isUnreadForUser(task: Task, currentUser: AppUser | null) {
   return needsTaskAttention(task, currentUser);
 }
 
-function needsTaskAttention(task: Task, currentUser: AppUser) {
+function needsTaskAttention(task: Task, currentUser: AppUser | null) {
+  if (!currentUser) return false;
   const isAssignee = task.assigneeId === currentUser.id || (currentUser.isPrototype && task.to === currentUser.name);
   const isCreator = task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name);
 
