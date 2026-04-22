@@ -361,10 +361,15 @@ button:disabled {
   border-radius: 8px;
   color: #d8dce4;
   background: transparent;
+  transition: transform 160ms ease, background 160ms ease;
 }
 
 .profile-toggle:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+.profile-toggle[data-open='true'] {
+  transform: rotate(180deg);
 }
 
 .logout-button {

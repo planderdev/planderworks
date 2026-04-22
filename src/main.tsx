@@ -1915,6 +1915,10 @@ function Sidebar({
           showAdmin ? (
             <div className="sidebar-section">
               <p>관리</p>
+              <button className="nav-button compact" onClick={onOpenProfile} type="button">
+                <CircleUserRound size={18} />
+                <span>내 정보관리</span>
+              </button>
               {adminNavItems.map((item) => {
                 const Icon = item.icon;
                 return (
@@ -1932,6 +1936,10 @@ function Sidebar({
           ) : (
             <div className="sidebar-section">
               <p>계정</p>
+              <button className="nav-button compact" onClick={onOpenProfile} type="button">
+                <CircleUserRound size={18} />
+                <span>내 정보관리</span>
+              </button>
               <button className="nav-button compact" data-active={activeView === 'settings'} onClick={() => onNavigate('settings')}>
                 <Settings size={18} />
                 <span>설정</span>
@@ -1945,14 +1953,14 @@ function Sidebar({
         ) : null}
 
         <div className="profile-card">
-          <button className="profile-card-main" onClick={onOpenProfile} type="button">
+          <button className="profile-card-main" onClick={() => setAdminOpen((open) => !open)} type="button">
             <CircleUserRound size={34} />
             <div>
               <strong>{currentUser.name}</strong>
               <span>{currentUser.role}</span>
             </div>
           </button>
-          <button className="profile-toggle" aria-label="관리 메뉴" onClick={() => setAdminOpen((open) => !open)} type="button">
+          <button className="profile-toggle" aria-label="계정 메뉴" data-open={adminOpen} onClick={() => setAdminOpen((open) => !open)} type="button">
             <ChevronDown size={18} />
           </button>
         </div>
