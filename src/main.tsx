@@ -76,6 +76,7 @@ type Task = {
   dueAt?: string | null;
   startedAt?: string | null;
   readAt?: string | null;
+  creatorReadAt?: string | null;
   due: string;
   status: TaskStatus;
   priority: Priority;
@@ -135,7 +136,7 @@ type OwnProfileUpdate = Pick<Employee, 'name' | 'phone' | 'jobType'> & {
   password?: string;
 };
 
-type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'comments' | 'dueAt' | 'startedAt' | 'readAt'> & {
+type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'comments' | 'dueAt' | 'startedAt' | 'readAt' | 'creatorReadAt'> & {
   status?: TaskStatus;
   watchers?: string[];
   toIds?: string[];
@@ -412,8 +413,22 @@ function getTaskReadLabel(task: Task) {
 }
 
 function isUnreadForUser(task: Task, currentUser: AppUser) {
-  void currentUser;
-  return !task.readAt;
+  return needsTaskAttention(task, currentUser);
+}
+
+function needsTaskAttention(task: Task, currentUser: AppUser) {
+  const isAssignee = task.assigneeId === currentUser.id || (currentUser.isPrototype && task.to === currentUser.name);
+  const isCreator = task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name);
+
+  return (isAssignee && !task.readAt) || (isCreator && task.status === '완료 요청' && !task.creatorReadAt);
+}
+
+function getTaskStatusTone(status: TaskStatus) {
+  if (status === '진행중') return 'blue';
+  if (status === '완료 요청') return 'amber';
+  if (status === '보류') return 'red';
+  if (status === '완료') return 'green';
+  return 'gray';
 }
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -553,6 +568,7 @@ function App() {
           due_at,
           started_at,
           read_at,
+          creator_read_at,
           creator_id,
           assignee_id,
           client_id,
@@ -603,6 +619,7 @@ function App() {
       dueAt: task.due_at,
       startedAt: task.started_at,
       readAt: task.read_at,
+      creatorReadAt: task.creator_read_at,
       due: formatDueDate(task.due_at),
       status: statusFromDb[task.status] || '대기',
       priority: priorityFromDb[task.priority] || '보통',
@@ -795,6 +812,11 @@ function App() {
     inbox: inboxTasks.length,
     sent: sentTasks.length,
     reports: reportTasks.length,
+  };
+  const navUnreadBadges: Partial<Record<ActiveView, number>> = {
+    inbox: inboxTasks.filter((task) => needsTaskAttention(task, currentUser)).length,
+    sent: sentTasks.filter((task) => needsTaskAttention(task, currentUser)).length,
+    reports: reportTasks.filter((task) => needsTaskAttention(task, currentUser)).length,
   };
 
   const dashboardStats = useMemo(
@@ -1308,6 +1330,7 @@ function App() {
       const updates = {
         status: statusToDb[status],
         ...(status === '진행중' && !currentTask?.startedAt ? { started_at: new Date().toISOString() } : {}),
+        ...(status === '완료 요청' ? { creator_read_at: null } : {}),
       };
       const { error } = await supabase
         .from('tasks')
@@ -1327,7 +1350,12 @@ function App() {
     setTasks((current) =>
       current.map((task) =>
         task.id === taskId
-          ? { ...task, status, startedAt: status === '진행중' ? task.startedAt || new Date().toISOString() : task.startedAt }
+          ? {
+              ...task,
+              status,
+              startedAt: status === '진행중' ? task.startedAt || new Date().toISOString() : task.startedAt,
+              creatorReadAt: status === '완료 요청' ? null : task.creatorReadAt,
+            }
           : task,
       ),
     );
@@ -1335,18 +1363,36 @@ function App() {
   };
 
   const markTaskRead = async (task: Task) => {
-    if (!currentUser || task.readAt || task.assigneeId !== currentUser.id) return;
+    if (!currentUser) return;
     const readAt = new Date().toISOString();
+    const shouldMarkAssigneeRead = !task.readAt && (task.assigneeId === currentUser.id || (currentUser.isPrototype && task.to === currentUser.name));
+    const shouldMarkCreatorRead = !task.creatorReadAt && task.status === '완료 요청' && (task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name));
+
+    if (!shouldMarkAssigneeRead && !shouldMarkCreatorRead) return;
 
     if (supabase && !currentUser.isPrototype) {
-      const { error } = await supabase.from('tasks').update({ read_at: readAt }).eq('id', task.id).eq('assignee_id', currentUser.id);
+      const updates = {
+        ...(shouldMarkAssigneeRead ? { read_at: readAt } : {}),
+        ...(shouldMarkCreatorRead ? { creator_read_at: readAt } : {}),
+      };
+      const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
       if (error) {
         setBackendStatus(`읽음 처리 실패: ${error.message}`);
         return;
       }
     }
 
-    setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, readAt } : item)));
+    setTasks((current) =>
+      current.map((item) =>
+        item.id === task.id
+          ? {
+              ...item,
+              readAt: shouldMarkAssigneeRead ? readAt : item.readAt,
+              creatorReadAt: shouldMarkCreatorRead ? readAt : item.creatorReadAt,
+            }
+          : item,
+      ),
+    );
   };
 
   const addTaskComment = async (task: Task, content: string, parentCommentId: string | null = null): Promise<string> => {
@@ -1590,6 +1636,7 @@ function App() {
           setProfileOpen(true);
           setSidebarOpen(false);
         }}
+        unreadBadges={navUnreadBadges}
         onNavigate={(view) => {
           if (!isAdmin && view === 'employees') return;
           navigateTo(view);
@@ -1808,6 +1855,7 @@ function Sidebar({
   onNavigate,
   onOpenProfile,
   showAdmin,
+  unreadBadges,
 }: {
   activeView: ActiveView;
   badges: Partial<Record<ActiveView, number>>;
@@ -1818,6 +1866,7 @@ function Sidebar({
   onNavigate: (view: ActiveView) => void;
   onOpenProfile: () => void;
   showAdmin: boolean;
+  unreadBadges: Partial<Record<ActiveView, number>>;
 }) {
   const [adminOpen, setAdminOpen] = useState(false);
 
@@ -1835,11 +1884,15 @@ function Sidebar({
         {primaryNavItems.map((item) => {
           const Icon = item.icon;
           const badge = badges[item.id] || 0;
+          const unreadBadge = unreadBadges[item.id] || 0;
           return (
             <button className="nav-button" data-active={activeView === item.id} data-featured={item.id === 'create'} key={item.id} onClick={() => onNavigate(item.id)}>
               <Icon size={18} />
               <span>{item.label}</span>
-              {badge > 0 ? <small>{badge}</small> : null}
+              <span className="nav-badges">
+                {unreadBadge > 0 ? <small className="nav-unread-badge">{unreadBadge}</small> : null}
+                {badge > 0 ? <small>{badge}</small> : null}
+              </span>
             </button>
           );
         })}
@@ -2283,7 +2336,7 @@ function TaskDetailModal({
             </button>
           </form>
         </div>
-        {isUnreadForUser(task, currentUser) ? <p className="admin-note">새 업무 표시: 아직 대기 상태입니다.</p> : null}
+        {needsTaskAttention(task, currentUser) ? <p className="admin-note">파란 점 표시: 확인이 필요한 업무입니다.</p> : null}
         <button className="primary-action wide" onClick={onClose} type="button">
           확인
         </button>
@@ -2381,7 +2434,8 @@ function DashboardTaskSection({
         {tasks.slice(0, 5).map((task) => (
           <button
             className="dashboard-flow-row"
-            data-unread={isUnreadForUser(task, currentUser)}
+            data-attention={needsTaskAttention(task, currentUser)}
+            data-status-tone={getTaskStatusTone(task.status)}
             key={task.id}
             onClick={() => onOpenTask(task)}
             type="button"
@@ -4269,7 +4323,7 @@ function TaskCard({
   };
 
   return (
-    <article className="task-card" data-unread={isUnreadForUser(task, currentUser)}>
+    <article className="task-card" data-attention={needsTaskAttention(task, currentUser)} data-status-tone={getTaskStatusTone(task.status)}>
       <div className="task-main">
         <div className="task-title-row">
           <span className="task-type">{formatTaskTypeLabel(task.type)}</span>

@@ -77,6 +77,7 @@ create table if not exists public.tasks (
   due_at timestamptz,
   started_at timestamptz,
   read_at timestamptz,
+  creator_read_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

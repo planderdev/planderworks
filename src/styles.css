@@ -312,6 +312,18 @@ button:disabled {
   font-weight: 800;
 }
 
+.nav-badges {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.nav-button .nav-unread-badge {
+  color: #fff;
+  background: #df3f3f;
+}
+
 .nav-button.compact {
   color: #b8bec8;
 }
@@ -769,12 +781,6 @@ h1 {
   color: var(--text);
   background: var(--card-bg);
   text-align: left;
-  box-shadow: inset 4px 0 0 #5b6472;
-}
-
-.dashboard-flow-row[data-unread='true'] {
-  box-shadow: inset 4px 0 0 #4b8ef7;
-  padding-left: 14px;
 }
 
 .dashboard-flow-row:hover {
@@ -858,12 +864,6 @@ h1 {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
   padding: 16px;
-  box-shadow: inset 4px 0 0 #5b6472;
-}
-
-.task-card[data-unread='true'] {
-  box-shadow: inset 4px 0 0 #4b8ef7;
-  padding-left: 14px;
 }
 
 .task-title-row {
@@ -2032,16 +2032,50 @@ h1 {
   border: 1px solid var(--card-line) !important;
   border-radius: 8px !important;
   background: var(--card-bg) !important;
+  --status-line: #5b6472;
 }
 
 .task-card,
 .dashboard-flow-row {
-  box-shadow: inset 4px 0 0 #5b6472;
+  box-shadow: inset -4px 0 0 var(--status-line);
 }
 
-.task-card[data-unread='true'],
-.dashboard-flow-row[data-unread='true'] {
-  box-shadow: inset 4px 0 0 #4b8ef7;
+.task-card[data-status-tone='blue'],
+.dashboard-flow-row[data-status-tone='blue'] {
+  --status-line: #4b8ef7;
+}
+
+.task-card[data-status-tone='amber'],
+.dashboard-flow-row[data-status-tone='amber'] {
+  --status-line: #d69731;
+}
+
+.task-card[data-status-tone='red'],
+.dashboard-flow-row[data-status-tone='red'] {
+  --status-line: #df5f5f;
+}
+
+.task-card[data-status-tone='green'],
+.dashboard-flow-row[data-status-tone='green'] {
+  --status-line: #39a86b;
+}
+
+.task-card[data-attention='true']::after,
+.dashboard-flow-row[data-attention='true']::after {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #4b8ef7;
+  box-shadow: 0 0 0 3px rgba(75, 142, 247, 0.16);
+}
+
+.task-card[data-attention='true'] .task-title-row,
+.dashboard-flow-row[data-attention='true'] span {
+  padding-left: 14px;
 }
 
 .task-board.list-surface {
