@@ -3936,7 +3936,7 @@ function TaskForm({
       </label>
       <label>
         마감기한
-        <input required type="datetime-local" value={form.due} onChange={(event) => setForm({ ...form, due: event.target.value })} />
+        <DateTimeConfirmField value={form.due} onChange={(due) => setForm({ ...form, due })} />
       </label>
       <label>
         우선순위
@@ -4050,6 +4050,44 @@ function ReportForm({
   );
 }
 
+function DateTimeConfirmField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const openPicker = () => {
+    const input = inputRef.current as (HTMLInputElement & { showPicker?: () => void }) | null;
+    try {
+      input?.showPicker?.();
+    } catch {
+      input?.focus();
+    }
+  };
+
+  return (
+    <div className="datetime-field">
+      <input
+        ref={inputRef}
+        required
+        type="datetime-local"
+        value={value}
+        onClick={openPicker}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <button
+        className="secondary-action"
+        onClick={() => inputRef.current?.blur()}
+        type="button"
+      >
+        확인
+      </button>
+    </div>
+  );
+}
+
 function TaskComposer({
   employees,
   taskTypes,
@@ -4128,7 +4166,7 @@ function TaskComposer({
         </label>
         <label>
           마감기한
-          <input required type="datetime-local" value={due} onChange={(event) => setDue(event.target.value)} />
+          <DateTimeConfirmField value={due} onChange={setDue} />
         </label>
         <div className="attachment-row">
           <Paperclip size={17} />

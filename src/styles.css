@@ -1257,6 +1257,17 @@ h1 {
   text-align: left;
 }
 
+.datetime-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px;
+  gap: 8px;
+  align-items: center;
+}
+
+.datetime-field .secondary-action {
+  min-height: 46px;
+}
+
 .form-grid textarea {
   min-height: 130px;
   resize: vertical;
