@@ -330,6 +330,31 @@ button:disabled {
   text-align: left;
 }
 
+.profile-card-main {
+  min-width: 0;
+  display: contents;
+  color: inherit;
+  text-align: left;
+}
+
+.profile-card-main div {
+  min-width: 0;
+}
+
+.profile-toggle {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #d8dce4;
+  background: transparent;
+}
+
+.profile-toggle:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .logout-button {
   width: 34px;
   height: 34px;

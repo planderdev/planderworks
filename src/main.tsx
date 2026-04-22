@@ -450,6 +450,7 @@ function App() {
   const [forwardHistory, setForwardHistory] = useState<ActiveView[]>([]);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [taskListFilters, setTaskListFilters] = useState<Partial<Record<ActiveView, TaskListFilter>>>({});
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const appHistoryReady = useRef(false);
@@ -1585,6 +1586,10 @@ function App() {
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
+        onOpenProfile={() => {
+          setProfileOpen(true);
+          setSidebarOpen(false);
+        }}
         onNavigate={(view) => {
           if (!isAdmin && view === 'employees') return;
           navigateTo(view);
@@ -1677,6 +1682,15 @@ function App() {
           />
         ) : null}
       </main>
+      {profileOpen ? (
+        <ProfileModal
+          currentUser={currentUser}
+          employees={employees}
+          jobTypes={jobTypes}
+          onClose={() => setProfileOpen(false)}
+          onUpdateOwnProfile={updateOwnProfile}
+        />
+      ) : null}
       <TaskDetailModal task={selectedTask} currentUser={currentUser} onAddComment={addTaskComment} onClose={() => setSelectedTaskId(null)} onDeleteComment={deleteTaskComment} onDownloadFile={openTaskFile} onMarkRead={markTaskRead} />
       <ConfirmPopup
         request={confirmRequest}
@@ -1792,6 +1806,7 @@ function Sidebar({
   onClose,
   onLogout,
   onNavigate,
+  onOpenProfile,
   showAdmin,
 }: {
   activeView: ActiveView;
@@ -1801,6 +1816,7 @@ function Sidebar({
   onClose: () => void;
   onLogout: () => void;
   onNavigate: (view: ActiveView) => void;
+  onOpenProfile: () => void;
   showAdmin: boolean;
 }) {
   const [adminOpen, setAdminOpen] = useState(false);
@@ -1863,14 +1879,18 @@ function Sidebar({
           )
         ) : null}
 
-        <button className="profile-card" onClick={() => setAdminOpen((open) => !open)} type="button">
-          <CircleUserRound size={34} />
-          <div>
-            <strong>{currentUser.name}</strong>
-            <span>{currentUser.role}</span>
-          </div>
-          <ChevronDown size={18} />
-        </button>
+        <div className="profile-card">
+          <button className="profile-card-main" onClick={onOpenProfile} type="button">
+            <CircleUserRound size={34} />
+            <div>
+              <strong>{currentUser.name}</strong>
+              <span>{currentUser.role}</span>
+            </div>
+          </button>
+          <button className="profile-toggle" aria-label="관리 메뉴" onClick={() => setAdminOpen((open) => !open)} type="button">
+            <ChevronDown size={18} />
+          </button>
+        </div>
       </div>
     </aside>
   );
@@ -3306,6 +3326,123 @@ function JobTypesPage({
         </form>
       </div>
     </section>
+  );
+}
+
+function ProfileModal({
+  currentUser,
+  employees,
+  jobTypes,
+  onClose,
+  onUpdateOwnProfile,
+}: {
+  currentUser: AppUser;
+  employees: Employee[];
+  jobTypes: string[];
+  onClose: () => void;
+  onUpdateOwnProfile: (updates: OwnProfileUpdate) => Promise<string>;
+}) {
+  const currentEmployee = employees.find((employee) => employee.id === currentUser.id);
+  const [profileForm, setProfileForm] = useState({
+    name: currentEmployee?.name || currentUser.name,
+    phone: formatMobilePhone(currentEmployee?.phone || ''),
+    jobType: currentEmployee?.jobType || currentUser.role,
+    password: '',
+    passwordConfirm: '',
+  });
+  const [profileStatus, setProfileStatus] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  useEffect(() => {
+    setProfileForm({
+      name: currentEmployee?.name || currentUser.name,
+      phone: formatMobilePhone(currentEmployee?.phone || ''),
+      jobType: currentEmployee?.jobType || currentUser.role,
+      password: '',
+      passwordConfirm: '',
+    });
+  }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.jobType, currentUser.name, currentUser.role]);
+
+  const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (profileLoading) return;
+    if (!hasValidMobilePhoneLength(profileForm.phone)) {
+      setProfileStatus('전화번호는 숫자 11자리로 입력해주세요.');
+      return;
+    }
+    if (profileForm.password && profileForm.password !== profileForm.passwordConfirm) {
+      setProfileStatus('비밀번호 확인이 맞지 않습니다.');
+      return;
+    }
+    setProfileLoading(true);
+    const message = await onUpdateOwnProfile({
+      name: profileForm.name,
+      phone: profileForm.phone,
+      jobType: profileForm.jobType,
+      password: profileForm.password || undefined,
+    });
+    setProfileLoading(false);
+    setProfileStatus(message);
+    showActionPopup(message);
+    setProfileForm((current) => ({ ...current, password: '', passwordConfirm: '' }));
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={submitProfile}>
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">My Profile</p>
+            <h2>내 정보 수정</h2>
+          </div>
+          <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </div>
+        <label>
+          이름
+          <input value={profileForm.name} onChange={(event) => setProfileForm({ ...profileForm, name: event.target.value })} />
+        </label>
+        <label>
+          전화번호
+          <input
+            inputMode="numeric"
+            maxLength={13}
+            value={profileForm.phone}
+            onChange={(event) => setProfileForm({ ...profileForm, phone: formatMobilePhone(event.target.value) })}
+          />
+        </label>
+        <label>
+          담당업무
+          <select value={profileForm.jobType} onChange={(event) => setProfileForm({ ...profileForm, jobType: event.target.value })}>
+            {jobTypes.map((jobType) => <option key={jobType}>{jobType}</option>)}
+          </select>
+        </label>
+        <label>
+          새 비밀번호
+          <input
+            autoComplete="new-password"
+            type="password"
+            value={profileForm.password}
+            onChange={(event) => setProfileForm({ ...profileForm, password: event.target.value })}
+          />
+        </label>
+        <label>
+          새 비밀번호 확인
+          <input
+            autoComplete="new-password"
+            type="password"
+            value={profileForm.passwordConfirm}
+            onChange={(event) => setProfileForm({ ...profileForm, passwordConfirm: event.target.value })}
+          />
+        </label>
+        {profileStatus ? <p className="admin-note">{profileStatus}</p> : null}
+        <button className="primary-action wide" disabled={profileLoading} type="submit">
+          <CheckCircle2 size={17} />
+          {profileLoading ? '진행중...' : '내 정보 저장'}
+        </button>
+      </form>
+    </div>
   );
 }
 
