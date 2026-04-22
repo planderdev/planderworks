@@ -2037,7 +2037,7 @@ h1 {
 
 .task-card,
 .dashboard-flow-row {
-  box-shadow: inset -4px 0 0 var(--status-line);
+  box-shadow: inset 4px 0 0 var(--status-line);
 }
 
 .task-card[data-status-tone='blue'],
