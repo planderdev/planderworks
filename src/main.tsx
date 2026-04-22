@@ -54,6 +54,8 @@ type TaskType = string;
 
 const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'create', 'reports', 'clients', 'employees', 'settings'];
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
+const MAX_TASK_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_TASK_FILE_SIZE_LABEL = '10MB';
 
 type AppUser = {
   id: string;
@@ -402,6 +404,16 @@ function parseDueDate(value: string) {
   if (!value.trim()) return null;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+function getOversizedTaskFiles(files: File[]) {
+  return files.filter((file) => file.size > MAX_TASK_FILE_SIZE);
+}
+
+function getTaskFileSizeError(files: File[]) {
+  const oversizedFiles = getOversizedTaskFiles(files);
+  if (!oversizedFiles.length) return '';
+  return `파일은 1개당 ${MAX_TASK_FILE_SIZE_LABEL}까지만 첨부할 수 있습니다. (${oversizedFiles.map((file) => file.name).join(', ')})`;
 }
 
 function toDateTimeLocalValue(date: Date) {
@@ -940,6 +952,8 @@ function App() {
 
   const uploadTaskFiles = async (taskId: string, files: File[] = []) => {
     if (!supabase || !currentUser || !files.length) return null;
+    const sizeError = getTaskFileSizeError(files);
+    if (sizeError) return sizeError;
 
     const uploadedFiles: Array<{
       task_id: string;
@@ -3937,9 +3951,27 @@ function TaskForm({
     }));
   };
 
+  const selectFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    const sizeError = getTaskFileSizeError(selectedFiles);
+    if (sizeError) {
+      setError(sizeError);
+      setFiles([]);
+      event.target.value = '';
+      return;
+    }
+    setError('');
+    setFiles(selectedFiles);
+  };
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading) return;
+    const sizeError = getTaskFileSizeError(files);
+    if (sizeError) {
+      setError(sizeError);
+      return;
+    }
     const validRecipientIds = form.toIds.filter((id) => employees.some((employee) => employee.id === id));
     const validRecipients = validRecipientIds
       .map((id) => employees.find((employee) => employee.id === id)?.name)
@@ -4036,7 +4068,7 @@ function TaskForm({
         <Paperclip size={17} />
         <input
           multiple
-          onChange={(event) => setFiles(Array.from(event.target.files || []))}
+          onChange={selectFiles}
           type="file"
         />
       </div>
@@ -4315,6 +4347,19 @@ function TaskComposer({
     setToIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   };
 
+  const selectFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || []);
+    const sizeError = getTaskFileSizeError(selectedFiles);
+    if (sizeError) {
+      setError(sizeError);
+      setFiles([]);
+      event.target.value = '';
+      return;
+    }
+    setError('');
+    setFiles(selectedFiles);
+  };
+
   return (
     <section className="compose-panel">
       <div className="section-head tight">
@@ -4362,7 +4407,7 @@ function TaskComposer({
         </label>
         <div className="attachment-row">
           <Paperclip size={17} />
-          <input multiple onChange={(event) => setFiles(Array.from(event.target.files || []))} type="file" />
+          <input multiple onChange={selectFiles} type="file" />
         </div>
         {error ? <p className="auth-error">{error}</p> : null}
         {status ? <p className="admin-note">{status}</p> : null}
@@ -4370,6 +4415,11 @@ function TaskComposer({
           className="primary-action wide"
           onClick={async () => {
             if (loading) return;
+            const sizeError = getTaskFileSizeError(files);
+            if (sizeError) {
+              setError(sizeError);
+              return;
+            }
             const validRecipientIds = toIds.filter((id) => employees.some((employee) => employee.id === id));
             const validRecipients = validRecipientIds
               .map((id) => employees.find((employee) => employee.id === id)?.name)

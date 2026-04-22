@@ -502,10 +502,10 @@ to authenticated
 using (public.current_user_role() = 'admin');
 
 insert into storage.buckets (id, name, public, file_size_limit)
-values ('task-files', 'task-files', false, 52428800)
+values ('task-files', 'task-files', false, 10485760)
 on conflict (id) do update
 set public = false,
-    file_size_limit = 52428800;
+    file_size_limit = 10485760;
 
 drop policy if exists "authenticated read task files" on storage.objects;
 create policy "authenticated read task files"
