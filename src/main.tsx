@@ -1694,7 +1694,7 @@ function App() {
         ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
-          <ReportsPage tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <ReportsPage tasks={tasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'allTasks' ? (
           <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
@@ -2557,6 +2557,7 @@ function TaskCreatePage({
 
 function ReportsPage({
   tasks,
+  employees,
   currentUser,
   onOpenTask,
   onCreateTask,
@@ -2564,6 +2565,7 @@ function ReportsPage({
   onUpdateTaskStatus,
 }: {
   tasks: Task[];
+  employees: Employee[];
   currentUser: AppUser;
   onOpenTask: (task: Task) => void;
   onCreateTask: TaskSubmitHandler;
