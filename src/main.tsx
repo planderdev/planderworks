@@ -4106,12 +4106,12 @@ function OperationsPage({
                     <span className="operation-provider">{item.provider}</span>
                     {item.memo ? <small className="operation-inline-note">{item.memo}</small> : null}
                   </div>
-                  <div className="operations-cell">
+                  <div className="operations-cell operations-cell-date">
                     <strong>{formatOperationDueDate(item.dueDate)}</strong>
                     <span className="operation-meta">{item.frequency}</span>
                     <span className="operation-meta">{days === null ? '미정' : days < 0 ? `${Math.abs(days)}일 지남` : days === 0 ? '오늘' : `${days}일 남음`}</span>
                   </div>
-                  <div className="operations-cell">
+                  <div className="operations-cell operations-cell-amount">
                     <strong>{formatOperationAmount(item.amount)}</strong>
                     <span className="operation-meta">{assignee?.name || '담당자 미지정'}</span>
                   </div>
