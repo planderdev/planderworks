@@ -4052,8 +4052,8 @@ function OperationsPage({
               return (
                 <div className="operations-urgent-card" key={item.id}>
                   <div className="operations-badges">
-                    <span className="operation-category" data-category={item.category}>{item.category}</span>
-                    <span className="operation-status" data-status={getOperationStatus(item)}>{getOperationStatus(item)}</span>
+                    <span className="operation-category" data-category={item.category}><span>{item.category}</span></span>
+                    <span className="operation-status" data-status={getOperationStatus(item)}><span>{getOperationStatus(item)}</span></span>
                   </div>
                   <strong>{item.title}</strong>
                   <span>{item.provider}</span>
@@ -4099,8 +4099,8 @@ function OperationsPage({
                 <div className="table-row operations-row" key={item.id}>
                   <div className="operations-cell operations-cell-main">
                     <div className="operations-badges">
-                      <span className="operation-category" data-category={item.category}>{item.category}</span>
-                      <span className="operation-status" data-status={getOperationStatus(item)}>{getOperationStatus(item)}</span>
+                      <span className="operation-category" data-category={item.category}><span>{item.category}</span></span>
+                      <span className="operation-status" data-status={getOperationStatus(item)}><span>{getOperationStatus(item)}</span></span>
                     </div>
                     <strong>{item.title}</strong>
                     <span className="operation-provider">{item.provider}</span>
@@ -4118,7 +4118,7 @@ function OperationsPage({
                   <div className="operations-cell operations-reminders-wrap">
                     <div className="operations-reminders">
                     {item.reminders.map((reminder) => (
-                      <span className="reminder-chip" key={`${item.id}-${reminder}`}>{getOperationReminderLabel(reminder)}</span>
+                      <span className="reminder-chip" key={`${item.id}-${reminder}`}><span>{getOperationReminderLabel(reminder)}</span></span>
                     ))}
                     </div>
                   </div>

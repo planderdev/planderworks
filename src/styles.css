@@ -1720,12 +1720,19 @@ h1 {
   place-items: center;
   border-radius: 999px;
   padding: 0 8px;
-  padding-top: 1px;
   font-size: 0.68rem;
   font-weight: 800;
-  line-height: 1.1;
+  line-height: 1;
   text-align: center;
   white-space: nowrap;
+}
+
+.operation-category > span,
+.operation-status > span,
+.reminder-chip > span {
+  display: block;
+  line-height: 1;
+  transform: translateY(1px);
 }
 
 .operation-category {
@@ -2493,7 +2500,6 @@ h1 {
   .reminder-chip {
     height: 24px;
     padding: 0 9px;
-    padding-top: 1px;
     font-size: 0.7rem;
   }
 
