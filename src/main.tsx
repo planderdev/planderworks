@@ -812,7 +812,13 @@ function App() {
   );
 
   const sentTasks = useMemo(
-    () => tasks.filter((task) => task.creatorId === currentUser?.id || task.from === currentUser?.name || (currentUser?.isPrototype && task.from === '인성이형')),
+    () =>
+      tasks.filter(
+        (task) =>
+          (task.creatorId === currentUser?.id || task.from === currentUser?.name || (currentUser?.isPrototype && task.from === '인성이형')) &&
+          task.type !== '보고' &&
+          task.type !== '제안',
+      ),
     [currentUser?.id, currentUser?.isPrototype, currentUser?.name, tasks],
   );
 
@@ -2621,7 +2627,15 @@ function ReportsPage({
         <div className="task-list">
           {reportTasks.length ? (
             reportTasks.map((task) => (
-              <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
+              <TaskCard
+                key={task.id}
+                task={task}
+                currentUser={currentUser}
+                direction={task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name) ? 'sent' : 'received'}
+                onOpenTask={onOpenTask}
+                onDeleteTask={onDeleteTask}
+                onUpdateStatus={onUpdateTaskStatus}
+              />
             ))
           ) : (
             <EmptyState text="표시할 보고·제안이 없습니다." />
@@ -4468,12 +4482,14 @@ function TaskComposer({
 function TaskCard({
   task,
   currentUser,
+  direction,
   onOpenTask,
   onDeleteTask,
   onUpdateStatus,
 }: {
   task: Task;
   currentUser: AppUser;
+  direction?: 'sent' | 'received';
   onOpenTask?: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateStatus: (taskId: string, status: TaskStatus) => Promise<string>;
@@ -4515,6 +4531,14 @@ function TaskCard({
       <div className="task-main">
         <div className="task-title-row">
           <span className="task-type">{formatTaskTypeLabel(task.type)}</span>
+          {direction ? (
+            <span className="task-direction-badge" data-direction={direction}>
+              <span className="material-symbols-outlined" aria-hidden="true">
+                {direction === 'sent' ? 'north_east' : 'south_west'}
+              </span>
+              {direction === 'sent' ? '보냄' : '받음'}
+            </span>
+          ) : null}
           <span className="priority" data-priority={task.priority}>
             {task.priority}
           </span>
