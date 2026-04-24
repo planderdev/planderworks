@@ -46,13 +46,14 @@ type ActiveView =
   | 'reports'
   | 'clients'
   | 'employees'
+  | 'operations'
   | 'settings';
 type TaskStatus = '대기' | '진행중' | '완료 요청' | '보류' | '완료';
 type TaskListFilter = '전체' | TaskStatus;
 type Priority = '높음' | '보통' | '낮음';
 type TaskType = string;
 
-const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'create', 'reports', 'clients', 'employees', 'settings'];
+const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'create', 'reports', 'clients', 'employees', 'operations', 'settings'];
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 const MAX_TASK_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_FILE_SIZE_LABEL = '10MB';
@@ -147,6 +148,29 @@ type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'comments' 
   files?: File[];
 };
 
+type OperationCategory = '서버' | '도메인' | 'SaaS' | '정산' | '세금' | '라이선스' | '기타';
+type OperationFrequency = '1회' | '매월' | '분기' | '반기' | '매년';
+type OperationFilter = '전체' | '오늘' | '7일 이내' | '이번달' | '미완료';
+type OperationStatus = '예정' | '임박' | '오늘' | '완료' | '보류';
+type OperationItem = {
+  id: string;
+  title: string;
+  category: OperationCategory;
+  provider: string;
+  amount: number;
+  dueDate: string;
+  frequency: OperationFrequency;
+  assigneeId: string;
+  reminders: Array<0 | 1 | 3 | 7>;
+  memo: string;
+  link: string;
+  active: boolean;
+  lastCompletedAt?: string | null;
+};
+type OperationDraft = Omit<OperationItem, 'id' | 'lastCompletedAt'> & {
+  lastCompletedAt?: string | null;
+};
+
 type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
 type TaskDeleteHandler = (task: Task) => Promise<string>;
 type TaskCommentSubmitHandler = (task: Task, content: string, parentCommentId?: string | null) => Promise<string>;
@@ -190,6 +214,7 @@ const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.Elemen
   { id: 'sent', label: '보낸 업무', icon: MessageSquareText },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
+  { id: 'operations', label: '정산/만료관리', icon: ShieldCheck },
   { id: 'calendar', label: '캘린더', icon: CalendarClock },
   { id: 'clients', label: '업체', icon: Building2 },
 ];
@@ -276,6 +301,85 @@ const seedEmployees: Employee[] = [
 ];
 
 const seedJobTypes = ['일본 마케팅', '국내 마케팅', '디자인', '개발', '영업', '운영', '대표', '회계·정산'];
+const operationStorageKey = 'plander-operations-items';
+const operationCategories: OperationCategory[] = ['서버', '도메인', 'SaaS', '정산', '세금', '라이선스', '기타'];
+const operationFrequencies: OperationFrequency[] = ['1회', '매월', '분기', '반기', '매년'];
+const operationReminderOptions: Array<0 | 1 | 3 | 7> = [7, 3, 1, 0];
+const seedOperationItems: OperationItem[] = [
+  {
+    id: 'op-1',
+    title: 'Vercel Pro 결제',
+    category: '서버',
+    provider: 'Vercel',
+    amount: 32000,
+    dueDate: '2026-04-25',
+    frequency: '매월',
+    assigneeId: '1',
+    reminders: [7, 1, 0],
+    memo: '대표 카드로 결제, 결제 후 청구서 확인 필요',
+    link: 'https://vercel.com',
+    active: true,
+    lastCompletedAt: null,
+  },
+  {
+    id: 'op-2',
+    title: 'plander.jp 도메인 갱신',
+    category: '도메인',
+    provider: '가비아',
+    amount: 18000,
+    dueDate: '2026-04-27',
+    frequency: '매년',
+    assigneeId: '4',
+    reminders: [7, 3, 1],
+    memo: '네임서버 설정 유지 확인',
+    link: 'https://domain.gabia.com',
+    active: true,
+    lastCompletedAt: null,
+  },
+  {
+    id: 'op-3',
+    title: '인스타 광고비 정산',
+    category: '정산',
+    provider: 'Meta Ads',
+    amount: 450000,
+    dueDate: '2026-04-30',
+    frequency: '매월',
+    assigneeId: '1',
+    reminders: [3, 1, 0],
+    memo: '일본 캠페인별 카드 매출 정리',
+    link: '',
+    active: true,
+    lastCompletedAt: null,
+  },
+  {
+    id: 'op-4',
+    title: 'Google Workspace 라이선스 갱신',
+    category: '라이선스',
+    provider: 'Google',
+    amount: 72000,
+    dueDate: '2026-05-02',
+    frequency: '매월',
+    assigneeId: '2',
+    reminders: [7, 1],
+    memo: '계정 수 변동 시 금액 체크',
+    link: 'https://admin.google.com',
+    active: true,
+    lastCompletedAt: null,
+  },
+];
+
+function getInitialOperations() {
+  const saved = localStorage.getItem(operationStorageKey);
+  if (!saved) return seedOperationItems;
+
+  try {
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return seedOperationItems;
+    return parsed.filter(Boolean) as OperationItem[];
+  } catch {
+    return seedOperationItems;
+  }
+}
 
 function getInitialTheme(): ThemeMode {
   const saved = localStorage.getItem('plander-theme');
@@ -369,6 +473,11 @@ const addCalendarDays = (date: Date, days: number) => {
 const diffCalendarDays = (start: Date, end: Date) =>
   Math.round((startOfCalendarDay(end).getTime() - startOfCalendarDay(start).getTime()) / 86400000);
 
+const formatDateInputValue = (date: Date) => {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
 const parseTaskDate = (value: string | null | undefined) => {
   if (!value) return null;
   const parsed = new Date(value);
@@ -427,6 +536,83 @@ function parseDateTimeLocalValue(value: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseOperationDate(value: string) {
+  if (!value) return null;
+  const parsed = new Date(`${value}T00:00:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getOperationStatus(item: OperationItem): OperationStatus {
+  if (!item.active) return '보류';
+  if (item.frequency === '1회' && item.lastCompletedAt) return '완료';
+
+  const dueDate = parseOperationDate(item.dueDate);
+  if (!dueDate) return '보류';
+
+  const diff = diffCalendarDays(new Date(), dueDate);
+  if (diff === 0) return '오늘';
+  if (diff <= 7) return '임박';
+  return '예정';
+}
+
+function addOperationCycle(dueDate: string, frequency: OperationFrequency) {
+  const currentDate = parseOperationDate(dueDate) || new Date();
+  const nextDate = new Date(currentDate);
+
+  if (frequency === '매월') nextDate.setMonth(nextDate.getMonth() + 1);
+  if (frequency === '분기') nextDate.setMonth(nextDate.getMonth() + 3);
+  if (frequency === '반기') nextDate.setMonth(nextDate.getMonth() + 6);
+  if (frequency === '매년') nextDate.setFullYear(nextDate.getFullYear() + 1);
+
+  return formatDateInputValue(nextDate);
+}
+
+function formatOperationDueDate(value: string) {
+  const parsed = parseOperationDate(value);
+  if (!parsed) return '미정';
+  return parsed.toLocaleDateString('ko-KR', { year: 'numeric', month: 'numeric', day: 'numeric' });
+}
+
+function getOperationDaysLeft(value: string) {
+  const dueDate = parseOperationDate(value);
+  if (!dueDate) return null;
+  return diffCalendarDays(new Date(), dueDate);
+}
+
+function formatOperationAmount(value: number) {
+  return `${new Intl.NumberFormat('ko-KR').format(value)}원`;
+}
+
+function getOperationReminderLabel(value: 0 | 1 | 3 | 7) {
+  return value === 0 ? '당일' : `${value}일 전`;
+}
+
+function matchesOperationFilter(item: OperationItem, filter: OperationFilter) {
+  const status = getOperationStatus(item);
+  const dueDate = parseOperationDate(item.dueDate);
+  if (!dueDate) return filter === '전체';
+
+  if (filter === '전체') return true;
+  if (filter === '오늘') return status === '오늘';
+  if (filter === '7일 이내') {
+    const days = getOperationDaysLeft(item.dueDate);
+    return status !== '완료' && status !== '보류' && days !== null && days <= 7;
+  }
+  if (filter === '이번달') {
+    const now = new Date();
+    return dueDate.getFullYear() === now.getFullYear() && dueDate.getMonth() === now.getMonth();
+  }
+  return status !== '완료' && status !== '보류';
+}
+
+function sortOperationsByDueDate(items: OperationItem[]) {
+  return [...items].sort((first, second) => {
+    const firstDate = parseOperationDate(first.dueDate)?.getTime() || 0;
+    const secondDate = parseOperationDate(second.dueDate)?.getTime() || 0;
+    return firstDate - secondDate;
+  });
+}
+
 function formatTaskTypeLabel(type: string) {
   return type === '영업 브리핑' ? '브리핑' : type;
 }
@@ -478,6 +664,7 @@ function App() {
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
   const [clients, setClients] = useState<Client[]>(seedClients);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
+  const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
   const [jobTypes, setJobTypes] = useState(seedJobTypes);
   const [taskTypes, setTaskTypes] = useState(fallbackTaskTypes);
   const [backendStatus, setBackendStatus] = useState('프로토타입 데이터');
@@ -509,6 +696,10 @@ function App() {
     media.addEventListener('change', syncSystemTheme);
     return () => media.removeEventListener('change', syncSystemTheme);
   }, [themeMode]);
+
+  useEffect(() => {
+    localStorage.setItem(operationStorageKey, JSON.stringify(operations));
+  }, [operations]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -1362,6 +1553,56 @@ function App() {
     return '내 정보가 저장되었습니다.';
   };
 
+  const addOperation = async (draft: OperationDraft) => {
+    setOperations((current) => [{ id: `op-${Date.now()}`, ...draft, lastCompletedAt: null }, ...current]);
+    return '운영 항목을 추가했습니다.';
+  };
+
+  const updateOperation = async (operationId: string, draft: OperationDraft) => {
+    setOperations((current) =>
+      current.map((item) =>
+        item.id === operationId
+          ? {
+              ...item,
+              ...draft,
+              lastCompletedAt: draft.frequency === '1회' ? item.lastCompletedAt || draft.lastCompletedAt || null : draft.lastCompletedAt || null,
+            }
+          : item,
+      ),
+    );
+    return '운영 항목을 저장했습니다.';
+  };
+
+  const deleteOperation = async (operationId: string) => {
+    setOperations((current) => current.filter((item) => item.id !== operationId));
+    return '운영 항목을 삭제했습니다.';
+  };
+
+  const completeOperation = async (operationId: string) => {
+    const target = operations.find((item) => item.id === operationId);
+    if (!target) return '대상을 찾지 못했습니다.';
+
+    const completedAt = new Date().toISOString();
+    setOperations((current) =>
+      current.map((item) => {
+        if (item.id !== operationId) return item;
+        if (item.frequency === '1회') {
+          return {
+            ...item,
+            lastCompletedAt: completedAt,
+          };
+        }
+        return {
+          ...item,
+          dueDate: addOperationCycle(item.dueDate, item.frequency),
+          lastCompletedAt: completedAt,
+        };
+      }),
+    );
+
+    return target.frequency === '1회' ? '운영 항목을 완료 처리했습니다.' : '이번 회차를 완료하고 다음 일정으로 넘겼습니다.';
+  };
+
   const updateTaskStatus = async (taskId: string, status: TaskStatus): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const currentTask = tasks.find((task) => task.id === taskId);
@@ -1676,7 +1917,7 @@ function App() {
         }}
         unreadBadges={navUnreadBadges}
         onNavigate={(view) => {
-          if (!isAdmin && view === 'employees') return;
+          if (!isAdmin && (view === 'employees' || view === 'operations')) return;
           navigateTo(view);
           setSidebarOpen(false);
         }}
@@ -1736,7 +1977,15 @@ function App() {
         {activeView === 'allTasks' ? (
           <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
-        {activeView === 'calendar' ? <CalendarPage currentUser={currentUser} tasks={tasks} onOpenTask={(task) => setSelectedTaskId(task.id)} /> : null}
+        {activeView === 'calendar' ? (
+          <CalendarPage
+            currentUser={currentUser}
+            operations={isAdmin ? operations : []}
+            onOpenOperations={() => navigateTo('operations')}
+            onOpenTask={(task) => setSelectedTaskId(task.id)}
+            tasks={tasks}
+          />
+        ) : null}
         {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} onDeleteClient={deleteClient} onUpdateClient={updateClient} /> : null}
         {activeView === 'employees' && isAdmin ? (
           <EmployeesPage
@@ -1745,6 +1994,16 @@ function App() {
             taskTypes={taskTypes}
             onAddEmployee={addEmployee}
             onUpdateEmployee={updateEmployee}
+          />
+        ) : null}
+        {activeView === 'operations' && isAdmin ? (
+          <OperationsPage
+            employees={employees}
+            items={operations}
+            onAddOperation={addOperation}
+            onCompleteOperation={completeOperation}
+            onDeleteOperation={deleteOperation}
+            onUpdateOperation={updateOperation}
           />
         ) : null}
         {activeView === 'settings' ? (
@@ -1919,7 +2178,9 @@ function Sidebar({
       </div>
 
       <nav className="sidebar-nav" aria-label="주 메뉴">
-        {primaryNavItems.map((item) => {
+        {primaryNavItems
+          .filter((item) => (showAdmin ? true : item.id !== 'operations'))
+          .map((item) => {
           const Icon = item.icon;
           const badge = badges[item.id] || 0;
           const unreadBadge = unreadBadges[item.id] || 0;
@@ -2655,7 +2916,19 @@ function ReportsPage({
   );
 }
 
-function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser; tasks: Task[]; onOpenTask: (task: Task) => void }) {
+function CalendarPage({
+  currentUser,
+  tasks,
+  operations,
+  onOpenTask,
+  onOpenOperations,
+}: {
+  currentUser: AppUser;
+  tasks: Task[];
+  operations: OperationItem[];
+  onOpenTask: (task: Task) => void;
+  onOpenOperations: () => void;
+}) {
   const [mode, setMode] = useState<'일' | '주' | '월'>('월');
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const calendarTasks = tasks.filter((task) =>
@@ -2663,12 +2936,42 @@ function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser
     task.creatorId === currentUser.id ||
     (currentUser.isPrototype && (task.to === currentUser.name || task.from === currentUser.name)),
   );
-  const calendarEvents = calendarTasks
+  const taskCalendarEvents = calendarTasks
     .map((task) => {
       const range = getTaskCalendarRange(task);
-      return range ? { task, ...range } : null;
+      const kind =
+        task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name) ? '보낸 업무' : '받은 업무';
+      return range
+        ? {
+            id: `task-${task.id}`,
+            title: task.title,
+            start: range.start,
+            end: range.end,
+            days: range.days,
+            kind,
+            onClick: () => onOpenTask(task),
+          }
+        : null;
     })
-    .filter((item): item is { task: Task; start: Date; end: Date; days: number } => Boolean(item))
+    .filter((item): item is { id: string; title: string; start: Date; end: Date; days: number; kind: string; onClick: () => void } => Boolean(item));
+  const operationCalendarEvents = operations
+    .filter((item) => item.active)
+    .map((item) => {
+      const dueDate = parseOperationDate(item.dueDate);
+      return dueDate
+        ? {
+            id: `operation-${item.id}`,
+            title: item.title,
+            start: dueDate,
+            end: dueDate,
+            days: 1,
+            kind: '정산/만료관리',
+            onClick: onOpenOperations,
+          }
+        : null;
+    })
+    .filter((item): item is { id: string; title: string; start: Date; end: Date; days: number; kind: string; onClick: () => void } => Boolean(item));
+  const calendarEvents = [...taskCalendarEvents, ...operationCalendarEvents]
     .sort((a, b) => a.start.getTime() - b.start.getTime());
   const monthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
   const monthEnd = new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, 0);
@@ -2680,8 +2983,6 @@ function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser
   );
   const hours = Array.from({ length: 14 }, (_, index) => index + 8);
   const isSameCalendarDay = (first: Date, second: Date) => startOfCalendarDay(first).getTime() === startOfCalendarDay(second).getTime();
-  const getCalendarKind = (task: Task) =>
-    task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name) ? '보낸 업무' : '받은 업무';
   const eventIntersectsDay = (event: { start: Date; end: Date }, day: Date) => {
     const dayStart = startOfCalendarDay(day);
     const dayEnd = addCalendarDays(dayStart, 1);
@@ -2702,7 +3003,7 @@ function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser
         const lastDay = firstDay + span - 1;
         return { ...event, columnStart, span, firstDay, lastDay };
       })
-      .filter((item): item is { task: Task; start: Date; end: Date; days: number; columnStart: number; span: number; firstDay: number; lastDay: number } => Boolean(item));
+      .filter((item): item is { id: string; title: string; kind: string; onClick: () => void; start: Date; end: Date; days: number; columnStart: number; span: number; firstDay: number; lastDay: number } => Boolean(item));
   const moveCalendar = (direction: -1 | 1) => {
     setAnchorDate((current) => {
       if (mode === '일') return addCalendarDays(current, direction);
@@ -2757,13 +3058,13 @@ function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser
                   {eventSegmentsForWeek(week).slice(0, 5).map((event) => (
                     <button
                       className="calendar-range-pill"
-                      data-kind={getCalendarKind(event.task)}
-                      key={`${event.task.id}-${week[0].toISOString()}`}
-                      onClick={() => onOpenTask(event.task)}
+                      data-kind={event.kind}
+                      key={`${event.id}-${week[0].toISOString()}`}
+                      onClick={event.onClick}
                       style={{ gridColumn: `${event.columnStart} / span ${event.span}` }}
                       type="button"
                     >
-                      <span>{event.task.title}</span>
+                      <span>{event.title}</span>
                       <small>{event.days > 1 ? `${event.firstDay}~${event.lastDay}일차` : event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</small>
                     </button>
                   ))}
@@ -2780,13 +3081,13 @@ function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser
               {eventSegmentsForWeek(Array.from({ length: 7 }, (_, index) => addCalendarDays(startOfWeek, index))).map((event) => (
                 <button
                   className="calendar-range-pill"
-                  data-kind={getCalendarKind(event.task)}
-                  key={event.task.id}
-                  onClick={() => onOpenTask(event.task)}
+                  data-kind={event.kind}
+                  key={event.id}
+                  onClick={event.onClick}
                   style={{ gridColumn: `${event.columnStart} / span ${event.span}` }}
                   type="button"
                 >
-                  <span>{event.task.title}</span>
+                  <span>{event.title}</span>
                   <small>{event.days > 1 ? `${event.firstDay}~${event.lastDay}일차` : event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</small>
                 </button>
               ))}
@@ -2805,10 +3106,10 @@ function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser
                       });
                       return (
                         <div className="time-slot" key={`${day.toDateString()}-${hour}`}>
-                          {hourEvents.map(({ task, days }) => (
-                            <button className="calendar-task-pill" data-kind={getCalendarKind(task)} key={task.id} onClick={() => onOpenTask(task)} type="button">
-                              <span>{task.title}</span>
-                              <small>{days > 1 ? `${days}일 일정` : getCalendarKind(task)}</small>
+                          {hourEvents.map((event) => (
+                            <button className="calendar-task-pill" data-kind={event.kind} key={event.id} onClick={event.onClick} type="button">
+                              <span>{event.title}</span>
+                              <small>{event.days > 1 ? `${event.days}일 일정` : event.kind}</small>
                             </button>
                           ))}
                         </div>
@@ -2831,13 +3132,13 @@ function CalendarPage({ currentUser, tasks, onOpenTask }: { currentUser: AppUser
                 <div className="time-row" key={hour}>
                   <span>{String(hour).padStart(2, '0')}:00</span>
                   <div className="time-slot">
-                    {hourEvents.map(({ task, days, start, end }) => (
-                      <button className="calendar-task-pill" data-kind={getCalendarKind(task)} key={task.id} onClick={() => onOpenTask(task)} type="button">
-                        <span>{task.title}</span>
+                    {hourEvents.map((event) => (
+                      <button className="calendar-task-pill" data-kind={event.kind} key={event.id} onClick={event.onClick} type="button">
+                        <span>{event.title}</span>
                         <small>
-                          {days > 1
-                            ? `${start.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}~${end.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}`
-                            : getCalendarKind(task)}
+                          {event.days > 1
+                            ? `${event.start.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}~${event.end.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}`
+                            : event.kind}
                         </small>
                       </button>
                     ))}
@@ -3555,6 +3856,363 @@ function ProfileModal({
         </button>
       </form>
     </div>
+  );
+}
+
+function OperationsPage({
+  items,
+  employees,
+  onAddOperation,
+  onUpdateOperation,
+  onDeleteOperation,
+  onCompleteOperation,
+}: {
+  items: OperationItem[];
+  employees: Employee[];
+  onAddOperation: (draft: OperationDraft) => Promise<string>;
+  onUpdateOperation: (operationId: string, draft: OperationDraft) => Promise<string>;
+  onDeleteOperation: (operationId: string) => Promise<string>;
+  onCompleteOperation: (operationId: string) => Promise<string>;
+}) {
+  const createDraft = (): OperationDraft => ({
+    title: '',
+    category: '서버',
+    provider: '',
+    amount: 0,
+    dueDate: formatDateInputValue(new Date()),
+    frequency: '매월',
+    assigneeId: employees[0]?.id || '',
+    reminders: [7, 1, 0],
+    memo: '',
+    link: '',
+    active: true,
+    lastCompletedAt: null,
+  });
+
+  const [filter, setFilter] = useState<OperationFilter>('전체');
+  const [editingItem, setEditingItem] = useState<OperationItem | null>(null);
+  const [form, setForm] = useState<OperationDraft>(createDraft);
+  const [formOpen, setFormOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setForm((current) => {
+      if (employees.some((employee) => employee.id === current.assigneeId)) return current;
+      return { ...current, assigneeId: employees[0]?.id || '' };
+    });
+  }, [employees]);
+
+  const sortedItems = useMemo(() => sortOperationsByDueDate(items), [items]);
+  const filteredItems = useMemo(() => sortedItems.filter((item) => matchesOperationFilter(item, filter)), [filter, sortedItems]);
+  const urgentItems = useMemo(
+    () =>
+      sortedItems.filter((item) => {
+        const status = getOperationStatus(item);
+        return status === '오늘' || status === '임박';
+      }),
+    [sortedItems],
+  );
+
+  const summary = {
+    today: items.filter((item) => getOperationStatus(item) === '오늘').length,
+    dueSoon: items.filter((item) => {
+      const days = getOperationDaysLeft(item.dueDate);
+      return getOperationStatus(item) !== '완료' && getOperationStatus(item) !== '보류' && days !== null && days <= 7;
+    }).length,
+    pending: items.filter((item) => {
+      const status = getOperationStatus(item);
+      return status !== '완료' && status !== '보류';
+    }).length,
+    monthAmount: items
+      .filter((item) => {
+        const dueDate = parseOperationDate(item.dueDate);
+        const now = new Date();
+        return dueDate && dueDate.getFullYear() === now.getFullYear() && dueDate.getMonth() === now.getMonth() && getOperationStatus(item) !== '보류';
+      })
+      .reduce((total, item) => total + item.amount, 0),
+  };
+
+  const openCreate = () => {
+    setEditingItem(null);
+    setError('');
+    setForm({
+      ...createDraft(),
+      assigneeId: employees[0]?.id || '',
+    });
+    setFormOpen(true);
+  };
+
+  const openEdit = (item: OperationItem) => {
+    setEditingItem(item);
+    setError('');
+    setForm({
+      title: item.title,
+      category: item.category,
+      provider: item.provider,
+      amount: item.amount,
+      dueDate: item.dueDate,
+      frequency: item.frequency,
+      assigneeId: item.assigneeId,
+      reminders: item.reminders,
+      memo: item.memo,
+      link: item.link,
+      active: item.active,
+      lastCompletedAt: item.lastCompletedAt || null,
+    });
+    setFormOpen(true);
+  };
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (loading) return;
+    if (!form.title.trim() || !form.provider.trim() || !form.dueDate || !form.assigneeId) {
+      setError('항목명, 서비스명, 기준일, 담당자를 입력해주세요.');
+      return;
+    }
+
+    setLoading(true);
+    const message = editingItem ? await onUpdateOperation(editingItem.id, form) : await onAddOperation(form);
+    setLoading(false);
+    setError(message.includes('실패') ? message : '');
+    showActionPopup(message);
+    if (!message.includes('실패')) setFormOpen(false);
+  };
+
+  const completeItem = async (item: OperationItem) => {
+    if (!(await requestActionConfirm(`${item.title} 항목을 완료 처리할까요?`))) return;
+    const message = await onCompleteOperation(item.id);
+    showActionPopup(message);
+  };
+
+  const removeItem = async (item: OperationItem) => {
+    if (!(await requestActionConfirm(`${item.title} 항목을 삭제할까요?`))) return;
+    const message = await onDeleteOperation(item.id);
+    showActionPopup(message);
+  };
+
+  return (
+    <section className="page-shell">
+      <div className="page-head">
+        <div>
+          <p className="eyebrow">Operations</p>
+          <h1>정산/만료관리</h1>
+        </div>
+        <button className="primary-action" onClick={openCreate} type="button">
+          <Plus size={17} />
+          항목 추가
+        </button>
+      </div>
+
+      <section className="stats-grid" aria-label="정산/만료관리 요약">
+        <button className="stat-card" data-tone="red" onClick={() => setFilter('오늘')} type="button">
+          <span>오늘 처리</span>
+          <strong>{summary.today}</strong>
+          <small>당일 확인 필요</small>
+        </button>
+        <button className="stat-card" data-tone="amber" onClick={() => setFilter('7일 이내')} type="button">
+          <span>7일 이내</span>
+          <strong>{summary.dueSoon}</strong>
+          <small>결제/만료 임박</small>
+        </button>
+        <button className="stat-card" data-tone="blue" onClick={() => setFilter('미완료')} type="button">
+          <span>미완료</span>
+          <strong>{summary.pending}</strong>
+          <small>활성 항목 기준</small>
+        </button>
+        <button className="stat-card" data-tone="green" onClick={() => setFilter('이번달')} type="button">
+          <span>이번달 예정액</span>
+          <strong>{new Intl.NumberFormat('ko-KR').format(summary.monthAmount)}</strong>
+          <small>원화 합계</small>
+        </button>
+      </section>
+
+      <div className="page-card operations-urgent-panel">
+        <div className="section-head tight">
+          <div>
+            <p className="eyebrow">Urgent</p>
+            <h2>오늘 / 임박 항목</h2>
+          </div>
+          <small>{urgentItems.length}건</small>
+        </div>
+        <div className="operations-urgent-list">
+          {urgentItems.length ? (
+            urgentItems.slice(0, 6).map((item) => {
+              const assignee = employees.find((employee) => employee.id === item.assigneeId);
+              return (
+                <div className="operations-urgent-card" key={item.id}>
+                  <div className="operations-badges">
+                    <span className="operation-category" data-category={item.category}>{item.category}</span>
+                    <span className="operation-status" data-status={getOperationStatus(item)}>{getOperationStatus(item)}</span>
+                  </div>
+                  <strong>{item.title}</strong>
+                  <span>{item.provider}</span>
+                  <small>{formatOperationDueDate(item.dueDate)} · {assignee?.name || '담당자 미지정'}</small>
+                </div>
+              );
+            })
+          ) : (
+            <p className="mini-empty">지금 바로 확인할 운영 항목이 없습니다.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="page-card">
+        <div className="page-head operations-table-head">
+          <div>
+            <p className="eyebrow">Overview</p>
+            <h2>전체 항목</h2>
+          </div>
+          <div className="filters">
+            {(['전체', '오늘', '7일 이내', '이번달', '미완료'] as OperationFilter[]).map((item) => (
+              <button data-active={filter === item} key={item} onClick={() => setFilter(item)} type="button">
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="table-list">
+          {filteredItems.length ? (
+            filteredItems.map((item) => {
+              const assignee = employees.find((employee) => employee.id === item.assigneeId);
+              const days = getOperationDaysLeft(item.dueDate);
+              return (
+                <div className="table-row operations-row" key={item.id}>
+                  <div>
+                    <div className="operations-badges">
+                      <span className="operation-category" data-category={item.category}>{item.category}</span>
+                      <span className="operation-status" data-status={getOperationStatus(item)}>{getOperationStatus(item)}</span>
+                    </div>
+                    <strong>{item.title}</strong>
+                    <span>{item.provider}</span>
+                    {item.memo ? <small className="operation-inline-note">{item.memo}</small> : null}
+                  </div>
+                  <div>
+                    <strong>{formatOperationDueDate(item.dueDate)}</strong>
+                    <span>{item.frequency}</span>
+                    <span>{days === null ? '미정' : days < 0 ? `${Math.abs(days)}일 지남` : days === 0 ? '오늘' : `${days}일 남음`}</span>
+                  </div>
+                  <div>
+                    <strong>{formatOperationAmount(item.amount)}</strong>
+                    <span>{assignee?.name || '담당자 미지정'}</span>
+                  </div>
+                  <div className="operations-reminders">
+                    {item.reminders.map((reminder) => (
+                      <span className="reminder-chip" key={`${item.id}-${reminder}`}>{getOperationReminderLabel(reminder)}</span>
+                    ))}
+                  </div>
+                  <div className="operations-actions">
+                    <button className="secondary-action" onClick={() => completeItem(item)} type="button">
+                      완료
+                    </button>
+                    <button className="secondary-action" onClick={() => openEdit(item)} type="button">
+                      수정
+                    </button>
+                    <button className="secondary-action danger-action" onClick={() => removeItem(item)} type="button">
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          ) : (
+            <p className="mini-empty">조건에 맞는 운영 항목이 없습니다.</p>
+          )}
+        </div>
+      </div>
+
+      {formOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setFormOpen(false)}>
+          <form className="modal-card form-stack operations-form" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">{editingItem ? 'Edit Operation' : 'New Operation'}</p>
+                <h2>{editingItem ? '운영 항목 수정' : '운영 항목 추가'}</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setFormOpen(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              항목명
+              <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+            </label>
+            <label>
+              카테고리
+              <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value as OperationCategory })}>
+                {operationCategories.map((category) => <option key={category}>{category}</option>)}
+              </select>
+            </label>
+            <label>
+              서비스/업체명
+              <input value={form.provider} onChange={(event) => setForm({ ...form, provider: event.target.value })} />
+            </label>
+            <label>
+              금액
+              <input inputMode="numeric" value={String(form.amount || '')} onChange={(event) => setForm({ ...form, amount: Number(event.target.value.replace(/[^\d]/g, '')) || 0 })} />
+            </label>
+            <label>
+              기준일
+              <input type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} />
+            </label>
+            <label>
+              반복주기
+              <select value={form.frequency} onChange={(event) => setForm({ ...form, frequency: event.target.value as OperationFrequency })}>
+                {operationFrequencies.map((frequency) => <option key={frequency}>{frequency}</option>)}
+              </select>
+            </label>
+            <label>
+              담당자
+              <select value={form.assigneeId} onChange={(event) => setForm({ ...form, assigneeId: event.target.value })}>
+                {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
+              </select>
+            </label>
+            <label className="span-2">
+              알림 시점
+              <div className="multi-picker compact">
+                {operationReminderOptions.map((reminder) => (
+                  <button
+                    className="select-chip"
+                    data-selected={form.reminders.includes(reminder)}
+                    key={reminder}
+                    onClick={() =>
+                      setForm((current) => ({
+                        ...current,
+                        reminders: current.reminders.includes(reminder)
+                          ? current.reminders.filter((item) => item !== reminder)
+                          : [...current.reminders, reminder].sort((first, second) => second - first) as Array<0 | 1 | 3 | 7>,
+                      }))
+                    }
+                    type="button"
+                  >
+                    {getOperationReminderLabel(reminder)}
+                  </button>
+                ))}
+              </div>
+            </label>
+            <label className="span-2">
+              메모
+              <textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
+            </label>
+            <label className="span-2">
+              관련 링크
+              <input placeholder="https://..." value={form.link} onChange={(event) => setForm({ ...form, link: event.target.value })} />
+            </label>
+            <label className="checkbox-row">
+              <input checked={form.active} onChange={(event) => setForm({ ...form, active: event.target.checked })} type="checkbox" />
+              <span>활성 항목으로 사용</span>
+            </label>
+            <p className="admin-note">현재는 이 브라우저 로컬 저장으로만 관리됩니다. 나중에 Supabase 테이블과 푸시 스케줄러를 붙이면 기기 간 동기화와 알림 자동화를 붙일 수 있습니다.</p>
+            {error ? <p className="auth-error">{error}</p> : null}
+            <button className="primary-action wide" disabled={loading} type="submit">
+              <CheckCircle2 size={17} />
+              {loading ? '진행중...' : editingItem ? '저장' : '추가'}
+            </button>
+          </form>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
