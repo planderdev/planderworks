@@ -1728,8 +1728,13 @@ h1 {
 }
 
 .operation-category > span,
-.operation-status > span,
 .reminder-chip > span {
+  display: block;
+  line-height: 1;
+  transform: translateY(0);
+}
+
+.operation-status > span {
   display: block;
   line-height: 1;
   transform: translateY(2px);
