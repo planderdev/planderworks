@@ -4103,22 +4103,19 @@ function OperationsPage({
                       <span className="operation-status" data-status={getOperationStatus(item)}>{getOperationStatus(item)}</span>
                     </div>
                     <strong>{item.title}</strong>
-                    <span>{item.provider}</span>
+                    <span className="operation-provider">{item.provider}</span>
                     {item.memo ? <small className="operation-inline-note">{item.memo}</small> : null}
                   </div>
                   <div className="operations-cell">
-                    <small className="operations-cell-label">기준일</small>
                     <strong>{formatOperationDueDate(item.dueDate)}</strong>
-                    <span>{item.frequency}</span>
-                    <span>{days === null ? '미정' : days < 0 ? `${Math.abs(days)}일 지남` : days === 0 ? '오늘' : `${days}일 남음`}</span>
+                    <span className="operation-meta">{item.frequency}</span>
+                    <span className="operation-meta">{days === null ? '미정' : days < 0 ? `${Math.abs(days)}일 지남` : days === 0 ? '오늘' : `${days}일 남음`}</span>
                   </div>
                   <div className="operations-cell">
-                    <small className="operations-cell-label">금액 / 담당</small>
                     <strong>{formatOperationAmount(item.amount)}</strong>
-                    <span>{assignee?.name || '담당자 미지정'}</span>
+                    <span className="operation-meta">{assignee?.name || '담당자 미지정'}</span>
                   </div>
                   <div className="operations-cell operations-reminders-wrap">
-                    <small className="operations-cell-label">알림 시점</small>
                     <div className="operations-reminders">
                     {item.reminders.map((reminder) => (
                       <span className="reminder-chip" key={`${item.id}-${reminder}`}>{getOperationReminderLabel(reminder)}</span>
@@ -4126,7 +4123,6 @@ function OperationsPage({
                     </div>
                   </div>
                   <div className="operations-cell operations-actions-wrap">
-                    <small className="operations-cell-label">작업</small>
                     <div className="operations-actions">
                     <button className="secondary-action" onClick={() => completeItem(item)} type="button">
                       완료
