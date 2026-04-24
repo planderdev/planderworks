@@ -1716,8 +1716,9 @@ h1 {
 .reminder-chip {
   height: 24px;
   box-sizing: border-box;
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   padding: 0 8px;
   font-size: 0.68rem;
@@ -1725,19 +1726,6 @@ h1 {
   line-height: 1;
   text-align: center;
   white-space: nowrap;
-}
-
-.operation-category > span,
-.reminder-chip > span {
-  display: block;
-  line-height: 1;
-  transform: translateY(0);
-}
-
-.operation-status > span {
-  display: block;
-  line-height: 1;
-  transform: translateY(2px);
 }
 
 .operation-category {
