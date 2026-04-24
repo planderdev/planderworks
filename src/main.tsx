@@ -584,7 +584,7 @@ function formatOperationAmount(value: number) {
 }
 
 function getOperationReminderLabel(value: 0 | 1 | 3 | 7) {
-  return value === 0 ? '당일' : `${value}일 전`;
+  return value === 0 ? '당일 알림' : `알림 ${value}일 전`;
 }
 
 function matchesOperationFilter(item: OperationItem, filter: OperationFilter) {
@@ -611,6 +611,16 @@ function sortOperationsByDueDate(items: OperationItem[]) {
     const secondDate = parseOperationDate(second.dueDate)?.getTime() || 0;
     return firstDate - secondDate;
   });
+}
+
+function resolveOperationAssignee(item: OperationItem, employees: Employee[]) {
+  const exactMatch = employees.find((employee) => employee.id === item.assigneeId);
+  if (exactMatch) return exactMatch;
+
+  const legacyEmployeeName = seedEmployees.find((employee) => employee.id === item.assigneeId)?.name;
+  if (!legacyEmployeeName) return null;
+
+  return employees.find((employee) => employee.name === legacyEmployeeName) || null;
 }
 
 function formatTaskTypeLabel(type: string) {
@@ -4038,7 +4048,7 @@ function OperationsPage({
         <div className="operations-urgent-list">
           {urgentItems.length ? (
             urgentItems.slice(0, 6).map((item) => {
-              const assignee = employees.find((employee) => employee.id === item.assigneeId);
+              const assignee = resolveOperationAssignee(item, employees);
               return (
                 <div className="operations-urgent-card" key={item.id}>
                   <div className="operations-badges">
@@ -4072,14 +4082,22 @@ function OperationsPage({
           </div>
         </div>
 
+        <div className="operations-table-columns" aria-hidden="true">
+          <span>항목</span>
+          <span>기준일</span>
+          <span>금액 / 담당</span>
+          <span>알림 시점</span>
+          <span>작업</span>
+        </div>
+
         <div className="table-list">
           {filteredItems.length ? (
             filteredItems.map((item) => {
-              const assignee = employees.find((employee) => employee.id === item.assigneeId);
+              const assignee = resolveOperationAssignee(item, employees);
               const days = getOperationDaysLeft(item.dueDate);
               return (
                 <div className="table-row operations-row" key={item.id}>
-                  <div>
+                  <div className="operations-cell operations-cell-main">
                     <div className="operations-badges">
                       <span className="operation-category" data-category={item.category}>{item.category}</span>
                       <span className="operation-status" data-status={getOperationStatus(item)}>{getOperationStatus(item)}</span>
@@ -4088,21 +4106,28 @@ function OperationsPage({
                     <span>{item.provider}</span>
                     {item.memo ? <small className="operation-inline-note">{item.memo}</small> : null}
                   </div>
-                  <div>
+                  <div className="operations-cell">
+                    <small className="operations-cell-label">기준일</small>
                     <strong>{formatOperationDueDate(item.dueDate)}</strong>
                     <span>{item.frequency}</span>
                     <span>{days === null ? '미정' : days < 0 ? `${Math.abs(days)}일 지남` : days === 0 ? '오늘' : `${days}일 남음`}</span>
                   </div>
-                  <div>
+                  <div className="operations-cell">
+                    <small className="operations-cell-label">금액 / 담당</small>
                     <strong>{formatOperationAmount(item.amount)}</strong>
                     <span>{assignee?.name || '담당자 미지정'}</span>
                   </div>
-                  <div className="operations-reminders">
+                  <div className="operations-cell operations-reminders-wrap">
+                    <small className="operations-cell-label">알림 시점</small>
+                    <div className="operations-reminders">
                     {item.reminders.map((reminder) => (
                       <span className="reminder-chip" key={`${item.id}-${reminder}`}>{getOperationReminderLabel(reminder)}</span>
                     ))}
+                    </div>
                   </div>
-                  <div className="operations-actions">
+                  <div className="operations-cell operations-actions-wrap">
+                    <small className="operations-cell-label">작업</small>
+                    <div className="operations-actions">
                     <button className="secondary-action" onClick={() => completeItem(item)} type="button">
                       완료
                     </button>
@@ -4112,6 +4137,7 @@ function OperationsPage({
                     <button className="secondary-action danger-action" onClick={() => removeItem(item)} type="button">
                       삭제
                     </button>
+                    </div>
                   </div>
                 </div>
               );

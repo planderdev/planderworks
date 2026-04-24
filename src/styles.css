@@ -1756,13 +1756,44 @@ h1 {
   margin-bottom: 14px;
 }
 
+.operations-table-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(140px, 0.9fr) minmax(130px, 0.8fr) minmax(180px, 1fr) 196px;
+  gap: 12px;
+  margin-bottom: 10px;
+  padding: 0 14px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
 .operations-row {
-  grid-template-columns: minmax(0, 1.5fr) minmax(140px, 0.9fr) minmax(130px, 0.8fr) minmax(130px, 0.8fr) 196px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(140px, 0.9fr) minmax(130px, 0.8fr) minmax(180px, 1fr) 196px;
   align-items: stretch;
 }
 
 .operations-row > div {
   min-width: 0;
+}
+
+.operations-cell {
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+.operations-cell-main {
+  gap: 6px;
+}
+
+.operations-cell-label {
+  min-height: auto !important;
+  padding: 0 !important;
+  color: var(--muted) !important;
+  background: transparent !important;
+  place-items: start !important;
+  font-size: 0.74rem !important;
+  font-weight: 800;
 }
 
 .operation-inline-note {
@@ -1781,6 +1812,11 @@ h1 {
   gap: 8px;
   align-items: center;
   align-content: center;
+}
+
+.operations-reminders-wrap,
+.operations-actions-wrap {
+  gap: 8px;
 }
 
 .reminder-chip {
@@ -2397,6 +2433,10 @@ h1 {
 
   .operations-urgent-list {
     grid-template-columns: 1fr;
+  }
+
+  .operations-table-columns {
+    display: none;
   }
 
   .operations-row {
