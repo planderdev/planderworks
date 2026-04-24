@@ -807,7 +807,13 @@ function App() {
   }, [currentUser?.id, currentUser?.isPrototype]);
 
   const inboxTasks = useMemo(
-    () => tasks.filter((task) => task.assigneeId === currentUser?.id || task.to === currentUser?.name || (currentUser?.isPrototype && task.to === '인성이형')),
+    () =>
+      tasks.filter(
+        (task) =>
+          (task.assigneeId === currentUser?.id || task.to === currentUser?.name || (currentUser?.isPrototype && task.to === '인성이형')) &&
+          task.type !== '보고' &&
+          task.type !== '제안',
+      ),
     [currentUser?.id, currentUser?.isPrototype, currentUser?.name, tasks],
   );
 
@@ -4109,25 +4115,49 @@ function ReportForm({
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
   const adminEmployees = employees.filter((employee) => employee.role === '관리자');
+  const representative =
+    employees.find((employee) => employee.jobType === '대표') ||
+    employees.find((employee) => employee.name === '대표') ||
+    adminEmployees[0];
+  const [proposalRecipientIds, setProposalRecipientIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setProposalRecipientIds((current) => current.filter((id) => employees.some((employee) => employee.id === id)));
+  }, [employees]);
+
+  const toggleProposalRecipient = (id: string) => {
+    setProposalRecipientIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
+  };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading) return;
-    if (!adminEmployees.length) {
-      setStatus('관리자 계정이 없어 보고·제안을 보낼 수 없습니다.');
+    if (type === '보고' && !representative) {
+      setStatus('대표 계정이 없어 보고·제안을 보낼 수 없습니다.');
+      return;
+    }
+    const selectedProposalRecipients = proposalRecipientIds
+      .map((id) => employees.find((employee) => employee.id === id))
+      .filter((employee): employee is Employee => Boolean(employee));
+    if (type === '제안' && !selectedProposalRecipients.length) {
+      setStatus('제안을 받을 사람을 한 명 이상 선택해주세요.');
       return;
     }
     setLoading(true);
     setStatus('전송중입니다.');
-    const recipientIds = adminEmployees.map((employee) => employee.id);
-    const recipientNames = adminEmployees.map((employee) => employee.name);
+    const recipients =
+      type === '보고'
+        ? representative
+          ? [representative]
+          : []
+        : selectedProposalRecipients;
     const message = await onCreateTask({
       title,
       summary,
       from: '인성이형',
-      to: recipientNames[0] || '',
-      toIds: recipientIds,
-      toList: recipientNames,
+      to: recipients[0]?.name || '',
+      toIds: recipients.map((employee) => employee.id),
+      toList: recipients.map((employee) => employee.name),
       client: '내부',
       due: '검토 대기',
       priority: '보통',
@@ -4140,6 +4170,7 @@ function ReportForm({
     if (!message.includes('실패')) {
       setTitle('');
       setSummary('');
+      setProposalRecipientIds([]);
     }
   };
 
@@ -4164,7 +4195,33 @@ function ReportForm({
         내용
         <textarea required value={summary} onChange={(event) => setSummary(event.target.value)} />
       </label>
-      <p className="admin-note">관리자 {adminEmployees.length}명에게 전송됩니다.</p>
+      {type === '제안' ? (
+        <label>
+          받는 사람
+          <div className="multi-picker compact">
+            {employees.map((employee) => (
+              <button
+                className="select-chip"
+                data-selected={proposalRecipientIds.includes(employee.id)}
+                key={employee.id}
+                onClick={() => toggleProposalRecipient(employee.id)}
+                type="button"
+              >
+                {employee.name}
+              </button>
+            ))}
+          </div>
+        </label>
+      ) : null}
+      <p className="admin-note">
+        {type === '보고'
+          ? representative
+            ? `${representative.name}에게만 전송됩니다.`
+            : '대표 계정을 찾을 수 없습니다.'
+          : proposalRecipientIds.length
+            ? `${proposalRecipientIds.length}명에게 전송됩니다.`
+            : '제안을 받을 사람을 선택해주세요.'}
+      </p>
       {status ? <p className="admin-note">{status}</p> : null}
       <button className="primary-action wide" disabled={loading} type="submit">
         <CheckCircle2 size={17} />
