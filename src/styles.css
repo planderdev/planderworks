@@ -1709,6 +1709,7 @@ h1 {
   flex-wrap: wrap;
   gap: 5px;
   align-items: center;
+  margin-bottom: 2px;
 }
 
 .operation-category,
@@ -1720,7 +1721,7 @@ h1 {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  padding: 0 8px;
+  padding: 1px 8px 0;
   font-size: 0.68rem;
   font-weight: 800;
   line-height: 1;
@@ -1792,7 +1793,8 @@ h1 {
 }
 
 .operations-cell-main {
-  gap: 7px;
+  gap: 10px;
+  padding-top: 2px;
 }
 
 .operations-row strong {
@@ -2486,13 +2488,14 @@ h1 {
 
   .operations-badges {
     gap: 6px;
+    margin-bottom: 3px;
   }
 
   .operation-category,
   .operation-status,
   .reminder-chip {
     height: 24px;
-    padding: 0 9px;
+    padding: 1px 9px 0;
     font-size: 0.7rem;
   }
 
