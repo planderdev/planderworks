@@ -1824,7 +1824,8 @@ h1 {
 .operation-category-table > span,
 .operation-status-table > span {
   display: block;
-  transform: translateY(4px);
+  position: relative;
+  top: 4px;
 }
 
 .operation-status-table[data-status='예정'] {
