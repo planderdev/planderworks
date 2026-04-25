@@ -1765,6 +1765,11 @@ h1 {
   background: var(--panel);
 }
 
+.operation-status > span {
+  display: block;
+  transform: translateY(5px);
+}
+
 .operation-status[data-status='오늘'] {
   color: #ffd3d3;
   background: #5a262c;
