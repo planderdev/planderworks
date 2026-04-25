@@ -1828,6 +1828,30 @@ h1 {
   top: 4px;
 }
 
+.operation-category-table > span {
+  color: var(--text);
+}
+
+.operation-status-table[data-status='예정'] > span {
+  color: var(--text);
+}
+
+.operation-status-table[data-status='오늘'] > span {
+  color: #ffd3d3;
+}
+
+.operation-status-table[data-status='임박'] > span {
+  color: #1f232b;
+}
+
+.operation-status-table[data-status='완료'] > span {
+  color: #c8f2d8;
+}
+
+.operation-status-table[data-status='보류'] > span {
+  color: #c9d0da;
+}
+
 .operation-status-table[data-status='예정'] {
   color: var(--text);
   background: var(--soft);
