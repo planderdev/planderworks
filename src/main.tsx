@@ -4053,9 +4053,7 @@ function OperationsPage({
                 <div className="operations-urgent-card" key={item.id}>
                   <div className="operations-badges">
                     <span className="operation-category" data-category={item.category}>{item.category}</span>
-                    <span className="operation-status" data-status={getOperationStatus(item)}>
-                      <span>{getOperationStatus(item)}</span>
-                    </span>
+                    <span className="operation-status" data-status={getOperationStatus(item)}>{getOperationStatus(item)}</span>
                   </div>
                   <strong>{item.title}</strong>
                   <span>{item.provider}</span>
@@ -4100,9 +4098,9 @@ function OperationsPage({
               return (
                 <div className="table-row operations-row" key={item.id}>
                   <div className="operations-cell operations-cell-main">
-                    <div className="operations-badges">
-                      <span className="operation-category" data-category={item.category}>{item.category}</span>
-                      <span className="operation-status" data-status={getOperationStatus(item)}>
+                    <div className="operations-badges operations-table-badges">
+                      <span className="operation-category-table" data-category={item.category}>{item.category}</span>
+                      <span className="operation-status-table" data-status={getOperationStatus(item)}>
                         <span>{getOperationStatus(item)}</span>
                       </span>
                     </div>

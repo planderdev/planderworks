@@ -1765,11 +1765,6 @@ h1 {
   background: var(--panel);
 }
 
-.operation-status > span {
-  display: block;
-  transform: translateY(5px);
-}
-
 .operation-status[data-status='오늘'] {
   color: #ffd3d3;
   background: #5a262c;
@@ -1786,6 +1781,61 @@ h1 {
 }
 
 .operation-status[data-status='보류'] {
+  color: #c9d0da;
+  background: #313844;
+}
+
+.operations-table-badges {
+  gap: 5px;
+}
+
+.operation-category-table,
+.operation-status-table {
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 1px 8px 0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.operation-category-table {
+  color: var(--text);
+  background: var(--soft);
+}
+
+.operation-status-table {
+  color: var(--text);
+  background: var(--panel);
+}
+
+.operation-status-table > span {
+  display: block;
+  transform: translateY(4px);
+}
+
+.operation-status-table[data-status='오늘'] {
+  color: #ffd3d3;
+  background: #5a262c;
+}
+
+.operation-status-table[data-status='임박'] {
+  color: #ffdba6;
+  background: #5f4420;
+}
+
+.operation-status-table[data-status='완료'] {
+  color: #c8f2d8;
+  background: #204b33;
+}
+
+.operation-status-table[data-status='보류'] {
   color: #c9d0da;
   background: #313844;
 }
@@ -2530,6 +2580,17 @@ h1 {
   }
 
   .operation-status {
+    height: 24px;
+    padding: 1px 9px 0;
+    font-size: 0.7rem;
+  }
+
+  .operations-table-badges {
+    gap: 6px;
+  }
+
+  .operation-category-table,
+  .operation-status-table {
     height: 24px;
     padding: 1px 9px 0;
     font-size: 0.7rem;
