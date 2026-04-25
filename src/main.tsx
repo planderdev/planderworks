@@ -4099,7 +4099,9 @@ function OperationsPage({
                 <div className="table-row operations-row" key={item.id}>
                   <div className="operations-cell operations-cell-main">
                     <div className="operations-badges operations-table-badges">
-                      <span className="operation-category-table" data-category={item.category}>{item.category}</span>
+                      <span className="operation-category-table" data-category={item.category}>
+                        <span>{item.category}</span>
+                      </span>
                       <span className="operation-status-table" data-status={getOperationStatus(item)}>
                         <span>{getOperationStatus(item)}</span>
                       </span>

@@ -1714,9 +1714,15 @@ h1 {
   line-height: 1.35;
 }
 
-.operations-urgent-card span,
-.operations-urgent-card small {
+.operations-urgent-card > span {
   color: var(--muted);
+  font-size: 0.98rem;
+  line-height: 1.25;
+}
+
+.operations-urgent-card > small {
+  color: var(--muted);
+  font-size: 0.92rem;
 }
 
 .operations-badges {
@@ -1767,12 +1773,12 @@ h1 {
 
 .operation-status[data-status='오늘'] {
   color: #ffd3d3;
-  background: #5a262c;
+  background: #df5f5f;
 }
 
 .operation-status[data-status='임박'] {
-  color: #ffdba6;
-  background: #5f4420;
+  color: #1f232b;
+  background: #d69732;
 }
 
 .operation-status[data-status='완료'] {
@@ -1815,19 +1821,25 @@ h1 {
   background: var(--panel);
 }
 
+.operation-category-table > span,
 .operation-status-table > span {
   display: block;
   transform: translateY(4px);
 }
 
+.operation-status-table[data-status='예정'] {
+  color: var(--text);
+  background: var(--soft);
+}
+
 .operation-status-table[data-status='오늘'] {
   color: #ffd3d3;
-  background: #5a262c;
+  background: #df5f5f;
 }
 
 .operation-status-table[data-status='임박'] {
-  color: #ffdba6;
-  background: #5f4420;
+  color: #1f232b;
+  background: #d69732;
 }
 
 .operation-status-table[data-status='완료'] {
