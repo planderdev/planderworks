@@ -1728,7 +1728,6 @@ h1 {
 }
 
 .operation-category,
-.operation-status,
 .reminder-chip {
   height: 24px;
   box-sizing: border-box;
@@ -1750,6 +1749,18 @@ h1 {
 }
 
 .operation-status {
+  height: 24px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 1px 8px 0;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
   color: var(--text);
   background: var(--panel);
 }
@@ -2507,8 +2518,13 @@ h1 {
   }
 
   .operation-category,
-  .operation-status,
   .reminder-chip {
+    height: 24px;
+    padding: 1px 9px 0;
+    font-size: 0.7rem;
+  }
+
+  .operation-status {
     height: 24px;
     padding: 1px 9px 0;
     font-size: 0.7rem;
