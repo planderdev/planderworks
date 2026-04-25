@@ -1737,6 +1737,7 @@ h1 {
 .operation-status {
   color: var(--text);
   background: var(--panel);
+  padding-top: 3px;
 }
 
 .operation-status[data-status='오늘'] {
