@@ -23,10 +23,17 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
-  const { data: callerData, error: callerError } = await admin.auth.getUser(authHeader.replace('Bearer ', ''));
+  const isInternalServiceCall = authHeader === `Bearer ${serviceRoleKey}`;
+  let callerUserId: string | null = null;
 
-  if (callerError || !callerData.user) {
-    return jsonResponse({ error: 'Unauthorized' }, 401);
+  if (!isInternalServiceCall) {
+    const { data: callerData, error: callerError } = await admin.auth.getUser(authHeader.replace('Bearer ', ''));
+
+    if (callerError || !callerData.user) {
+      return jsonResponse({ error: 'Unauthorized' }, 401);
+    }
+
+    callerUserId = callerData.user.id;
   }
 
   const { taskId } = await req.json();
@@ -53,11 +60,11 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: taskError?.message || 'Task not found' }, 404);
   }
 
-  if (task.creator_id !== callerData.user.id) {
+  if (!isInternalServiceCall && task.creator_id !== callerUserId) {
     const { data: callerProfile } = await admin
       .from('profiles')
       .select('role')
-      .eq('id', callerData.user.id)
+      .eq('id', callerUserId)
       .single();
 
     if (callerProfile?.role !== 'admin') {
