@@ -962,6 +962,27 @@ function App() {
   }, [currentUser?.id, currentUser?.isPrototype]);
 
   useEffect(() => {
+    if (!supabase || !currentUser || currentUser.isPrototype) return;
+
+    const syncVisibleData = () => {
+      if (document.hidden) return;
+      void loadBackendData();
+    };
+
+    syncVisibleData();
+    const pollId = window.setInterval(syncVisibleData, 2000);
+
+    window.addEventListener('focus', syncVisibleData);
+    document.addEventListener('visibilitychange', syncVisibleData);
+
+    return () => {
+      window.clearInterval(pollId);
+      window.removeEventListener('focus', syncVisibleData);
+      document.removeEventListener('visibilitychange', syncVisibleData);
+    };
+  }, [currentUser?.id, currentUser?.isPrototype]);
+
+  useEffect(() => {
     if (!currentUser) return;
     const taskId = new URLSearchParams(window.location.search).get('taskId');
     if (taskId) setSelectedTaskId(taskId);
