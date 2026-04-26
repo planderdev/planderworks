@@ -643,6 +643,22 @@ function needsTaskAttention(task: Task, currentUser: AppUser | null) {
   return (isAssignee && !task.readAt) || (isCreator && task.status === '완료 요청' && !task.creatorReadAt);
 }
 
+function isTaskParticipant(task: Task, currentUser: AppUser | null) {
+  if (!currentUser) return false;
+  return (
+    task.assigneeId === currentUser.id ||
+    task.creatorId === currentUser.id ||
+    (currentUser.isPrototype && (task.to === currentUser.name || task.from === currentUser.name))
+  );
+}
+
+function canViewTask(task: Task, currentUser: AppUser | null) {
+  if (task.type === '보고' || task.type === '제안') {
+    return isTaskParticipant(task, currentUser);
+  }
+  return true;
+}
+
 function getTaskStatusTone(status: TaskStatus) {
   if (status === '진행중') return 'blue';
   if (status === '완료 요청') return 'amber';
@@ -1029,14 +1045,16 @@ function App() {
     [currentUser?.id, currentUser?.isPrototype, currentUser?.name, tasks],
   );
 
+  const visibleTasks = useMemo(() => tasks.filter((task) => canViewTask(task, currentUser)), [currentUser, tasks]);
+
   const reportTasks = useMemo(
-    () => tasks.filter((task) => task.type === '보고' || task.type === '제안'),
-    [tasks],
+    () => visibleTasks.filter((task) => task.type === '보고' || task.type === '제안'),
+    [visibleTasks],
   );
 
   const selectedTask = useMemo(
-    () => tasks.find((task) => task.id === selectedTaskId) || null,
-    [selectedTaskId, tasks],
+    () => visibleTasks.find((task) => task.id === selectedTaskId) || null,
+    [selectedTaskId, visibleTasks],
   );
 
   const dueSoonTasks = useMemo(
@@ -1982,10 +2000,10 @@ function App() {
         ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
-          <ReportsPage tasks={tasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <ReportsPage tasks={reportTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'allTasks' ? (
-          <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={tasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'calendar' ? (
           <CalendarPage
