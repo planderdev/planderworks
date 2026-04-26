@@ -970,13 +970,10 @@ function App() {
     };
 
     syncVisibleData();
-    const pollId = window.setInterval(syncVisibleData, 15000);
-
     window.addEventListener('focus', syncVisibleData);
     document.addEventListener('visibilitychange', syncVisibleData);
 
     return () => {
-      window.clearInterval(pollId);
       window.removeEventListener('focus', syncVisibleData);
       document.removeEventListener('visibilitychange', syncVisibleData);
     };
