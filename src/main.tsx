@@ -2040,6 +2040,7 @@ function App() {
             currentUser={currentUser}
             employees={employees}
             jobTypes={jobTypes}
+            taskTypes={taskTypes}
             themeMode={themeMode}
             pushEnabled={pushEnabled}
             pushLoading={pushLoading}
