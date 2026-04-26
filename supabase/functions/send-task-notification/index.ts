@@ -13,17 +13,29 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const internalSecret = Deno.env.get('PLANDER_INTERNAL_SECRET');
   const vapidPublicKey = Deno.env.get('VAPID_PUBLIC_KEY');
   const vapidPrivateKey = Deno.env.get('VAPID_PRIVATE_KEY');
   const vapidSubject = Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@plander.co.kr';
   const authHeader = req.headers.get('Authorization');
+  const apiKeyHeader = req.headers.get('apikey');
+  const internalSecretHeader = req.headers.get('x-plander-internal-secret');
 
-  if (!supabaseUrl || !serviceRoleKey || !vapidPublicKey || !vapidPrivateKey || !authHeader) {
+  if (
+    !supabaseUrl ||
+    !serviceRoleKey ||
+    !vapidPublicKey ||
+    !vapidPrivateKey ||
+    (!authHeader && !apiKeyHeader && !internalSecretHeader)
+  ) {
     return jsonResponse({ error: 'Missing server configuration' }, 500);
   }
 
   const admin = createClient(supabaseUrl, serviceRoleKey);
-  const isInternalServiceCall = authHeader === `Bearer ${serviceRoleKey}`;
+  const isInternalServiceCall =
+    (Boolean(internalSecret) && internalSecretHeader === internalSecret) ||
+    authHeader === `Bearer ${serviceRoleKey}` ||
+    apiKeyHeader === serviceRoleKey;
   let callerUserId: string | null = null;
 
   if (!isInternalServiceCall) {
