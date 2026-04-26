@@ -707,6 +707,7 @@ function App() {
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const appHistoryReady = useRef(false);
   const lastUserId = useRef<string | null>(null);
+  const realtimeRefreshTimer = useRef<number | null>(null);
 
   const getAppHistoryUrl = (view: ActiveView) => `${window.location.pathname}#${view}`;
 
@@ -931,6 +932,33 @@ function App() {
 
   useEffect(() => {
     loadBackendData();
+  }, [currentUser?.id, currentUser?.isPrototype]);
+
+  useEffect(() => {
+    if (!supabase || !currentUser || currentUser.isPrototype) return;
+
+    const queueRefresh = () => {
+      if (realtimeRefreshTimer.current) {
+        window.clearTimeout(realtimeRefreshTimer.current);
+      }
+
+      realtimeRefreshTimer.current = window.setTimeout(() => {
+        void loadBackendData();
+      }, 250);
+    };
+
+    const channel = supabase
+      .channel(`planderworks-tasks-${currentUser.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, queueRefresh)
+      .subscribe();
+
+    return () => {
+      if (realtimeRefreshTimer.current) {
+        window.clearTimeout(realtimeRefreshTimer.current);
+        realtimeRefreshTimer.current = null;
+      }
+      void supabase.removeChannel(channel);
+    };
   }, [currentUser?.id, currentUser?.isPrototype]);
 
   useEffect(() => {
