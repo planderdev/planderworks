@@ -1828,11 +1828,16 @@ function App() {
         return message;
       }
 
-      await loadBackendData();
+      setTasks((current) => current.filter((item) => item.id !== task.id));
+      setSelectedTaskId((current) => (current === task.id ? null : current));
+      window.setTimeout(() => {
+        void loadBackendData();
+      }, 400);
       return '업무를 삭제했습니다.';
     }
 
     setTasks((current) => current.filter((item) => item.id !== task.id));
+    setSelectedTaskId((current) => (current === task.id ? null : current));
     return '업무를 삭제했습니다.';
   };
 
