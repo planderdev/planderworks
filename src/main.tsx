@@ -190,6 +190,7 @@ type MessageHandler = (message: string) => void;
 type ClientSubmitHandler = (client: Omit<Client, 'id'>) => Promise<string>;
 type ClientUpdateHandler = (clientId: string, client: Omit<Client, 'id'>) => Promise<string>;
 type ClientDeleteHandler = (client: Client) => Promise<string>;
+type ProjectSubmitHandler = (project: { name: string; clientId: string }) => Promise<string>;
 type JobTypeSubmitHandler = (name: string) => Promise<string>;
 type JobTypeDeleteHandler = (name: string) => Promise<string>;
 type TaskTypeSubmitHandler = (name: string) => Promise<string>;
@@ -219,7 +220,6 @@ function resolveActionConfirm(id: number, confirmed: boolean) {
 }
 
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
-  { id: 'create', label: '업무 생성', icon: Plus },
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
@@ -713,6 +713,7 @@ function App() {
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [projectCreateOpen, setProjectCreateOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [taskListFilters, setTaskListFilters] = useState<Partial<Record<ActiveView, TaskListFilter>>>({});
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
@@ -1504,6 +1505,59 @@ function App() {
     return '업체가 삭제되었습니다.';
   };
 
+  const createProject: ProjectSubmitHandler = async (project) => {
+    const name = project.name.trim();
+    const client = clients.find((item) => item.id === project.clientId);
+
+    if (!name) return '프로젝트명을 입력해주세요.';
+    if (!client) return '연결할 업체를 선택해주세요.';
+
+    if (!supabase || !currentUser || currentUser.isPrototype || !isUuid(client.id)) {
+      const nextProject: Project = {
+        id: String(Date.now()),
+        name,
+        clientId: client.id,
+        client: client.name,
+        status: 'active',
+      };
+      setProjects((current) => [nextProject, ...current]);
+      setSelectedProjectId(nextProject.id);
+      setActiveView('project');
+      return '프로젝트가 생성되었습니다.';
+    }
+
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({
+        name,
+        client_id: client.id,
+        status: 'active',
+        created_by: currentUser.id,
+      })
+      .select('id, name, status, client_id, client:clients(name)')
+      .single();
+
+    if (error) {
+      const message = `프로젝트 생성 실패: ${error.message}`;
+      setBackendStatus(message);
+      return message;
+    }
+
+    const nextProject: Project = {
+      id: data.id,
+      name: data.name,
+      clientId: data.client_id,
+      client: (data as any).client?.name || client.name,
+      status: data.status || 'active',
+    };
+
+    setProjects((current) => [nextProject, ...current.filter((item) => item.id !== nextProject.id)]);
+    setSelectedProjectId(nextProject.id);
+    setActiveView('project');
+    setBackendStatus('프로젝트가 생성되었습니다.');
+    return '프로젝트가 생성되었습니다.';
+  };
+
   const addJobType = async (name: string): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { error } = await supabase.from('job_types').insert({ name });
@@ -2043,6 +2097,10 @@ function App() {
         currentUser={currentUser}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onCreateProject={() => {
+          setProjectCreateOpen(true);
+          setSidebarOpen(false);
+        }}
         onLogout={handleLogout}
         onOpenProfile={() => {
           setProfileOpen(true);
@@ -2063,6 +2121,14 @@ function App() {
         showAdmin={isAdmin}
       />
       <div className="mobile-overlay" data-open={sidebarOpen} onClick={() => setSidebarOpen(false)} />
+
+      {projectCreateOpen ? (
+        <ProjectCreateModal
+          clients={clients}
+          onClose={() => setProjectCreateOpen(false)}
+          onCreateProject={createProject}
+        />
+      ) : null}
 
       <main
         className="workspace"
@@ -2291,6 +2357,88 @@ function LoginScreen({
   );
 }
 
+function ProjectCreateModal({
+  clients,
+  onClose,
+  onCreateProject,
+}: {
+  clients: Client[];
+  onClose: () => void;
+  onCreateProject: ProjectSubmitHandler;
+}) {
+  const [form, setForm] = useState({ name: '', clientId: clients[0]?.id || '' });
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!form.clientId && clients[0]?.id) {
+      setForm((current) => ({ ...current, clientId: clients[0].id }));
+    }
+  }, [clients, form.clientId]);
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (loading) return;
+    if (!form.name.trim()) {
+      showActionPopup('프로젝트명을 입력해주세요.');
+      return;
+    }
+    if (!form.clientId) {
+      showActionPopup('연결할 업체를 선택해주세요.');
+      return;
+    }
+    if (!(await requestActionConfirm('프로젝트를 생성하시겠습니까?'))) return;
+
+    setLoading(true);
+    const message = await onCreateProject(form);
+    setLoading(false);
+    showActionPopup(message);
+    if (!message.includes('실패') && !message.includes('선택') && !message.includes('입력')) onClose();
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">New Project</p>
+            <h2>프로젝트 생성</h2>
+          </div>
+          <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </div>
+        <label>
+          프로젝트명
+          <input
+            autoFocus
+            value={form.name}
+            onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+            placeholder="예: A업체 일본 인플루언서 캠페인"
+          />
+        </label>
+        <label>
+          연결 업체
+          <select value={form.clientId} onChange={(event) => setForm((current) => ({ ...current, clientId: event.target.value }))}>
+            {clients.length ? (
+              clients.map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))
+            ) : (
+              <option value="">등록된 업체가 없습니다</option>
+            )}
+          </select>
+        </label>
+        <button className="primary-action wide" disabled={loading || !clients.length} type="submit">
+          <FolderKanban size={17} />
+          {loading ? '진행중...' : '프로젝트 생성'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 function Sidebar({
   activeView,
   activeProjectId,
@@ -2298,6 +2446,7 @@ function Sidebar({
   currentUser,
   open,
   onClose,
+  onCreateProject,
   onLogout,
   onNavigate,
   onOpenProject,
@@ -2312,6 +2461,7 @@ function Sidebar({
   currentUser: AppUser;
   open: boolean;
   onClose: () => void;
+  onCreateProject: () => void;
   onLogout: () => void;
   onNavigate: (view: ActiveView) => void;
   onOpenProject: (projectId: string) => void;
@@ -2334,6 +2484,16 @@ function Sidebar({
       </div>
 
       <nav className="sidebar-nav" aria-label="주 메뉴">
+        <div className="sidebar-create-split">
+          <button className="create-split-button" onClick={onCreateProject} type="button">
+            <FolderKanban size={16} />
+            <span>프로젝트 생성</span>
+          </button>
+          <button className="create-split-button" data-active={activeView === 'create'} onClick={() => onNavigate('create')} type="button">
+            <Plus size={16} />
+            <span>업무 생성</span>
+          </button>
+        </div>
         {primaryNavItems
           .filter((item) => (showAdmin ? true : item.id !== 'operations'))
           .map((item) => {
