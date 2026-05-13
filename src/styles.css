@@ -985,10 +985,15 @@ h1 {
 
 .task-card {
   position: relative;
+  min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 18px;
   padding: 16px;
+}
+
+.task-main {
+  min-width: 0;
 }
 
 .task-title-row {
@@ -1085,6 +1090,7 @@ h1 {
   margin-bottom: 13px;
   color: var(--muted);
   line-height: 1.5;
+  overflow-wrap: anywhere;
 }
 
 .task-meta {
@@ -2682,11 +2688,14 @@ h1 {
   grid-template-columns: minmax(0, 1fr) 360px;
   gap: 18px;
   align-items: start;
+  min-width: 0;
 }
 
 .project-chat-panel {
   position: sticky;
   top: 18px;
+  min-width: 0;
+  width: 100%;
   display: grid;
   gap: 14px;
   border: 1px solid var(--card-line);
@@ -2703,6 +2712,7 @@ h1 {
 }
 
 .project-message {
+  min-width: 0;
   display: grid;
   gap: 6px;
   border: 1px solid var(--card-line);
@@ -2731,11 +2741,17 @@ h1 {
   color: var(--text);
   line-height: 1.45;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .project-chat-form {
+  min-width: 0;
   display: grid;
   gap: 10px;
+}
+
+.project-chat-form textarea {
+  width: 100%;
 }
 
 .compact-list {
@@ -2983,11 +2999,13 @@ h1 {
   }
 
   .project-chat-panel {
+    order: -1;
     position: static;
   }
 
   .task-card {
     grid-template-columns: 1fr;
+    width: 100%;
   }
 
   .task-board.list-surface .task-list {
