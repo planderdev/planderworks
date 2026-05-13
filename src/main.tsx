@@ -207,6 +207,56 @@ type OperationItem = {
 type OperationDraft = Omit<OperationItem, 'id' | 'lastCompletedAt'> & {
   lastCompletedAt?: string | null;
 };
+type GoogleCalendarSettings = {
+  clientId: string;
+  apiKey: string;
+  calendarId: string;
+};
+type CalendarEventItem = {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+  days: number;
+  kind: string;
+  description: string;
+  sourceUrl: string;
+  allDay: boolean;
+  onClick: () => void;
+};
+type GoogleTokenResponse = {
+  access_token?: string;
+  error?: string;
+  error_description?: string;
+};
+type GoogleTokenClient = {
+  requestAccessToken: (options?: { prompt?: string }) => void;
+};
+type GoogleEventResponse = {
+  id?: string;
+  items?: Array<{ id?: string }>;
+  error?: { message?: string };
+};
+type GoogleCalendarSyncResult = {
+  created: number;
+  updated: number;
+  failed: number;
+};
+declare global {
+  interface Window {
+    google?: {
+      accounts?: {
+        oauth2?: {
+          initTokenClient: (config: {
+            client_id: string;
+            scope: string;
+            callback: (response: GoogleTokenResponse) => void;
+          }) => GoogleTokenClient;
+        };
+      };
+    };
+  }
+}
 
 type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
 type TaskUpdateHandler = (task: Task, updates: TaskUpdateDraft) => Promise<string>;
@@ -226,6 +276,7 @@ type TaskTypeSubmitHandler = (name: string) => Promise<string>;
 type TaskTypeDeleteHandler = (name: string) => Promise<string>;
 type EmployeeSubmitHandler = (employee: NewEmployee) => Promise<string>;
 type EmployeeUpdateHandler = (employeeId: string, updates: EmployeeUpdate) => Promise<string>;
+type GoogleCalendarSettingsHandler = (settings: GoogleCalendarSettings) => Promise<string>;
 
 function showActionPopup(message: string) {
   window.dispatchEvent(new CustomEvent('plander-action-complete', { detail: message }));
@@ -417,6 +468,222 @@ function getInitialOperations() {
   } catch {
     return seedOperationItems;
   }
+}
+
+const googleCalendarSettingsStorageKey = 'plander-google-calendar-settings';
+const googleCalendarScope = 'https://www.googleapis.com/auth/calendar.events';
+const googleIdentityScriptSrc = 'https://accounts.google.com/gsi/client';
+let googleIdentityScriptPromise: Promise<void> | null = null;
+
+function getInitialGoogleCalendarSettings(): GoogleCalendarSettings {
+  const saved = localStorage.getItem(googleCalendarSettingsStorageKey);
+  if (!saved) return { clientId: '', apiKey: '', calendarId: 'primary' };
+
+  try {
+    const parsed = JSON.parse(saved) as Partial<GoogleCalendarSettings>;
+    return {
+      clientId: parsed.clientId || '',
+      apiKey: parsed.apiKey || '',
+      calendarId: parsed.calendarId || 'primary',
+    };
+  } catch {
+    return { clientId: '', apiKey: '', calendarId: 'primary' };
+  }
+}
+
+function normalizeGoogleCalendarSettings(settings: GoogleCalendarSettings): GoogleCalendarSettings {
+  return {
+    clientId: settings.clientId.trim(),
+    apiKey: settings.apiKey.trim(),
+    calendarId: settings.calendarId.trim() || 'primary',
+  };
+}
+
+function loadGoogleIdentityScript() {
+  if (window.google?.accounts?.oauth2) return Promise.resolve();
+  if (googleIdentityScriptPromise) return googleIdentityScriptPromise;
+
+  googleIdentityScriptPromise = new Promise<void>((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${googleIdentityScriptSrc}"]`);
+
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(), { once: true });
+      existingScript.addEventListener('error', () => reject(new Error('Google 인증 스크립트를 불러오지 못했습니다.')), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = googleIdentityScriptSrc;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Google 인증 스크립트를 불러오지 못했습니다.'));
+    document.head.appendChild(script);
+  });
+
+  return googleIdentityScriptPromise;
+}
+
+async function requestGoogleCalendarAccessToken(clientId: string) {
+  await loadGoogleIdentityScript();
+
+  return new Promise<string>((resolve, reject) => {
+    const oauth = window.google?.accounts?.oauth2;
+
+    if (!oauth) {
+      reject(new Error('Google 인증 모듈을 사용할 수 없습니다.'));
+      return;
+    }
+
+    const client = oauth.initTokenClient({
+      client_id: clientId,
+      scope: googleCalendarScope,
+      callback: (response) => {
+        if (response.error || !response.access_token) {
+          reject(new Error(response.error_description || response.error || 'Google Calendar 권한 승인에 실패했습니다.'));
+          return;
+        }
+
+        resolve(response.access_token);
+      },
+    });
+
+    client.requestAccessToken();
+  });
+}
+
+function getGoogleCalendarApiUrl(settings: GoogleCalendarSettings, path: string, params?: Record<string, string>) {
+  const calendarId = encodeURIComponent(settings.calendarId || 'primary');
+  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}${path}`);
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value) url.searchParams.set(key, value);
+  });
+
+  if (settings.apiKey) url.searchParams.set('key', settings.apiKey);
+
+  return url;
+}
+
+async function fetchGoogleCalendar<T>(
+  settings: GoogleCalendarSettings,
+  accessToken: string,
+  path: string,
+  init: RequestInit = {},
+  params?: Record<string, string>,
+) {
+  const response = await fetch(getGoogleCalendarApiUrl(settings, path, params), {
+    ...init,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      ...(init.headers || {}),
+    },
+  });
+  const data = (await response.json().catch(() => ({}))) as T & GoogleEventResponse;
+
+  if (!response.ok) {
+    throw new Error(data.error?.message || `Google Calendar 요청 실패 (${response.status})`);
+  }
+
+  return data as T;
+}
+
+function getCalendarEndDate(event: CalendarEventItem) {
+  if (event.end.getTime() > event.start.getTime()) return event.end;
+  return new Date(event.start.getTime() + 60 * 60 * 1000);
+}
+
+function toGoogleCalendarPayload(event: CalendarEventItem) {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul';
+
+  if (event.allDay) {
+    const endDate = addCalendarDays(startOfCalendarDay(event.end), 1);
+    return {
+      summary: event.title,
+      description: `${event.kind}\n${event.description}\n\nPlanderWorks: ${event.sourceUrl}`,
+      source: { title: 'PlanderWorks', url: event.sourceUrl },
+      start: { date: formatDateInputValue(startOfCalendarDay(event.start)) },
+      end: { date: formatDateInputValue(endDate) },
+      extendedProperties: {
+        private: {
+          planderWorksId: event.id,
+          planderSource: 'PlanderWorks',
+        },
+      },
+    };
+  }
+
+  return {
+    summary: event.title,
+    description: `${event.kind}\n${event.description}\n\nPlanderWorks: ${event.sourceUrl}`,
+    source: { title: 'PlanderWorks', url: event.sourceUrl },
+    start: { dateTime: event.start.toISOString(), timeZone },
+    end: { dateTime: getCalendarEndDate(event).toISOString(), timeZone },
+    extendedProperties: {
+      private: {
+        planderWorksId: event.id,
+        planderSource: 'PlanderWorks',
+      },
+    },
+  };
+}
+
+async function syncEventsToGoogleCalendar(settings: GoogleCalendarSettings, events: CalendarEventItem[]) {
+  const normalizedSettings = normalizeGoogleCalendarSettings(settings);
+
+  if (!normalizedSettings.clientId) throw new Error('Google Client ID를 먼저 저장해주세요.');
+  if (!events.length) throw new Error('옮길 스케줄이 없습니다.');
+
+  const accessToken = await requestGoogleCalendarAccessToken(normalizedSettings.clientId);
+  const result: GoogleCalendarSyncResult = { created: 0, updated: 0, failed: 0 };
+
+  for (const event of events) {
+    try {
+      const searchResult = await fetchGoogleCalendar<GoogleEventResponse>(
+        normalizedSettings,
+        accessToken,
+        '/events',
+        { method: 'GET' },
+        {
+          maxResults: '1',
+          singleEvents: 'true',
+          showDeleted: 'false',
+          privateExtendedProperty: `planderWorksId=${event.id}`,
+        },
+      );
+      const existingEventId = searchResult.items?.[0]?.id;
+      const payload = toGoogleCalendarPayload(event);
+
+      if (existingEventId) {
+        await fetchGoogleCalendar<GoogleEventResponse>(
+          normalizedSettings,
+          accessToken,
+          `/events/${encodeURIComponent(existingEventId)}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+          },
+        );
+        result.updated += 1;
+      } else {
+        await fetchGoogleCalendar<GoogleEventResponse>(
+          normalizedSettings,
+          accessToken,
+          '/events',
+          {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          },
+        );
+        result.created += 1;
+      }
+    } catch {
+      result.failed += 1;
+    }
+  }
+
+  return result;
 }
 
 function getInitialTheme(): ThemeMode {
@@ -735,6 +1002,7 @@ function App() {
   const [projectMessages, setProjectMessages] = useState<ProjectMessage[]>([]);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
+  const [googleCalendarSettings, setGoogleCalendarSettings] = useState<GoogleCalendarSettings>(getInitialGoogleCalendarSettings);
   const [jobTypes, setJobTypes] = useState(seedJobTypes);
   const [taskTypes, setTaskTypes] = useState(fallbackTaskTypes);
   const [backendStatus, setBackendStatus] = useState('프로토타입 데이터');
@@ -775,6 +1043,12 @@ function App() {
   useEffect(() => {
     localStorage.setItem(operationStorageKey, JSON.stringify(operations));
   }, [operations]);
+
+  useEffect(() => {
+    if (googleCalendarSettings.clientId) {
+      void loadGoogleIdentityScript();
+    }
+  }, [googleCalendarSettings.clientId]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -2031,6 +2305,13 @@ function App() {
     return target.frequency === '1회' ? '운영 항목을 완료 처리했습니다.' : '이번 회차를 완료하고 다음 일정으로 넘겼습니다.';
   };
 
+  const saveGoogleCalendarSettings: GoogleCalendarSettingsHandler = async (settings) => {
+    const normalizedSettings = normalizeGoogleCalendarSettings(settings);
+    setGoogleCalendarSettings(normalizedSettings);
+    localStorage.setItem(googleCalendarSettingsStorageKey, JSON.stringify(normalizedSettings));
+    return 'Google Calendar 설정을 저장했습니다.';
+  };
+
   const updateTaskStatus = async (taskId: string, status: TaskStatus): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const currentTask = tasks.find((task) => task.id === taskId);
@@ -2536,6 +2817,7 @@ function App() {
         {activeView === 'calendar' ? (
           <CalendarPage
             currentUser={currentUser}
+            googleCalendarSettings={googleCalendarSettings}
             operations={isAdmin ? operations : []}
             onOpenOperations={() => navigateTo('operations')}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
@@ -2567,6 +2849,7 @@ function App() {
             backendStatus={backendStatus}
             currentUser={currentUser}
             employees={employees}
+            googleCalendarSettings={googleCalendarSettings}
             jobTypes={jobTypes}
             taskTypes={taskTypes}
             themeMode={themeMode}
@@ -2578,6 +2861,7 @@ function App() {
             onDeleteJobType={deleteJobType}
             onAddTaskType={addTaskType}
             onDeleteTaskType={deleteTaskType}
+            onSaveGoogleCalendarSettings={saveGoogleCalendarSettings}
             onUpdateOwnProfile={updateOwnProfile}
             onThemeChange={setThemeMode}
           />
@@ -4016,12 +4300,14 @@ function ReportsPage({
 
 function CalendarPage({
   currentUser,
+  googleCalendarSettings,
   tasks,
   operations,
   onOpenTask,
   onOpenOperations,
 }: {
   currentUser: AppUser;
+  googleCalendarSettings: GoogleCalendarSettings;
   tasks: Task[];
   operations: OperationItem[];
   onOpenTask: (task: Task) => void;
@@ -4029,8 +4315,10 @@ function CalendarPage({
 }) {
   const [mode, setMode] = useState<'일' | '주' | '월'>('월');
   const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const [googleSyncLoading, setGoogleSyncLoading] = useState(false);
+  const [googleSyncStatus, setGoogleSyncStatus] = useState('');
   const calendarTasks = tasks.filter((task) =>
-    task.assigneeId === currentUser.id ||
+    getTaskRecipientIds(task).includes(currentUser.id) ||
     task.creatorId === currentUser.id ||
     (currentUser.isPrototype && (task.to === currentUser.name || task.from === currentUser.name)),
   );
@@ -4047,11 +4335,14 @@ function CalendarPage({
             end: range.end,
             days: range.days,
             kind,
+            description: `${task.summary || '내용 없음'}\n담당: ${task.to}\n업체: ${task.client}\n상태: ${task.status}`,
+            sourceUrl: `${window.location.origin}/?taskId=${task.id}`,
+            allDay: false,
             onClick: () => onOpenTask(task),
           }
         : null;
     })
-    .filter((item): item is { id: string; title: string; start: Date; end: Date; days: number; kind: string; onClick: () => void } => Boolean(item));
+    .filter((item): item is CalendarEventItem => Boolean(item));
   const operationCalendarEvents = operations
     .filter((item) => item.active)
     .map((item) => {
@@ -4064,11 +4355,14 @@ function CalendarPage({
             end: dueDate,
             days: 1,
             kind: '구독/정산관리',
+            description: `${item.provider}\n${item.memo || '메모 없음'}\n금액: ${formatOperationAmount(item.amount)}\n주기: ${item.frequency}`,
+            sourceUrl: `${window.location.origin}/#operations`,
+            allDay: true,
             onClick: onOpenOperations,
           }
         : null;
     })
-    .filter((item): item is { id: string; title: string; start: Date; end: Date; days: number; kind: string; onClick: () => void } => Boolean(item));
+    .filter((item): item is CalendarEventItem => Boolean(item));
   const calendarEvents = [...taskCalendarEvents, ...operationCalendarEvents]
     .sort((a, b) => a.start.getTime() - b.start.getTime());
   const monthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
@@ -4114,6 +4408,27 @@ function CalendarPage({
     : mode === '주'
       ? `${startOfWeek.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })} ~ ${addCalendarDays(startOfWeek, 6).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}`
       : anchorDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+  const syncGoogleCalendar = async () => {
+    if (googleSyncLoading) return;
+
+    if (!(await requestActionConfirm(`Google Calendar로 스케줄 ${calendarEvents.length}건을 옮기시겠습니까?`))) return;
+
+    setGoogleSyncLoading(true);
+    setGoogleSyncStatus('Google Calendar 동기화중');
+
+    try {
+      const result = await syncEventsToGoogleCalendar(googleCalendarSettings, calendarEvents);
+      const message = `Google Calendar로 ${result.created}건 생성, ${result.updated}건 갱신했습니다.${result.failed ? ` 실패 ${result.failed}건` : ''}`;
+      setGoogleSyncStatus(message);
+      showActionPopup(message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Google Calendar 동기화에 실패했습니다.';
+      setGoogleSyncStatus(message);
+      showActionPopup(message);
+    } finally {
+      setGoogleSyncLoading(false);
+    }
+  };
 
   return (
     <section className="page-shell">
@@ -4124,6 +4439,10 @@ function CalendarPage({
           <p className="calendar-current-date">{currentDateLabel}</p>
         </div>
         <div className="calendar-controls">
+          <button className="primary-action calendar-sync-button" disabled={googleSyncLoading || !calendarEvents.length} onClick={syncGoogleCalendar} type="button">
+            <SendHorizontal size={16} />
+            {googleSyncLoading ? '진행중...' : '구글캘린더로 스케줄 옮기기'}
+          </button>
           <button className="icon-button" aria-label="이전" onClick={() => moveCalendar(-1)} type="button">
             <ChevronLeft size={18} />
           </button>
@@ -4139,6 +4458,7 @@ function CalendarPage({
           </button>
         </div>
       </div>
+      {googleSyncStatus ? <p className="calendar-sync-status">{googleSyncStatus}</p> : null}
 
       <div className="page-card calendar-panel" data-mode={mode}>
         {mode === '월' ? (
@@ -5359,6 +5679,7 @@ function SettingsPage({
   backendStatus,
   currentUser,
   employees,
+  googleCalendarSettings,
   jobTypes,
   taskTypes,
   pushEnabled,
@@ -5370,12 +5691,14 @@ function SettingsPage({
   onDeleteJobType,
   onAddTaskType,
   onDeleteTaskType,
+  onSaveGoogleCalendarSettings,
   onUpdateOwnProfile,
   onThemeChange,
 }: {
   backendStatus: string;
   currentUser: AppUser;
   employees: Employee[];
+  googleCalendarSettings: GoogleCalendarSettings;
   jobTypes: string[];
   taskTypes: string[];
   pushEnabled: boolean;
@@ -5387,6 +5710,7 @@ function SettingsPage({
   onDeleteJobType: JobTypeDeleteHandler;
   onAddTaskType: TaskTypeSubmitHandler;
   onDeleteTaskType: TaskTypeDeleteHandler;
+  onSaveGoogleCalendarSettings: GoogleCalendarSettingsHandler;
   onUpdateOwnProfile: (updates: OwnProfileUpdate) => Promise<string>;
   onThemeChange: (mode: ThemeMode) => void;
 }) {
@@ -5403,6 +5727,9 @@ function SettingsPage({
   const [profileOpen, setProfileOpen] = useState(false);
   const [jobTypeOpen, setJobTypeOpen] = useState(false);
   const [taskTypeOpen, setTaskTypeOpen] = useState(false);
+  const [googleForm, setGoogleForm] = useState<GoogleCalendarSettings>(googleCalendarSettings);
+  const [googleStatus, setGoogleStatus] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     setProfileForm({
@@ -5413,6 +5740,10 @@ function SettingsPage({
       passwordConfirm: '',
     });
   }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.jobType, currentUser.name, currentUser.role]);
+
+  useEffect(() => {
+    setGoogleForm(googleCalendarSettings);
+  }, [googleCalendarSettings]);
 
   const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -5436,6 +5767,15 @@ function SettingsPage({
     setProfileStatus(message);
     showActionPopup(message);
     setProfileForm((current) => ({ ...current, password: '', passwordConfirm: '' }));
+  };
+  const submitGoogleCalendarSettings = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (googleLoading) return;
+    setGoogleLoading(true);
+    const message = await onSaveGoogleCalendarSettings(googleForm);
+    setGoogleLoading(false);
+    setGoogleStatus(message);
+    showActionPopup(message);
   };
 
   return (
@@ -5463,6 +5803,41 @@ function SettingsPage({
             </button>
           </div>
         </div>
+        <form className="page-card settings-card google-calendar-settings" onSubmit={submitGoogleCalendarSettings}>
+          <h2>Google Calendar</h2>
+          <label>
+            Client ID
+            <input
+              inputMode="text"
+              placeholder="OAuth Client ID"
+              value={googleForm.clientId}
+              onChange={(event) => setGoogleForm((current) => ({ ...current, clientId: event.target.value }))}
+            />
+          </label>
+          <label>
+            API Key
+            <input
+              inputMode="text"
+              placeholder="선택"
+              value={googleForm.apiKey}
+              onChange={(event) => setGoogleForm((current) => ({ ...current, apiKey: event.target.value }))}
+            />
+          </label>
+          <label>
+            Calendar ID
+            <input
+              inputMode="text"
+              placeholder="primary"
+              value={googleForm.calendarId}
+              onChange={(event) => setGoogleForm((current) => ({ ...current, calendarId: event.target.value }))}
+            />
+          </label>
+          {googleStatus ? <p className="admin-note">{googleStatus}</p> : null}
+          <button className="primary-action" disabled={googleLoading} type="submit">
+            <CheckCircle2 size={17} />
+            {googleLoading ? '진행중...' : 'Google 설정 저장'}
+          </button>
+        </form>
         <div className="page-card settings-card">
           <h2>관리</h2>
           <div className="settings-shortcuts">

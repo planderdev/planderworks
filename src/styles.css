@@ -1625,7 +1625,21 @@ h1 {
 .calendar-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
+}
+
+.calendar-sync-button {
+  min-height: 38px;
+  padding: 0 13px;
+  white-space: nowrap;
+}
+
+.calendar-sync-status {
+  margin: -8px 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
 }
 
 .month-board,
@@ -2612,6 +2626,24 @@ h1 {
 .settings-shortcuts {
   display: grid;
   gap: 10px;
+}
+
+.google-calendar-settings label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.google-calendar-settings input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--text);
+  background: var(--panel-2);
 }
 
 .type-chip-list {
