@@ -3577,7 +3577,17 @@ function ProjectPage({
   const [message, setMessage] = useState('');
   const [messageStatus, setMessageStatus] = useState('');
   const [messageLoading, setMessageLoading] = useState(false);
+  const messageListRef = useRef<HTMLDivElement>(null);
   const messageRows = Math.min(5, Math.max(1, message.split('\n').length));
+  const latestMessageId = messages[messages.length - 1]?.id;
+
+  useEffect(() => {
+    const list = messageListRef.current;
+    if (!list) return;
+    requestAnimationFrame(() => {
+      list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+    });
+  }, [latestMessageId, project?.id]);
 
   const sendMessage = async () => {
     if (!project || messageLoading) return;
@@ -3638,7 +3648,7 @@ function ProjectPage({
               </div>
               <MessageSquareText size={22} />
             </div>
-            <div className="project-message-list">
+            <div className="project-message-list" ref={messageListRef}>
               {messages.length ? (
                 messages.map((item) => (
                   <article className="project-message" data-own={item.userId === currentUser.id} key={item.id}>
