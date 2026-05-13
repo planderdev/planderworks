@@ -3630,10 +3630,10 @@ function Dashboard({
 
       <section className="content-grid dashboard-content-grid">
         <div className="dashboard-flow">
-        <DashboardTaskSection title="받은 업무" eyebrow="Inbox" tone="blue" tasks={tasks} target="inbox" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-        <DashboardTaskSection title="보낸 업무" eyebrow="Sent" tasks={sentTasks} target="sent" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-        <DashboardTaskSection title="보고·제안" eyebrow="Reports" tone="amber" tasks={reportTasks} target="reports" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
-        <DashboardClientSection clients={clients} onNavigate={() => onNavigate('clients')} />
+          <DashboardTaskSection title="받은 업무" eyebrow="Inbox" tone="blue" tasks={tasks} target="inbox" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+          <DashboardTaskSection title="보낸 업무" eyebrow="Sent" tasks={sentTasks} target="sent" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+          <DashboardTaskSection title="보고·제안" eyebrow="Reports" tone="amber" tasks={reportTasks} target="reports" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
+          <DashboardClientSection clients={clients} onNavigate={() => onNavigate('clients')} />
         </div>
         <aside className="side-panel">
           <TaskComposer employees={employees} taskTypes={taskTypes} onCreateTask={onCreateTask} />
@@ -3858,7 +3858,14 @@ function ProjectPage({
       <div className="page-head project-page-head">
         <div>
           <p className="eyebrow">Project</p>
-          <h1>{project?.name || '프로젝트'}</h1>
+          <div className="project-title-row">
+            <h1>{project?.name || '프로젝트'}</h1>
+            {project && canEditProject ? (
+              <button className="icon-button project-edit-button" aria-label="프로젝트 수정" onClick={() => onEditProject(project.id)} type="button">
+                <Pencil size={16} />
+              </button>
+            ) : null}
+          </div>
           {project ? (
             <p>
               {project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건
@@ -3866,12 +3873,6 @@ function ProjectPage({
             </p>
           ) : null}
         </div>
-        {project && canEditProject ? (
-          <button className="secondary-action" onClick={() => onEditProject(project.id)} type="button">
-            <Pencil size={16} />
-            프로젝트 수정
-          </button>
-        ) : null}
       </div>
 
       <div className="project-detail-grid">

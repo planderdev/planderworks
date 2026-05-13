@@ -821,6 +821,7 @@ h1 {
 
 .dashboard-flow {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
   min-width: 0;
 }
@@ -1373,6 +1374,32 @@ h1 {
 .page-head h1 {
   margin-bottom: 0;
   font-size: clamp(2rem, 4vw, 3.2rem);
+}
+
+.project-page-head {
+  align-items: flex-start;
+}
+
+.project-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-page-head h1 {
+  font-size: clamp(1.6rem, 3vw, 2.35rem);
+  line-height: 1.15;
+}
+
+.project-page-head p:not(.eyebrow) {
+  margin-top: 10px;
+  line-height: 1.65;
+}
+
+.project-edit-button {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
 }
 
 .page-card {
@@ -3047,6 +3074,10 @@ h1 {
   }
 
   .stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-flow {
     grid-template-columns: 1fr;
   }
 
