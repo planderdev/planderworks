@@ -2484,6 +2484,7 @@ function App() {
           themeMode={themeMode}
           onLogout={handleLogout}
           onNavigate={navigateTo}
+          onOpenProfile={() => setProfileOpen(true)}
           onRegisterPush={handleRegisterPush}
           onThemeChange={setThemeMode}
           onMenuClick={() => setSidebarOpen(true)}
@@ -3021,6 +3022,7 @@ function Topbar({
   themeMode,
   onLogout,
   onNavigate,
+  onOpenProfile,
   onRegisterPush,
   onThemeChange,
   onMenuClick,
@@ -3033,6 +3035,7 @@ function Topbar({
   themeMode: ThemeMode;
   onLogout: () => void;
   onNavigate: (view: ActiveView) => void;
+  onOpenProfile: () => void;
   onRegisterPush: () => void;
   onThemeChange: (mode: ThemeMode) => void;
   onMenuClick: () => void;
@@ -3042,6 +3045,11 @@ function Topbar({
 
   const goSettings = () => {
     onNavigate('settings');
+    setAccountOpen(false);
+  };
+
+  const openProfile = () => {
+    onOpenProfile();
     setAccountOpen(false);
   };
 
@@ -3084,7 +3092,7 @@ function Topbar({
           </button>
           {accountOpen ? (
             <div className="account-popover">
-              <button onClick={goSettings} type="button">
+              <button onClick={openProfile} type="button">
                 내 정보 수정
               </button>
               <button onClick={goSettings} type="button">
