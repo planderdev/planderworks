@@ -975,7 +975,7 @@ function App() {
     const nextClients: Client[] = ((clientsResult.data || []) as any[]).map((client) => ({
       id: client.id,
       name: client.name,
-      manager: nextEmployees.find((employee) => employee.id === client.created_by)?.name || '미지정',
+      manager: client.contact_name || nextEmployees.find((employee) => employee.id === client.created_by)?.name || '미지정',
       phone: client.phone || '',
       region: client.region || '',
       memo: client.memo || '',
@@ -2387,7 +2387,7 @@ function App() {
             tasks={tasks}
           />
         ) : null}
-        {activeView === 'clients' ? <ClientsPage clients={clients} onAddClient={addClient} onDeleteClient={deleteClient} onUpdateClient={updateClient} /> : null}
+        {activeView === 'clients' ? <ClientsPage clients={clients} employees={employees} onAddClient={addClient} onDeleteClient={deleteClient} onUpdateClient={updateClient} /> : null}
         {activeView === 'employees' && isAdmin ? (
           <EmployeesPage
             employees={employees}
@@ -3577,14 +3577,24 @@ function ProjectPage({
   const [messageStatus, setMessageStatus] = useState('');
   const [messageLoading, setMessageLoading] = useState(false);
 
-  const submitMessage = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const sendMessage = async () => {
     if (!project || messageLoading) return;
     setMessageLoading(true);
     const result = await onAddMessage(project.id, message);
     setMessageLoading(false);
     setMessageStatus(result);
     if (!result.includes('실패') && !result.includes('입력')) setMessage('');
+  };
+
+  const submitMessage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await sendMessage();
+  };
+
+  const handleMessageKeyDown = async (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    await sendMessage();
   };
 
   return (
@@ -3638,7 +3648,13 @@ function ProjectPage({
               )}
             </div>
             <form className="project-chat-form" onSubmit={submitMessage}>
-              <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="프로젝트 대화를 입력하세요" rows={3} />
+              <textarea
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                onKeyDown={handleMessageKeyDown}
+                placeholder="프로젝트 대화를 입력하세요"
+                rows={3}
+              />
               {messageStatus ? <p className="admin-note">{messageStatus}</p> : null}
               <button className="primary-action wide" disabled={messageLoading} type="submit">
                 {messageLoading ? '진행중...' : '메시지 등록'}
@@ -3969,38 +3985,50 @@ function CalendarPage({
 
 function ClientsPage({
   clients,
+  employees,
   onAddClient,
   onDeleteClient,
   onUpdateClient,
 }: {
   clients: Client[];
+  employees: Employee[];
   onAddClient: ClientSubmitHandler;
   onDeleteClient: ClientDeleteHandler;
   onUpdateClient: ClientUpdateHandler;
 }) {
   const [regions, setRegions] = useState(['서울', '경기', '제주', '부산', '대구', '평택']);
   const [newRegion, setNewRegion] = useState('');
-  const [form, setForm] = useState({ name: '', manager: '인성이형', phone: '', region: regions[0], memo: '' });
+  const defaultManager = employees[0]?.name || '';
+  const [form, setForm] = useState({ name: '', manager: defaultManager, phone: '', region: regions[0], memo: '' });
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [editForm, setEditForm] = useState<Omit<Client, 'id'>>({ name: '', manager: '', phone: '', region: regions[0], memo: '' });
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState('');
 
+  useEffect(() => {
+    if (!employees.length) return;
+    setForm((current) => (employees.some((employee) => employee.name === current.manager) ? current : { ...current, manager: employees[0].name }));
+    setEditForm((current) => {
+      if (!current.manager || employees.some((employee) => employee.name === current.manager)) return current;
+      return { ...current, manager: employees[0].name };
+    });
+  }, [employees]);
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!form.name.trim() || loading) return;
+    if (!form.name.trim() || !form.manager || loading) return;
     setLoading(true);
     const message = await onAddClient(form);
     setLoading(false);
     showActionPopup(message);
-    if (!message.includes('실패')) setForm({ name: '', manager: '인성이형', phone: '', region: regions[0] || '', memo: '' });
+    if (!message.includes('실패')) setForm({ name: '', manager: employees[0]?.name || '', phone: '', region: regions[0] || '', memo: '' });
   };
 
   const openEdit = (client: Client) => {
     setEditingClient(client);
     setEditForm({
       name: client.name,
-      manager: client.manager,
+      manager: employees.some((employee) => employee.name === client.manager) ? client.manager : employees[0]?.name || client.manager,
       phone: formatMobilePhone(client.phone),
       region: client.region || regions[0] || '',
       memo: client.memo,
@@ -4010,6 +4038,7 @@ function ClientsPage({
   const saveEdit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editingClient || actionLoading) return;
+    if (!editForm.name.trim() || !editForm.manager) return;
     if (!(await requestActionConfirm('업체 정보를 저장하시겠습니까?'))) return;
     setActionLoading('save');
     const message = await onUpdateClient(editingClient.id, editForm);
@@ -4086,7 +4115,13 @@ function ClientsPage({
           </label>
           <label>
             담당자
-            <input value={form.manager} onChange={(event) => setForm({ ...form, manager: event.target.value })} />
+            <select value={form.manager} onChange={(event) => setForm({ ...form, manager: event.target.value })}>
+              {employees.length ? (
+                employees.map((employee) => <option key={employee.id} value={employee.name}>{employee.name}</option>)
+              ) : (
+                <option value="">직원 없음</option>
+              )}
+            </select>
           </label>
           <label>
             전화번호
@@ -4137,7 +4172,13 @@ function ClientsPage({
             </label>
             <label>
               담당자
-              <input value={editForm.manager} onChange={(event) => setEditForm({ ...editForm, manager: event.target.value })} />
+              <select value={editForm.manager} onChange={(event) => setEditForm({ ...editForm, manager: event.target.value })}>
+                {employees.length ? (
+                  employees.map((employee) => <option key={employee.id} value={employee.name}>{employee.name}</option>)
+                ) : (
+                  <option value="">직원 없음</option>
+                )}
+              </select>
             </label>
             <label>
               전화번호
