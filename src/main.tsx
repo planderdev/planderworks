@@ -3159,7 +3159,12 @@ function TaskEditModal({
   });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
-  const visibleProjects = projects.filter((project) => !form.clientId || project.clientId === form.clientId);
+  const sortedProjects = [...projects].sort((a, b) => {
+    const aMatchesClient = a.clientId === form.clientId ? 0 : 1;
+    const bMatchesClient = b.clientId === form.clientId ? 0 : 1;
+    if (aMatchesClient !== bMatchesClient) return aMatchesClient - bMatchesClient;
+    return a.name.localeCompare(b.name, 'ko-KR');
+  });
 
   useEffect(() => {
     const nextAssigneeId = task.assigneeId || employees.find((employee) => employee.name === task.to)?.id || employees[0]?.id || '';
@@ -3178,14 +3183,7 @@ function TaskEditModal({
   }, [clients, employees, task]);
 
   const changeClient = (clientId: string) => {
-    setForm((current) => {
-      const projectStillValid = projects.some((project) => project.id === current.projectId && project.clientId === clientId);
-      return {
-        ...current,
-        clientId,
-        projectId: projectStillValid ? current.projectId : '',
-      };
-    });
+    setForm((current) => ({ ...current, clientId }));
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -3241,7 +3239,11 @@ function TaskEditModal({
             프로젝트
             <select value={form.projectId || ''} onChange={(event) => setForm({ ...form, projectId: event.target.value || null })}>
               <option value="">미지정</option>
-              {visibleProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+              {sortedProjects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.clientId === form.clientId ? project.name : `${project.name} · ${project.client}`}
+                </option>
+              ))}
             </select>
           </label>
           <label>
