@@ -342,6 +342,70 @@ button:disabled {
   color: #b8bec8;
 }
 
+.sidebar-projects {
+  display: grid;
+  gap: 7px;
+}
+
+.project-toggle svg:last-child {
+  transition: transform 0.18s ease;
+}
+
+.project-toggle svg:last-child[data-open='true'] {
+  transform: rotate(180deg);
+}
+
+.project-nav-list {
+  display: grid;
+  gap: 5px;
+  margin-left: 32px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.project-nav-button {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #d7dae0;
+  background: transparent;
+  text-align: left;
+}
+
+.project-nav-button:hover,
+.project-nav-button[data-active='true'] {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.project-nav-button span,
+.project-nav-button small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-nav-button span {
+  color: #eef1f5;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.project-nav-button small,
+.project-nav-empty {
+  color: #818895;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.project-nav-empty {
+  margin: 4px 0 2px;
+}
+
 .profile-card {
   min-height: 70px;
   display: grid;

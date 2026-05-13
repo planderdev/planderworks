@@ -12,8 +12,8 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleUserRound,
-  ClipboardList,
   FileText,
+  FolderKanban,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -42,6 +42,7 @@ type ActiveView =
   | 'allTasks'
   | 'inbox'
   | 'sent'
+  | 'project'
   | 'create'
   | 'reports'
   | 'clients'
@@ -53,7 +54,7 @@ type TaskListFilter = '전체' | TaskStatus;
 type Priority = '높음' | '보통' | '낮음';
 type TaskType = string;
 
-const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'create', 'reports', 'clients', 'employees', 'operations', 'settings'];
+const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'project', 'create', 'reports', 'clients', 'employees', 'operations', 'settings'];
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 const MAX_TASK_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_FILE_SIZE_LABEL = '10MB';
@@ -75,6 +76,8 @@ type Task = {
   creatorId?: string;
   assigneeId?: string;
   clientId?: string;
+  projectId?: string | null;
+  projectName?: string;
   client: string;
   dueAt?: string | null;
   startedAt?: string | null;
@@ -115,6 +118,14 @@ type Client = {
   phone: string;
   region: string;
   memo: string;
+};
+
+type Project = {
+  id: string;
+  name: string;
+  clientId?: string | null;
+  client: string;
+  status: string;
 };
 
 type Employee = {
@@ -210,8 +221,6 @@ function resolveActionConfirm(id: number, confirmed: boolean) {
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'create', label: '업무 생성', icon: Plus },
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
-  { id: 'inbox', label: '받은 업무', icon: ClipboardList },
-  { id: 'sent', label: '보낸 업무', icon: MessageSquareText },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
   { id: 'operations', label: '정산/만료관리', icon: ShieldCheck },
@@ -689,6 +698,7 @@ function App() {
   const [viewHistory, setViewHistory] = useState<ActiveView[]>([]);
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
   const [clients, setClients] = useState<Client[]>(seedClients);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
   const [jobTypes, setJobTypes] = useState(seedJobTypes);
@@ -702,6 +712,7 @@ function App() {
   const [forwardHistory, setForwardHistory] = useState<ActiveView[]>([]);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [taskListFilters, setTaskListFilters] = useState<Partial<Record<ActiveView, TaskListFilter>>>({});
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
@@ -779,7 +790,7 @@ function App() {
 
     setBackendStatus('Supabase 동기화중');
 
-    const [profilesResult, jobTypesResult, taskTypesResult, clientsResult, tasksResult, commentsResult] = await Promise.all([
+    const [profilesResult, jobTypesResult, taskTypesResult, clientsResult, projectsResult, tasksResult, commentsResult] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, email, name, phone, role, job_types(name)')
@@ -799,6 +810,10 @@ function App() {
         .select('id, name, contact_name, phone, region, memo, created_by')
         .order('created_at', { ascending: false }),
       supabase
+        .from('projects')
+        .select('id, name, status, client_id, client:clients(name)')
+        .order('created_at', { ascending: false }),
+      supabase
         .from('tasks')
         .select(`
           id,
@@ -814,9 +829,11 @@ function App() {
           creator_id,
           assignee_id,
           client_id,
+          project_id,
           creator:profiles!tasks_creator_id_fkey(name),
           assignee:profiles!tasks_assignee_id_fkey(name),
           client:clients(name),
+          project:projects(name),
           task_watchers(user:profiles(name)),
           task_files(id, file_name, file_path, file_size, mime_type)
         `)
@@ -827,7 +844,7 @@ function App() {
         .order('created_at', { ascending: true }),
     ]);
 
-    if (profilesResult.error || jobTypesResult.error || taskTypesResult.error || clientsResult.error || tasksResult.error || commentsResult.error) {
+    if (profilesResult.error || jobTypesResult.error || taskTypesResult.error || clientsResult.error || projectsResult.error || tasksResult.error || commentsResult.error) {
       setBackendStatus('Supabase 테이블 준비 필요');
       return;
     }
@@ -857,6 +874,8 @@ function App() {
       creatorId: task.creator_id,
       assigneeId: task.assignee_id,
       clientId: task.client_id,
+      projectId: task.project_id,
+      projectName: task.project?.name || '',
       client: task.client?.name || '내부',
       dueAt: task.due_at,
       startedAt: task.started_at,
@@ -919,12 +938,21 @@ function App() {
       memo: client.memo || '',
     }));
 
+    const nextProjects: Project[] = ((projectsResult.data || []) as any[]).map((project) => ({
+      id: project.id,
+      name: project.name,
+      clientId: project.client_id,
+      client: project.client?.name || '업체 미지정',
+      status: project.status || 'active',
+    }));
+
     const nextJobTypes = (jobTypesResult.data || []).map((jobType) => jobType.name);
     const nextTaskTypes = (taskTypesResult.data || []).map((taskType) => taskType.name);
 
     setTasks(nextTasks);
     setEmployees(nextEmployees.length ? nextEmployees : seedEmployees);
     setClients(nextClients);
+    setProjects(nextProjects);
     setJobTypes(nextJobTypes.length ? nextJobTypes : seedJobTypes);
     setTaskTypes(nextTaskTypes.length ? nextTaskTypes : fallbackTaskTypes);
     setBackendStatus('Supabase 연결됨');
@@ -950,6 +978,8 @@ function App() {
     const channel = supabase
       .channel(`planderworks-tasks-${currentUser.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, queueRefresh)
       .subscribe();
 
     return () => {
@@ -1098,6 +1128,16 @@ function App() {
     [visibleTasks],
   );
 
+  const selectedProject = useMemo(
+    () => projects.find((project) => project.id === selectedProjectId) || null,
+    [projects, selectedProjectId],
+  );
+
+  const selectedProjectTasks = useMemo(
+    () => (selectedProject ? visibleTasks.filter((task) => task.projectId === selectedProject.id) : []),
+    [selectedProject, visibleTasks],
+  );
+
   const selectedTask = useMemo(
     () => visibleTasks.find((task) => task.id === selectedTaskId) || null,
     [selectedTaskId, visibleTasks],
@@ -1146,12 +1186,24 @@ function App() {
     if (!filter && (view === 'inbox' || view === 'sent' || view === 'allTasks')) {
       setTaskListFilters((current) => ({ ...current, [view]: '전체' }));
     }
+    if (view !== 'project') setSelectedProjectId(null);
     if (view === activeView) return;
     setViewHistory((history) => [...history, activeView].slice(-12));
     setForwardHistory([]);
     setActiveView(view);
     if (appHistoryReady.current) {
       window.history.pushState({ plander: true, view, filter }, '', getAppHistoryUrl(view));
+    }
+  };
+
+  const openProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setViewHistory((history) => [...history, activeView].slice(-12));
+    setForwardHistory([]);
+    setSelectedTaskId(null);
+    setActiveView('project');
+    if (appHistoryReady.current) {
+      window.history.pushState({ plander: true, view: 'project' }, '', getAppHistoryUrl('project'));
     }
   };
 
@@ -1304,6 +1356,7 @@ function App() {
         creator_id: currentUser.id,
         assignee_id: assignee.id,
         client_id: clientId,
+        project_id: task.projectId && isUuid(task.projectId) ? task.projectId : null,
         due_at: parseDueDate(task.due),
       }));
 
@@ -1986,6 +2039,7 @@ function App() {
     <div className="app">
       <Sidebar
         activeView={activeView}
+        activeProjectId={selectedProjectId}
         currentUser={currentUser}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -2000,7 +2054,12 @@ function App() {
           navigateTo(view);
           setSidebarOpen(false);
         }}
+        onOpenProject={(projectId) => {
+          openProject(projectId);
+          setSidebarOpen(false);
+        }}
         badges={navBadges}
+        projects={projects}
         showAdmin={isAdmin}
       />
       <div className="mobile-overlay" data-open={sidebarOpen} onClick={() => setSidebarOpen(false)} />
@@ -2055,6 +2114,16 @@ function App() {
         ) : null}
         {activeView === 'allTasks' ? (
           <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+        ) : null}
+        {activeView === 'project' ? (
+          <ProjectPage
+            currentUser={currentUser}
+            project={selectedProject}
+            tasks={selectedProjectTasks}
+            onDeleteTask={deleteTask}
+            onOpenTask={(task) => setSelectedTaskId(task.id)}
+            onUpdateTaskStatus={updateTaskStatus}
+          />
         ) : null}
         {activeView === 'calendar' ? (
           <CalendarPage
@@ -2224,28 +2293,35 @@ function LoginScreen({
 
 function Sidebar({
   activeView,
+  activeProjectId,
   badges,
   currentUser,
   open,
   onClose,
   onLogout,
   onNavigate,
+  onOpenProject,
   onOpenProfile,
+  projects,
   showAdmin,
   unreadBadges,
 }: {
   activeView: ActiveView;
+  activeProjectId: string | null;
   badges: Partial<Record<ActiveView, number>>;
   currentUser: AppUser;
   open: boolean;
   onClose: () => void;
   onLogout: () => void;
   onNavigate: (view: ActiveView) => void;
+  onOpenProject: (projectId: string) => void;
   onOpenProfile: () => void;
+  projects: Project[];
   showAdmin: boolean;
   unreadBadges: Partial<Record<ActiveView, number>>;
 }) {
   const [adminOpen, setAdminOpen] = useState(false);
+  const [projectsOpen, setProjectsOpen] = useState(true);
 
   return (
     <aside className="sidebar" data-open={open}>
@@ -2265,6 +2341,7 @@ function Sidebar({
           const badge = badges[item.id] || 0;
           const unreadBadge = unreadBadges[item.id] || 0;
           return (
+            <React.Fragment key={item.id}>
             <button className="nav-button" data-active={activeView === item.id} data-featured={item.id === 'create'} key={item.id} onClick={() => onNavigate(item.id)}>
               <Icon size={18} />
               <span>{item.label}</span>
@@ -2273,6 +2350,30 @@ function Sidebar({
                 {badge > 0 ? <small>{badge}</small> : null}
               </span>
             </button>
+            {item.id === 'dashboard' ? (
+              <div className="sidebar-projects">
+                <button className="nav-button project-toggle" data-active={activeView === 'project'} onClick={() => setProjectsOpen((open) => !open)} type="button">
+                  <FolderKanban size={18} />
+                  <span>프로젝트</span>
+                  <ChevronDown size={16} data-open={projectsOpen} />
+                </button>
+                {projectsOpen ? (
+                  <div className="project-nav-list">
+                    {projects.length ? (
+                      projects.map((project) => (
+                        <button className="project-nav-button" data-active={activeProjectId === project.id} key={project.id} onClick={() => onOpenProject(project.id)} type="button">
+                          <span>{project.name}</span>
+                          <small>{project.client}</small>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="project-nav-empty">등록된 프로젝트가 없습니다.</p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+            </React.Fragment>
           );
         })}
       </nav>
@@ -2670,6 +2771,7 @@ function TaskDetailModal({
             <strong className="read-badge" data-read={getTaskReadLabel(task)}>{getTaskReadLabel(task)}</strong>
           </span>
           <span>관련 업체: {task.client}</span>
+          <span>프로젝트: {task.projectName || '미지정'}</span>
           <span>마감기한: {task.due}</span>
           <span>상태: {task.status}</span>
         </div>
@@ -2910,6 +3012,52 @@ function TaskListPage({
             ))
           ) : (
             <EmptyState text="조건에 맞는 업무가 없습니다." />
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ProjectPage({
+  currentUser,
+  project,
+  tasks,
+  onDeleteTask,
+  onOpenTask,
+  onUpdateTaskStatus,
+}: {
+  currentUser: AppUser;
+  project: Project | null;
+  tasks: Task[];
+  onDeleteTask: TaskDeleteHandler;
+  onOpenTask: (task: Task) => void;
+  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
+}) {
+  const activeTasks = tasks.filter((task) => task.status !== '완료');
+
+  return (
+    <section className="page-shell">
+      <div className="page-head project-page-head">
+        <div>
+          <p className="eyebrow">Project</p>
+          <h1>{project?.name || '프로젝트'}</h1>
+          {project ? <p>{project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건</p> : null}
+        </div>
+      </div>
+
+      <div className="task-board list-surface">
+        <div className="task-list">
+          {project ? (
+            tasks.length ? (
+              tasks.map((task) => (
+                <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
+              ))
+            ) : (
+              <EmptyState text="이 프로젝트에 연결된 업무가 없습니다." />
+            )
+          ) : (
+            <EmptyState text="프로젝트를 선택해주세요." />
           )}
         </div>
       </div>
