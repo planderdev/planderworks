@@ -25,6 +25,7 @@ import {
   Plus,
   Reply,
   Search,
+  SendHorizontal,
   Settings,
   ShieldCheck,
   Sun,
@@ -3576,14 +3577,19 @@ function ProjectPage({
   const [message, setMessage] = useState('');
   const [messageStatus, setMessageStatus] = useState('');
   const [messageLoading, setMessageLoading] = useState(false);
+  const messageRows = Math.min(5, Math.max(1, message.split('\n').length));
 
   const sendMessage = async () => {
     if (!project || messageLoading) return;
     setMessageLoading(true);
     const result = await onAddMessage(project.id, message);
     setMessageLoading(false);
-    setMessageStatus(result);
-    if (!result.includes('실패') && !result.includes('입력')) setMessage('');
+    if (result.includes('실패') || result.includes('입력')) {
+      setMessageStatus(result);
+      return;
+    }
+    setMessageStatus('');
+    setMessage('');
   };
 
   const submitMessage = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -3653,11 +3659,11 @@ function ProjectPage({
                 onChange={(event) => setMessage(event.target.value)}
                 onKeyDown={handleMessageKeyDown}
                 placeholder="프로젝트 대화를 입력하세요"
-                rows={3}
+                rows={messageRows}
               />
               {messageStatus ? <p className="admin-note">{messageStatus}</p> : null}
-              <button className="primary-action wide" disabled={messageLoading} type="submit">
-                {messageLoading ? '진행중...' : '메시지 등록'}
+              <button className="project-chat-send-button" aria-label="대화 전송" disabled={messageLoading} type="submit">
+                <SendHorizontal size={18} />
               </button>
             </form>
           </aside>

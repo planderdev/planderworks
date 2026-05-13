@@ -2747,11 +2747,39 @@ h1 {
 .project-chat-form {
   min-width: 0;
   display: grid;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) 40px;
+  align-items: end;
+  gap: 8px;
 }
 
 .project-chat-form textarea {
   width: 100%;
+  min-height: 40px;
+  max-height: 150px;
+  resize: none;
+  overflow-y: auto;
+  line-height: 1.45;
+  padding: 10px 12px;
+}
+
+.project-chat-form .admin-note {
+  grid-column: 1 / -1;
+}
+
+.project-chat-send-button {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: #050506;
+  background: var(--silver);
+}
+
+.project-chat-send-button:disabled {
+  opacity: 0.55;
+  cursor: progress;
 }
 
 .compact-list {
