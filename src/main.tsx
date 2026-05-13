@@ -2480,6 +2480,7 @@ function App() {
           pushEnabled={pushEnabled}
           pushLoading={pushLoading}
           pushStatus={pushStatus}
+          showSearch={activeView === 'dashboard'}
           themeMode={themeMode}
           onLogout={handleLogout}
           onNavigate={navigateTo}
@@ -3016,6 +3017,7 @@ function Topbar({
   pushEnabled,
   pushLoading,
   pushStatus,
+  showSearch,
   themeMode,
   onLogout,
   onNavigate,
@@ -3027,6 +3029,7 @@ function Topbar({
   pushEnabled: boolean;
   pushLoading: boolean;
   pushStatus: string;
+  showSearch: boolean;
   themeMode: ThemeMode;
   onLogout: () => void;
   onNavigate: (view: ActiveView) => void;
@@ -3053,10 +3056,12 @@ function Topbar({
         <Menu size={21} />
       </button>
 
-      <label className="search-box">
-        <Search size={18} />
-        <input placeholder="업무, 업체, 담당자 검색" />
-      </label>
+      {showSearch ? (
+        <label className="search-box">
+          <Search size={18} />
+          <input placeholder="업무, 업체, 담당자 검색" />
+        </label>
+      ) : null}
 
       <div className="top-actions">
         <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
