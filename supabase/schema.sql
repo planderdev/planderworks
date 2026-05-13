@@ -63,6 +63,16 @@ create table if not exists public.projects (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.project_members (
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (project_id, user_id)
+);
+
+create index if not exists project_members_user_id_idx
+on public.project_members(user_id);
+
 create table if not exists public.project_messages (
   id uuid primary key default gen_random_uuid(),
   project_id uuid not null references public.projects(id) on delete cascade,
@@ -301,6 +311,7 @@ alter table public.task_types enable row level security;
 alter table public.profiles enable row level security;
 alter table public.clients enable row level security;
 alter table public.projects enable row level security;
+alter table public.project_members enable row level security;
 alter table public.project_messages enable row level security;
 alter table public.tasks enable row level security;
 alter table public.task_watchers enable row level security;
@@ -391,6 +402,42 @@ create policy "users create projects"
 on public.projects for insert
 to authenticated
 with check (created_by = auth.uid());
+
+drop policy if exists "users update own projects" on public.projects;
+create policy "users update own projects"
+on public.projects for update
+to authenticated
+using (created_by = auth.uid() or public.current_user_role() = 'admin')
+with check (created_by = auth.uid() or public.current_user_role() = 'admin');
+
+drop policy if exists "project members are readable" on public.project_members;
+create policy "project members are readable"
+on public.project_members for select
+to authenticated
+using (true);
+
+drop policy if exists "users manage project members" on public.project_members;
+create policy "users manage project members"
+on public.project_members for all
+to authenticated
+using (
+  public.current_user_role() = 'admin'
+  or exists (
+    select 1
+    from public.projects
+    where projects.id = project_members.project_id
+      and projects.created_by = auth.uid()
+  )
+)
+with check (
+  public.current_user_role() = 'admin'
+  or exists (
+    select 1
+    from public.projects
+    where projects.id = project_members.project_id
+      and projects.created_by = auth.uid()
+  )
+);
 
 drop policy if exists "project messages are readable" on public.project_messages;
 create policy "project messages are readable"

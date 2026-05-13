@@ -129,6 +129,9 @@ type Project = {
   clientId?: string | null;
   client: string;
   status: string;
+  createdBy?: string | null;
+  memberIds: string[];
+  memberNames: string[];
 };
 
 type ProjectMessage = {
@@ -214,7 +217,9 @@ type MessageHandler = (message: string) => void;
 type ClientSubmitHandler = (client: Omit<Client, 'id'>) => Promise<string>;
 type ClientUpdateHandler = (clientId: string, client: Omit<Client, 'id'>) => Promise<string>;
 type ClientDeleteHandler = (client: Client) => Promise<string>;
-type ProjectSubmitHandler = (project: { name: string; clientId: string }) => Promise<string>;
+type ProjectDraft = { name: string; clientId: string; memberIds: string[] };
+type ProjectSubmitHandler = (project: ProjectDraft) => Promise<string>;
+type ProjectUpdateHandler = (projectId: string, project: ProjectDraft) => Promise<string>;
 type JobTypeSubmitHandler = (name: string) => Promise<string>;
 type JobTypeDeleteHandler = (name: string) => Promise<string>;
 type TaskTypeSubmitHandler = (name: string) => Promise<string>;
@@ -245,11 +250,11 @@ function resolveActionConfirm(id: number, confirmed: boolean) {
 
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
+  { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
-  { id: 'operations', label: '정산/만료관리', icon: ShieldCheck },
+  { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
   { id: 'calendar', label: '캘린더', icon: CalendarClock },
-  { id: 'clients', label: '업체', icon: Building2 },
 ];
 
 const adminNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
@@ -743,6 +748,7 @@ function App() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectCreateOpen, setProjectCreateOpen] = useState(false);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [taskListFilters, setTaskListFilters] = useState<Partial<Record<ActiveView, TaskListFilter>>>({});
@@ -821,7 +827,7 @@ function App() {
 
     setBackendStatus('Supabase 동기화중');
 
-    const [profilesResult, jobTypesResult, taskTypesResult, clientsResult, projectsResult, projectMessagesResult, tasksResult, commentsResult] = await Promise.all([
+    const [profilesResult, jobTypesResult, taskTypesResult, clientsResult, projectsResult, projectMembersResult, projectMessagesResult, tasksResult, commentsResult] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, email, name, phone, role, job_types(name)')
@@ -842,8 +848,12 @@ function App() {
         .order('created_at', { ascending: false }),
       supabase
         .from('projects')
-        .select('id, name, status, client_id, client:clients(name)')
+        .select('id, name, status, client_id, created_by, client:clients(name)')
         .order('created_at', { ascending: false }),
+      supabase
+        .from('project_members')
+        .select('project_id, user_id, user:profiles!project_members_user_id_fkey(name)')
+        .order('created_at', { ascending: true }),
       supabase
         .from('project_messages')
         .select('id, project_id, user_id, content, created_at, user:profiles!project_messages_user_id_fkey(name)')
@@ -879,7 +889,7 @@ function App() {
         .order('created_at', { ascending: true }),
     ]);
 
-    if (profilesResult.error || jobTypesResult.error || taskTypesResult.error || clientsResult.error || projectsResult.error || projectMessagesResult.error || tasksResult.error || commentsResult.error) {
+    if (profilesResult.error || jobTypesResult.error || taskTypesResult.error || clientsResult.error || projectsResult.error || projectMembersResult.error || projectMessagesResult.error || tasksResult.error || commentsResult.error) {
       setBackendStatus('Supabase 테이블 준비 필요');
       return;
     }
@@ -982,12 +992,26 @@ function App() {
       memo: client.memo || '',
     }));
 
+    const projectMembersByProject = ((projectMembersResult.data || []) as any[]).reduce<Record<string, { ids: string[]; names: string[] }>>((groups, member) => {
+      const current = groups[member.project_id] || { ids: [], names: [] };
+      return {
+        ...groups,
+        [member.project_id]: {
+          ids: [...current.ids, member.user_id].filter(Boolean),
+          names: [...current.names, member.user?.name].filter(Boolean),
+        },
+      };
+    }, {});
+
     const nextProjects: Project[] = ((projectsResult.data || []) as any[]).map((project) => ({
       id: project.id,
       name: project.name,
       clientId: project.client_id,
       client: project.client?.name || '업체 미지정',
       status: project.status || 'active',
+      createdBy: project.created_by,
+      memberIds: projectMembersByProject[project.id]?.ids || [],
+      memberNames: projectMembersByProject[project.id]?.names || [],
     }));
     const nextProjectMessages: ProjectMessage[] = ((projectMessagesResult.data || []) as any[]).map((message) => ({
       id: message.id,
@@ -1033,6 +1057,7 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_watchers' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_members' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_messages' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, queueRefresh)
       .subscribe();
@@ -1066,9 +1091,15 @@ function App() {
 
   useEffect(() => {
     if (!currentUser) return;
-    const taskId = new URLSearchParams(window.location.search).get('taskId');
+    const params = new URLSearchParams(window.location.search);
+    const taskId = params.get('taskId');
+    const projectId = params.get('projectId');
     if (taskId) setSelectedTaskId(taskId);
-  }, [currentUser?.id, tasks.length]);
+    if (projectId) {
+      setSelectedProjectId(projectId);
+      setActiveView('project');
+    }
+  }, [currentUser?.id, tasks.length, projects.length]);
 
   useEffect(() => {
     const handleActionComplete = (event: Event) => {
@@ -1209,6 +1240,10 @@ function App() {
   const editingTask = useMemo(
     () => visibleTasks.find((task) => task.id === editingTaskId) || null,
     [editingTaskId, visibleTasks],
+  );
+  const editingProject = useMemo(
+    () => projects.find((project) => project.id === editingProjectId) || null,
+    [editingProjectId, projects],
   );
 
   const dueSoonTasks = useMemo(
@@ -1586,9 +1621,12 @@ function App() {
   const createProject: ProjectSubmitHandler = async (project) => {
     const name = project.name.trim();
     const client = clients.find((item) => item.id === project.clientId);
+    const memberIds = Array.from(new Set([...(project.memberIds || []), currentUser?.id].filter((id): id is string => Boolean(id))));
+    const memberNames = memberIds.map((id) => employees.find((employee) => employee.id === id)?.name).filter((name): name is string => Boolean(name));
 
     if (!name) return '프로젝트명을 입력해주세요.';
     if (!client) return '연결할 업체를 선택해주세요.';
+    if (!memberIds.length) return '참여 직원을 선택해주세요.';
 
     if (!supabase || !currentUser || currentUser.isPrototype || !isUuid(client.id)) {
       const nextProject: Project = {
@@ -1597,6 +1635,9 @@ function App() {
         clientId: client.id,
         client: client.name,
         status: 'active',
+        createdBy: currentUser?.id || null,
+        memberIds,
+        memberNames,
       };
       setProjects((current) => [nextProject, ...current]);
       setSelectedProjectId(nextProject.id);
@@ -1621,12 +1662,30 @@ function App() {
       return message;
     }
 
+    const projectMemberRows = memberIds.filter(isUuid).map((userId) => ({
+      project_id: data.id,
+      user_id: userId,
+    }));
+
+    if (projectMemberRows.length) {
+      const { error: memberError } = await supabase.from('project_members').insert(projectMemberRows);
+
+      if (memberError) {
+        const message = `프로젝트 참여자 저장 실패: ${memberError.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+    }
+
     const nextProject: Project = {
       id: data.id,
       name: data.name,
       clientId: data.client_id,
       client: (data as any).client?.name || client.name,
       status: data.status || 'active',
+      createdBy: data.created_by || currentUser.id,
+      memberIds,
+      memberNames,
     };
 
     setProjects((current) => [nextProject, ...current.filter((item) => item.id !== nextProject.id)]);
@@ -1636,21 +1695,98 @@ function App() {
     return '프로젝트가 생성되었습니다.';
   };
 
+  const updateProject: ProjectUpdateHandler = async (projectId, project) => {
+    const name = project.name.trim();
+    const client = clients.find((item) => item.id === project.clientId);
+    const existingProject = projects.find((item) => item.id === projectId);
+    const memberIds = Array.from(new Set([...(project.memberIds || []), currentUser?.id].filter((id): id is string => Boolean(id))));
+    const memberNames = memberIds.map((id) => employees.find((employee) => employee.id === id)?.name).filter((item): item is string => Boolean(item));
+
+    if (!existingProject) return '수정할 프로젝트를 찾을 수 없습니다.';
+    if (!name) return '프로젝트명을 입력해주세요.';
+    if (!client) return '연결할 업체를 선택해주세요.';
+    if (!memberIds.length) return '참여 직원을 선택해주세요.';
+
+    if (!supabase || !currentUser || currentUser.isPrototype || !isUuid(projectId) || !isUuid(client.id)) {
+      const nextProject: Project = {
+        ...existingProject,
+        name,
+        clientId: client.id,
+        client: client.name,
+        memberIds,
+        memberNames,
+      };
+      setProjects((current) => current.map((item) => (item.id === projectId ? nextProject : item)));
+      return '프로젝트가 수정되었습니다.';
+    }
+
+    const { error } = await supabase
+      .from('projects')
+      .update({
+        name,
+        client_id: client.id,
+      })
+      .eq('id', projectId);
+
+    if (error) {
+      const message = `프로젝트 수정 실패: ${error.message}`;
+      setBackendStatus(message);
+      return message;
+    }
+
+    const { error: deleteError } = await supabase.from('project_members').delete().eq('project_id', projectId);
+
+    if (deleteError) {
+      const message = `프로젝트 참여자 갱신 실패: ${deleteError.message}`;
+      setBackendStatus(message);
+      return message;
+    }
+
+    const memberRows = memberIds.filter(isUuid).map((userId) => ({
+      project_id: projectId,
+      user_id: userId,
+    }));
+
+    if (memberRows.length) {
+      const { error: memberError } = await supabase.from('project_members').insert(memberRows);
+
+      if (memberError) {
+        const message = `프로젝트 참여자 저장 실패: ${memberError.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+    }
+
+    await loadBackendData();
+    setBackendStatus('프로젝트가 수정되었습니다.');
+    return '프로젝트가 수정되었습니다.';
+  };
+
   const addProjectMessage = async (projectId: string, content: string): Promise<string> => {
     const nextContent = content.trim();
     if (!nextContent) return '메시지를 입력해주세요.';
 
     if (supabase && currentUser && !currentUser.isPrototype) {
-      const { error } = await supabase.from('project_messages').insert({
-        project_id: projectId,
-        user_id: currentUser.id,
-        content: nextContent,
-      });
+      const { data, error } = await supabase
+        .from('project_messages')
+        .insert({
+          project_id: projectId,
+          user_id: currentUser.id,
+          content: nextContent,
+        })
+        .select('id')
+        .single();
 
       if (error) {
         const message = `메시지 저장 실패: ${error.message}`;
         setBackendStatus(message);
         return message;
+      }
+
+      if (data?.id) {
+        await supabase.functions.invoke('send-project-message-notification', {
+          body: { messageId: data.id },
+        });
       }
 
       await loadBackendData();
@@ -2311,8 +2447,23 @@ function App() {
       {projectCreateOpen ? (
         <ProjectCreateModal
           clients={clients}
+          currentUser={currentUser}
+          employees={employees}
           onClose={() => setProjectCreateOpen(false)}
           onCreateProject={createProject}
+          onUpdateProject={updateProject}
+        />
+      ) : null}
+
+      {editingProject ? (
+        <ProjectCreateModal
+          clients={clients}
+          currentUser={currentUser}
+          employees={employees}
+          onClose={() => setEditingProjectId(null)}
+          onCreateProject={createProject}
+          onUpdateProject={updateProject}
+          project={editingProject}
         />
       ) : null}
 
@@ -2365,7 +2516,7 @@ function App() {
           <ReportsPage tasks={reportTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'allTasks' ? (
-          <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'project' ? (
           <ProjectPage
@@ -2375,6 +2526,7 @@ function App() {
             tasks={selectedProjectTasks}
             onAddMessage={addProjectMessage}
             onDeleteTask={deleteTask}
+            onEditProject={(projectId) => setEditingProjectId(projectId)}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
             onUpdateTaskStatus={updateTaskStatus}
           />
@@ -2570,21 +2722,52 @@ function LoginScreen({
 
 function ProjectCreateModal({
   clients,
+  currentUser,
+  employees,
   onClose,
   onCreateProject,
+  onUpdateProject,
+  project,
 }: {
   clients: Client[];
+  currentUser: AppUser;
+  employees: Employee[];
   onClose: () => void;
   onCreateProject: ProjectSubmitHandler;
+  onUpdateProject?: ProjectUpdateHandler;
+  project?: Project | null;
 }) {
-  const [form, setForm] = useState({ name: '', clientId: clients[0]?.id || '' });
+  const [form, setForm] = useState<ProjectDraft>({
+    name: project?.name || '',
+    clientId: project?.clientId || clients[0]?.id || '',
+    memberIds: project?.memberIds?.length ? project.memberIds : [currentUser.id],
+  });
   const [loading, setLoading] = useState(false);
+  const isEdit = Boolean(project);
 
   useEffect(() => {
     if (!form.clientId && clients[0]?.id) {
       setForm((current) => ({ ...current, clientId: clients[0].id }));
     }
   }, [clients, form.clientId]);
+
+  useEffect(() => {
+    setForm({
+      name: project?.name || '',
+      clientId: project?.clientId || clients[0]?.id || '',
+      memberIds: project?.memberIds?.length ? project.memberIds : [currentUser.id],
+    });
+  }, [clients, currentUser.id, project]);
+
+  const toggleMember = (employeeId: string) => {
+    setForm((current) => {
+      const selected = current.memberIds.includes(employeeId);
+      return {
+        ...current,
+        memberIds: selected ? current.memberIds.filter((id) => id !== employeeId) : [...current.memberIds, employeeId],
+      };
+    });
+  };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2597,10 +2780,14 @@ function ProjectCreateModal({
       showActionPopup('연결할 업체를 선택해주세요.');
       return;
     }
-    if (!(await requestActionConfirm('프로젝트를 생성하시겠습니까?'))) return;
+    if (!form.memberIds.length) {
+      showActionPopup('참여 직원을 선택해주세요.');
+      return;
+    }
+    if (!(await requestActionConfirm(isEdit ? '프로젝트를 수정하시겠습니까?' : '프로젝트를 생성하시겠습니까?'))) return;
 
     setLoading(true);
-    const message = await onCreateProject(form);
+    const message = isEdit && project && onUpdateProject ? await onUpdateProject(project.id, form) : await onCreateProject(form);
     setLoading(false);
     showActionPopup(message);
     if (!message.includes('실패') && !message.includes('선택') && !message.includes('입력')) onClose();
@@ -2611,8 +2798,8 @@ function ProjectCreateModal({
       <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
         <div className="modal-head">
           <div>
-            <p className="eyebrow">New Project</p>
-            <h2>프로젝트 생성</h2>
+            <p className="eyebrow">{isEdit ? 'Edit Project' : 'New Project'}</p>
+            <h2>{isEdit ? '프로젝트 수정' : '프로젝트 생성'}</h2>
           </div>
           <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
             <X size={18} />
@@ -2641,9 +2828,25 @@ function ProjectCreateModal({
             )}
           </select>
         </label>
+        <div className="field-block">
+          <span>참여 직원</span>
+          <div className="multi-picker compact">
+            {employees.map((employee) => (
+              <button
+                className="select-chip"
+                data-selected={form.memberIds.includes(employee.id)}
+                key={employee.id}
+                onClick={() => toggleMember(employee.id)}
+                type="button"
+              >
+                {employee.name}
+              </button>
+            ))}
+          </div>
+        </div>
         <button className="primary-action wide" disabled={loading || !clients.length} type="submit">
           <FolderKanban size={17} />
-          {loading ? '진행중...' : '프로젝트 생성'}
+          {loading ? '진행중...' : isEdit ? '프로젝트 저장' : '프로젝트 생성'}
         </button>
       </form>
     </div>
@@ -2721,7 +2924,7 @@ function Sidebar({
                 {badge > 0 ? <small>{badge}</small> : null}
               </span>
             </button>
-            {item.id === 'dashboard' ? (
+            {item.id === 'clients' ? (
               <div className="sidebar-projects">
                 <button className="nav-button project-toggle" data-active={activeView === 'project'} onClick={() => setProjectsOpen((open) => !open)} type="button">
                   <FolderKanban size={18} />
@@ -3503,6 +3706,7 @@ function TaskListPage({
   title,
   initialStatus,
   tasks,
+  employees = [],
   currentUser,
   onOpenTask,
   onDeleteTask,
@@ -3511,17 +3715,27 @@ function TaskListPage({
   title: string;
   initialStatus: TaskListFilter;
   tasks: Task[];
+  employees?: Employee[];
   currentUser: AppUser;
   onOpenTask: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const [status, setStatus] = useState<TaskListFilter>(initialStatus);
-  const filteredTasks = status === '전체' ? tasks : tasks.filter((task) => task.status === status);
+  const [employeeId, setEmployeeId] = useState('전체');
+  const statusFilteredTasks = status === '전체' ? tasks : tasks.filter((task) => task.status === status);
+  const filteredTasks =
+    !employees.length || employeeId === '전체'
+      ? statusFilteredTasks
+      : statusFilteredTasks.filter((task) => task.creatorId === employeeId || getTaskRecipientIds(task).includes(employeeId));
 
   useEffect(() => {
     setStatus(initialStatus);
   }, [initialStatus]);
+
+  useEffect(() => {
+    if (!employees.length) setEmployeeId('전체');
+  }, [employees.length]);
 
   return (
     <section className="page-shell">
@@ -3531,6 +3745,16 @@ function TaskListPage({
           <h1>{title}</h1>
         </div>
         <div className="filters">
+          {employees.length ? (
+            <select className="task-person-filter" value={employeeId} onChange={(event) => setEmployeeId(event.target.value)} aria-label="직원별 업무 필터">
+              <option value="전체">직원 전체</option>
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
           {(['전체', '대기', '진행중', '완료 요청', '보류', '완료'] as Array<'전체' | TaskStatus>).map((item) => (
             <button data-active={status === item} key={item} onClick={() => setStatus(item)}>
               {item}
@@ -3561,6 +3785,7 @@ function ProjectPage({
   tasks,
   onAddMessage,
   onDeleteTask,
+  onEditProject,
   onOpenTask,
   onUpdateTaskStatus,
 }: {
@@ -3570,6 +3795,7 @@ function ProjectPage({
   tasks: Task[];
   onAddMessage: (projectId: string, content: string) => Promise<string>;
   onDeleteTask: TaskDeleteHandler;
+  onEditProject: (projectId: string) => void;
   onOpenTask: (task: Task) => void;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
@@ -3580,6 +3806,7 @@ function ProjectPage({
   const messageListRef = useRef<HTMLDivElement>(null);
   const messageRows = Math.min(5, Math.max(1, message.split('\n').length));
   const latestMessageId = messages[messages.length - 1]?.id;
+  const canEditProject = Boolean(project && (currentUser.accountRole === 'admin' || project.createdBy === currentUser.id || currentUser.isPrototype));
 
   useEffect(() => {
     const list = messageListRef.current;
@@ -3619,8 +3846,19 @@ function ProjectPage({
         <div>
           <p className="eyebrow">Project</p>
           <h1>{project?.name || '프로젝트'}</h1>
-          {project ? <p>{project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건</p> : null}
+          {project ? (
+            <p>
+              {project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건
+              {project.memberNames.length ? ` · 참여 ${project.memberNames.join(', ')}` : ''}
+            </p>
+          ) : null}
         </div>
+        {project && canEditProject ? (
+          <button className="secondary-action" onClick={() => onEditProject(project.id)} type="button">
+            <Pencil size={16} />
+            프로젝트 수정
+          </button>
+        ) : null}
       </div>
 
       <div className="project-detail-grid">
@@ -3811,7 +4049,7 @@ function CalendarPage({
             start: dueDate,
             end: dueDate,
             days: 1,
-            kind: '정산/만료관리',
+            kind: '구독/정산관리',
             onClick: onOpenOperations,
           }
         : null;
@@ -4867,7 +5105,7 @@ function OperationsPage({
       <div className="page-head">
         <div>
           <p className="eyebrow">Operations</p>
-          <h1>정산/만료관리</h1>
+          <h1>구독/정산관리</h1>
         </div>
         <button className="primary-action" onClick={openCreate} type="button">
           <Plus size={17} />
@@ -4875,7 +5113,7 @@ function OperationsPage({
         </button>
       </div>
 
-      <section className="stats-grid" aria-label="정산/만료관리 요약">
+      <section className="stats-grid" aria-label="구독/정산관리 요약">
         <button className="stat-card" data-tone="red" onClick={() => setFilter('오늘')} type="button">
           <span>오늘 처리</span>
           <strong>{summary.today}</strong>

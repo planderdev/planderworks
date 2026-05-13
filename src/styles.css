@@ -969,6 +969,16 @@ h1 {
   color: var(--muted);
 }
 
+.task-person-filter {
+  min-width: 128px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  color: var(--text);
+  background: var(--panel);
+}
+
 .filters button[data-active='true'] {
   color: var(--text);
   background: var(--panel-2);
@@ -1665,7 +1675,10 @@ h1 {
 
 .month-cell button[data-kind='정산/만료관리'],
 .calendar-task-pill[data-kind='정산/만료관리'],
-.calendar-range-pill[data-kind='정산/만료관리'] {
+.calendar-range-pill[data-kind='정산/만료관리'],
+.month-cell button[data-kind='구독/정산관리'],
+.calendar-task-pill[data-kind='구독/정산관리'],
+.calendar-range-pill[data-kind='구독/정산관리'] {
   box-shadow: inset 3px 0 0 #d69731;
 }
 
@@ -2399,6 +2412,17 @@ h1 {
   width: 100%;
 }
 
+.field-block {
+  display: grid;
+  gap: 8px;
+}
+
+.field-block > span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
 .job-type-list {
   display: grid;
   gap: 10px;
@@ -2706,13 +2730,16 @@ h1 {
 
 .project-message-list {
   max-height: 420px;
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   overflow: auto;
 }
 
 .project-message {
   min-width: 0;
+  width: min(66.666%, 280px);
+  align-self: flex-start;
   display: grid;
   gap: 6px;
   border: 1px solid var(--card-line);
@@ -2722,6 +2749,7 @@ h1 {
 }
 
 .project-message[data-own='true'] {
+  align-self: flex-end;
   background: var(--panel-2);
 }
 
@@ -3052,6 +3080,11 @@ h1 {
   .section-head {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .project-chat-panel .section-head {
+    flex-direction: row;
+    align-items: center;
   }
 }
 
