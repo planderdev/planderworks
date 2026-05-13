@@ -2366,8 +2366,23 @@ h1 {
   gap: 14px;
 }
 
+.modal-head-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .modal-head h2 {
   margin-bottom: 0;
+}
+
+.task-edit-modal {
+  max-width: 720px;
+}
+
+.compact-form-grid {
+  width: 100%;
 }
 
 .job-type-list {

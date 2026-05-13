@@ -21,6 +21,7 @@ import {
   Moon,
   MoreHorizontal,
   Paperclip,
+  Pencil,
   Plus,
   Reply,
   Search,
@@ -159,6 +160,17 @@ type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'comments' 
   files?: File[];
 };
 
+type TaskUpdateDraft = {
+  title: string;
+  summary: string;
+  type: TaskType;
+  assigneeId: string;
+  clientId: string;
+  projectId?: string | null;
+  due: string;
+  priority: Priority;
+};
+
 type OperationCategory = '서버' | '도메인' | 'SaaS' | '정산' | '세금' | '라이선스' | '기타';
 type OperationFrequency = '1회' | '매월' | '분기' | '반기' | '매년';
 type OperationFilter = '전체' | '오늘' | '7일 이내' | '이번달' | '미완료';
@@ -183,6 +195,7 @@ type OperationDraft = Omit<OperationItem, 'id' | 'lastCompletedAt'> & {
 };
 
 type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
+type TaskUpdateHandler = (task: Task, updates: TaskUpdateDraft) => Promise<string>;
 type TaskDeleteHandler = (task: Task) => Promise<string>;
 type TaskCommentSubmitHandler = (task: Task, content: string, parentCommentId?: string | null) => Promise<string>;
 type TaskCommentDeleteHandler = (task: Task, comment: TaskComment) => Promise<string>;
@@ -714,6 +727,7 @@ function App() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectCreateOpen, setProjectCreateOpen] = useState(false);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const [taskListFilters, setTaskListFilters] = useState<Partial<Record<ActiveView, TaskListFilter>>>({});
   const swipeStart = useRef<{ x: number; y: number } | null>(null);
@@ -1142,6 +1156,11 @@ function App() {
   const selectedTask = useMemo(
     () => visibleTasks.find((task) => task.id === selectedTaskId) || null,
     [selectedTaskId, visibleTasks],
+  );
+
+  const editingTask = useMemo(
+    () => visibleTasks.find((task) => task.id === editingTaskId) || null,
+    [editingTaskId, visibleTasks],
   );
 
   const dueSoonTasks = useMemo(
@@ -1822,6 +1841,81 @@ function App() {
     return `업무 상태를 ${status}(으)로 변경했습니다.`;
   };
 
+  const updateTask: TaskUpdateHandler = async (task, updates) => {
+    const canEdit =
+      currentUser?.accountRole === 'admin' ||
+      task.creatorId === currentUser?.id ||
+      (currentUser?.isPrototype && task.from === currentUser.name);
+
+    if (!canEdit) return '업무 수정 권한이 없습니다.';
+
+    const title = updates.title.trim();
+    const summary = updates.summary.trim();
+    const assignee = employees.find((employee) => employee.id === updates.assigneeId);
+    const client = clients.find((item) => item.id === updates.clientId);
+    const project = updates.projectId ? projects.find((item) => item.id === updates.projectId) : null;
+
+    if (!title || !summary || !updates.type || !assignee || !client || !updates.due || !updates.priority) {
+      return '모든 항목을 입력해주세요.';
+    }
+
+    const nextDueAt = parseDueDate(updates.due);
+    if (!nextDueAt) return '마감기한을 선택해주세요.';
+
+    const nextProjectId = project?.id && isUuid(project.id) ? project.id : null;
+    const assigneeChanged = assignee.id !== task.assigneeId;
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          title,
+          description: summary,
+          task_type: updates.type,
+          priority: priorityToDb[updates.priority],
+          assignee_id: assignee.id,
+          client_id: isUuid(client.id) ? client.id : null,
+          project_id: nextProjectId,
+          due_at: nextDueAt,
+          ...(assigneeChanged ? { read_at: null } : {}),
+        })
+        .eq('id', task.id);
+
+      if (error) {
+        const message = `업무 수정 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '업무가 수정되었습니다.';
+    }
+
+    setTasks((current) =>
+      current.map((item) =>
+        item.id === task.id
+          ? {
+              ...item,
+              title,
+              summary,
+              type: updates.type,
+              priority: updates.priority,
+              assigneeId: assignee.id,
+              to: assignee.name,
+              clientId: client.id,
+              client: client.name,
+              projectId: project?.id || null,
+              projectName: project?.name || '',
+              due: formatDueDate(nextDueAt),
+              dueAt: nextDueAt,
+              readAt: assigneeChanged ? null : item.readAt,
+            }
+          : item,
+      ),
+    );
+    return '업무가 수정되었습니다.';
+  };
+
   const markTaskRead = async (task: Task) => {
     if (!currentUser) return;
     const readAt = new Date().toISOString();
@@ -2250,7 +2344,30 @@ function App() {
           onUpdateOwnProfile={updateOwnProfile}
         />
       ) : null}
-      <TaskDetailModal task={selectedTask} currentUser={currentUser} onAddComment={addTaskComment} onClose={() => setSelectedTaskId(null)} onDeleteComment={deleteTaskComment} onDownloadFile={openTaskFile} onMarkRead={markTaskRead} />
+      <TaskDetailModal
+        task={selectedTask}
+        currentUser={currentUser}
+        onAddComment={addTaskComment}
+        onClose={() => setSelectedTaskId(null)}
+        onDeleteComment={deleteTaskComment}
+        onDownloadFile={openTaskFile}
+        onEditTask={(task) => {
+          setSelectedTaskId(null);
+          setEditingTaskId(task.id);
+        }}
+        onMarkRead={markTaskRead}
+      />
+      {editingTask ? (
+        <TaskEditModal
+          clients={clients}
+          employees={employees}
+          projects={projects}
+          task={editingTask}
+          taskTypes={taskTypes}
+          onClose={() => setEditingTaskId(null)}
+          onUpdateTask={updateTask}
+        />
+      ) : null}
       <ConfirmPopup
         request={confirmRequest}
         onResolve={(id, confirmed) => {
@@ -2789,6 +2906,7 @@ function TaskDetailModal({
   onClose,
   onDeleteComment,
   onDownloadFile,
+  onEditTask,
   onMarkRead,
 }: {
   task: Task | null;
@@ -2797,6 +2915,7 @@ function TaskDetailModal({
   onClose: () => void;
   onDeleteComment: TaskCommentDeleteHandler;
   onDownloadFile: (file: TaskFile) => void;
+  onEditTask: (task: Task) => void;
   onMarkRead: (task: Task) => void;
 }) {
   const [comment, setComment] = useState('');
@@ -2831,6 +2950,10 @@ function TaskDetailModal({
 
   const rootComments = task.comments.filter((item) => !item.parentId);
   const getReplies = (commentId: string) => task.comments.filter((item) => item.parentId === commentId);
+  const canEdit =
+    currentUser.accountRole === 'admin' ||
+    task.creatorId === currentUser.id ||
+    (currentUser.isPrototype && task.from === currentUser.name);
 
   const submitComment = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2920,9 +3043,17 @@ function TaskDetailModal({
             <p className="eyebrow">{formatTaskTypeLabel(task.type)}</p>
             <h2>{task.title}</h2>
           </div>
-          <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
-            <X size={18} />
-          </button>
+          <div className="modal-head-actions">
+            {canEdit ? (
+              <button className="secondary-action" onClick={() => onEditTask(task)} type="button">
+                <Pencil size={15} />
+                수정
+              </button>
+            ) : null}
+            <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
+              <X size={18} />
+            </button>
+          </div>
         </div>
         <div className="task-detail-meta">
           <span>보낸 사람: {task.from}</span>
@@ -2992,6 +3123,154 @@ function TaskDetailModal({
           확인
         </button>
       </article>
+    </div>
+  );
+}
+
+function TaskEditModal({
+  clients,
+  employees,
+  projects,
+  task,
+  taskTypes,
+  onClose,
+  onUpdateTask,
+}: {
+  clients: Client[];
+  employees: Employee[];
+  projects: Project[];
+  task: Task;
+  taskTypes: string[];
+  onClose: () => void;
+  onUpdateTask: TaskUpdateHandler;
+}) {
+  const typeOptions = taskTypes.length ? taskTypes : fallbackTaskTypes;
+  const fallbackAssigneeId = task.assigneeId || employees.find((employee) => employee.name === task.to)?.id || employees[0]?.id || '';
+  const fallbackClientId = task.clientId || clients.find((client) => client.name === task.client)?.id || clients[0]?.id || '';
+  const [form, setForm] = useState<TaskUpdateDraft>({
+    title: task.title,
+    summary: task.summary,
+    type: task.type,
+    assigneeId: fallbackAssigneeId,
+    clientId: fallbackClientId,
+    projectId: task.projectId || '',
+    due: task.dueAt || '',
+    priority: task.priority,
+  });
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
+  const visibleProjects = projects.filter((project) => !form.clientId || project.clientId === form.clientId);
+
+  useEffect(() => {
+    const nextAssigneeId = task.assigneeId || employees.find((employee) => employee.name === task.to)?.id || employees[0]?.id || '';
+    const nextClientId = task.clientId || clients.find((client) => client.name === task.client)?.id || clients[0]?.id || '';
+    setForm({
+      title: task.title,
+      summary: task.summary,
+      type: task.type,
+      assigneeId: nextAssigneeId,
+      clientId: nextClientId,
+      projectId: task.projectId || '',
+      due: task.dueAt || '',
+      priority: task.priority,
+    });
+    setStatus('');
+  }, [clients, employees, task]);
+
+  const changeClient = (clientId: string) => {
+    setForm((current) => {
+      const projectStillValid = projects.some((project) => project.id === current.projectId && project.clientId === clientId);
+      return {
+        ...current,
+        clientId,
+        projectId: projectStillValid ? current.projectId : '',
+      };
+    });
+  };
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (loading) return;
+    if (!form.title.trim() || !form.summary.trim() || !form.type || !form.assigneeId || !form.clientId || !form.due || !form.priority) {
+      setStatus('모든 항목을 입력해주세요.');
+      return;
+    }
+    if (!(await requestActionConfirm('업무 내용을 수정하시겠습니까?'))) return;
+
+    setLoading(true);
+    setStatus('저장중입니다.');
+    const message = await onUpdateTask(task, form);
+    setLoading(false);
+    setStatus(message);
+    showActionPopup(message);
+    if (!message.includes('실패') && !message.includes('권한') && !message.includes('입력') && !message.includes('선택')) onClose();
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <form className="modal-card form-stack task-edit-modal" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">Edit Task</p>
+            <h2>업무 수정</h2>
+          </div>
+          <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="form-grid compact-form-grid">
+          <label>
+            유형
+            <select value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value as TaskType })}>
+              {typeOptions.map((item) => <option key={item}>{item}</option>)}
+            </select>
+          </label>
+          <label>
+            담당자
+            <select value={form.assigneeId} onChange={(event) => setForm({ ...form, assigneeId: event.target.value })}>
+              {employees.map((employee) => <option key={employee.id} value={employee.id}>{employee.name}</option>)}
+            </select>
+          </label>
+          <label>
+            관련 업체
+            <select value={form.clientId} onChange={(event) => changeClient(event.target.value)}>
+              {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+            </select>
+          </label>
+          <label>
+            프로젝트
+            <select value={form.projectId || ''} onChange={(event) => setForm({ ...form, projectId: event.target.value || null })}>
+              <option value="">미지정</option>
+              {visibleProjects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+            </select>
+          </label>
+          <label>
+            마감기한
+            <DateTimeConfirmField value={form.due} onChange={(due) => setForm({ ...form, due })} />
+          </label>
+          <label>
+            우선순위
+            <select value={form.priority} onChange={(event) => setForm({ ...form, priority: event.target.value as Priority })}>
+              <option>높음</option>
+              <option>보통</option>
+              <option>낮음</option>
+            </select>
+          </label>
+          <label className="span-2">
+            제목
+            <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+          </label>
+          <label className="span-2">
+            내용
+            <textarea value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} />
+          </label>
+        </div>
+        {status ? <p className="admin-note">{status}</p> : null}
+        <button className="primary-action wide" disabled={loading} type="submit">
+          <CheckCircle2 size={17} />
+          {loading ? '진행중...' : '저장'}
+        </button>
+      </form>
     </div>
   );
 }
