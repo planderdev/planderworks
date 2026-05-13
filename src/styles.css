@@ -979,6 +979,10 @@ h1 {
   gap: 18px;
 }
 
+.task-board.list-surface .task-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .task-card {
   position: relative;
   display: grid;
@@ -2906,6 +2910,10 @@ h1 {
   }
 
   .task-card {
+    grid-template-columns: 1fr;
+  }
+
+  .task-board.list-surface .task-list {
     grid-template-columns: 1fr;
   }
 

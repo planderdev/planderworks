@@ -5951,6 +5951,7 @@ function TaskCard({
         <div className="task-meta">
           <span>{task.from} → {task.to}</span>
           <span>{task.client}</span>
+          <span>프로젝트: {task.projectName || '미지정'}</span>
           <span>
             <CalendarClock size={14} />
             {task.due}
