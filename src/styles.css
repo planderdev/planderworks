@@ -2736,13 +2736,14 @@ h1 {
 
 .project-detail-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-columns: 360px minmax(0, 1fr);
   gap: 18px;
   align-items: start;
   min-width: 0;
 }
 
 .project-chat-panel {
+  order: -1;
   position: sticky;
   top: 18px;
   min-width: 0;
