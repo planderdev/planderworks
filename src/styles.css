@@ -1379,6 +1379,10 @@ h1 {
   grid-template-columns: minmax(0, 1fr) 430px;
 }
 
+.report-task-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2755,6 +2759,10 @@ h1 {
   .split-layout,
   .split-layout.wide-left,
   .settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .report-task-list {
     grid-template-columns: 1fr;
   }
 

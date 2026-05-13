@@ -3704,8 +3704,8 @@ function ReportsPage({
           <h1>보고·제안</h1>
         </div>
       </div>
-      <div className="split-layout">
-        <div className="task-list">
+      <div className="split-layout reports-layout">
+        <div className="task-list report-task-list">
           {reportTasks.length ? (
             reportTasks.map((task) => (
               <TaskCard
