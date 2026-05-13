@@ -63,6 +63,14 @@ create table if not exists public.projects (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.project_messages (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.tasks (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -293,6 +301,7 @@ alter table public.task_types enable row level security;
 alter table public.profiles enable row level security;
 alter table public.clients enable row level security;
 alter table public.projects enable row level security;
+alter table public.project_messages enable row level security;
 alter table public.tasks enable row level security;
 alter table public.task_watchers enable row level security;
 alter table public.task_comments enable row level security;
@@ -383,6 +392,18 @@ on public.projects for insert
 to authenticated
 with check (created_by = auth.uid());
 
+drop policy if exists "project messages are readable" on public.project_messages;
+create policy "project messages are readable"
+on public.project_messages for select
+to authenticated
+using (true);
+
+drop policy if exists "users create project messages" on public.project_messages;
+create policy "users create project messages"
+on public.project_messages for insert
+to authenticated
+with check (user_id = auth.uid());
+
 drop policy if exists "task participants read tasks" on public.tasks;
 drop policy if exists "authenticated users read tasks" on public.tasks;
 create policy "authenticated users read tasks"
@@ -403,11 +424,21 @@ to authenticated
 using (
   creator_id = auth.uid()
   or assignee_id = auth.uid()
+  or exists (
+    select 1 from public.task_watchers
+    where task_watchers.task_id = tasks.id
+      and task_watchers.user_id = auth.uid()
+  )
   or public.current_user_role() = 'admin'
 )
 with check (
   creator_id = auth.uid()
   or assignee_id = auth.uid()
+  or exists (
+    select 1 from public.task_watchers
+    where task_watchers.task_id = tasks.id
+      and task_watchers.user_id = auth.uid()
+  )
   or public.current_user_role() = 'admin'
 );
 

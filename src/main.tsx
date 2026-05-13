@@ -76,6 +76,7 @@ type Task = {
   to: string;
   creatorId?: string;
   assigneeId?: string;
+  recipientIds?: string[];
   clientId?: string;
   projectId?: string | null;
   projectName?: string;
@@ -127,6 +128,15 @@ type Project = {
   clientId?: string | null;
   client: string;
   status: string;
+};
+
+type ProjectMessage = {
+  id: string;
+  projectId: string;
+  userId: string;
+  author: string;
+  content: string;
+  createdAt: string;
 };
 
 type Employee = {
@@ -653,13 +663,17 @@ function getTaskReadLabel(task: Task) {
   return task.readAt ? '읽음' : '안읽음';
 }
 
+function getTaskRecipientIds(task: Task) {
+  return task.recipientIds?.length ? task.recipientIds : task.assigneeId ? [task.assigneeId] : [];
+}
+
 function isUnreadForUser(task: Task, currentUser: AppUser | null) {
   return needsTaskAttention(task, currentUser);
 }
 
 function needsTaskAttention(task: Task, currentUser: AppUser | null) {
   if (!currentUser) return false;
-  const isAssignee = task.assigneeId === currentUser.id || (currentUser.isPrototype && task.to === currentUser.name);
+  const isAssignee = getTaskRecipientIds(task).includes(currentUser.id) || (currentUser.isPrototype && task.to.split(', ').includes(currentUser.name));
   const isCreator = task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name);
 
   return (isAssignee && !task.readAt) || (isCreator && task.status === '완료 요청' && !task.creatorReadAt);
@@ -668,9 +682,9 @@ function needsTaskAttention(task: Task, currentUser: AppUser | null) {
 function isTaskParticipant(task: Task, currentUser: AppUser | null) {
   if (!currentUser) return false;
   return (
-    task.assigneeId === currentUser.id ||
+    getTaskRecipientIds(task).includes(currentUser.id) ||
     task.creatorId === currentUser.id ||
-    (currentUser.isPrototype && (task.to === currentUser.name || task.from === currentUser.name))
+    (currentUser.isPrototype && (task.to.split(', ').includes(currentUser.name) || task.from === currentUser.name))
   );
 }
 
@@ -712,6 +726,7 @@ function App() {
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
   const [clients, setClients] = useState<Client[]>(seedClients);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectMessages, setProjectMessages] = useState<ProjectMessage[]>([]);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
   const [jobTypes, setJobTypes] = useState(seedJobTypes);
@@ -805,7 +820,7 @@ function App() {
 
     setBackendStatus('Supabase 동기화중');
 
-    const [profilesResult, jobTypesResult, taskTypesResult, clientsResult, projectsResult, tasksResult, commentsResult] = await Promise.all([
+    const [profilesResult, jobTypesResult, taskTypesResult, clientsResult, projectsResult, projectMessagesResult, tasksResult, commentsResult] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, email, name, phone, role, job_types(name)')
@@ -829,6 +844,10 @@ function App() {
         .select('id, name, status, client_id, client:clients(name)')
         .order('created_at', { ascending: false }),
       supabase
+        .from('project_messages')
+        .select('id, project_id, user_id, content, created_at, user:profiles!project_messages_user_id_fkey(name)')
+        .order('created_at', { ascending: true }),
+      supabase
         .from('tasks')
         .select(`
           id,
@@ -849,7 +868,7 @@ function App() {
           assignee:profiles!tasks_assignee_id_fkey(name),
           client:clients(name),
           project:projects(name),
-          task_watchers(user:profiles(name)),
+          task_watchers(user_id, user:profiles(name)),
           task_files(id, file_name, file_path, file_size, mime_type)
         `)
         .order('created_at', { ascending: false }),
@@ -859,7 +878,7 @@ function App() {
         .order('created_at', { ascending: true }),
     ]);
 
-    if (profilesResult.error || jobTypesResult.error || taskTypesResult.error || clientsResult.error || projectsResult.error || tasksResult.error || commentsResult.error) {
+    if (profilesResult.error || jobTypesResult.error || taskTypesResult.error || clientsResult.error || projectsResult.error || projectMessagesResult.error || tasksResult.error || commentsResult.error) {
       setBackendStatus('Supabase 테이블 준비 필요');
       return;
     }
@@ -881,41 +900,50 @@ function App() {
       };
     }, {});
 
-    const nextTasks: Task[] = rawTasks.map((task) => ({
-      id: task.id,
-      title: task.title,
-      from: task.creator?.name || '알 수 없음',
-      to: task.assignee?.name || '미지정',
-      creatorId: task.creator_id,
-      assigneeId: task.assignee_id,
-      clientId: task.client_id,
-      projectId: task.project_id,
-      projectName: task.project?.name || '',
-      client: task.client?.name || '내부',
-      dueAt: task.due_at,
-      startedAt: task.started_at,
-      readAt: task.read_at,
-      creatorReadAt: task.creator_read_at,
-      due: formatDueDate(task.due_at),
-      status: statusFromDb[task.status] || '대기',
-      priority: priorityFromDb[task.priority] || '보통',
-      type: task.task_type || '업무 요청',
-      summary: task.description || '',
-      watchers: (task.task_watchers || []).map((watcher: any) => watcher.user?.name).filter(Boolean),
-      files: (task.task_files || []).map((file: any) => ({
-        id: file.id,
-        name: file.file_name,
-        path: file.file_path,
-        size: file.file_size,
-        mimeType: file.mime_type,
-      })),
-      comments: commentsByTask[task.id] || [],
-    }));
+    const nextTasks: Task[] = rawTasks.map((task) => {
+      const watcherNames = (task.task_watchers || []).map((watcher: any) => watcher.user?.name).filter(Boolean);
+      const watcherIds = (task.task_watchers || []).map((watcher: any) => watcher.user_id).filter(Boolean);
+      const recipientNames = watcherNames.length ? watcherNames : [task.assignee?.name || '미지정'];
+      const recipientIds = watcherIds.length ? watcherIds : task.assignee_id ? [task.assignee_id] : [];
+
+      return {
+        id: task.id,
+        title: task.title,
+        from: task.creator?.name || '알 수 없음',
+        to: recipientNames.join(', '),
+        creatorId: task.creator_id,
+        assigneeId: task.assignee_id,
+        recipientIds,
+        clientId: task.client_id,
+        projectId: task.project_id,
+        projectName: task.project?.name || '',
+        client: task.client?.name || '내부',
+        dueAt: task.due_at,
+        startedAt: task.started_at,
+        readAt: task.read_at,
+        creatorReadAt: task.creator_read_at,
+        due: formatDueDate(task.due_at),
+        status: statusFromDb[task.status] || '대기',
+        priority: priorityFromDb[task.priority] || '보통',
+        type: task.task_type || '업무 요청',
+        summary: task.description || '',
+        watchers: recipientNames,
+        files: (task.task_files || []).map((file: any) => ({
+          id: file.id,
+          name: file.file_name,
+          path: file.file_path,
+          size: file.file_size,
+          mimeType: file.mime_type,
+        })),
+        comments: commentsByTask[task.id] || [],
+      };
+    });
 
     const loadByUser = new Map<string, number>();
     nextTasks.forEach((task) => {
-      if (!task.assigneeId) return;
-      loadByUser.set(task.assigneeId, (loadByUser.get(task.assigneeId) || 0) + 1);
+      getTaskRecipientIds(task).forEach((recipientId) => {
+        loadByUser.set(recipientId, (loadByUser.get(recipientId) || 0) + 1);
+      });
     });
 
     const nextEmployees: Employee[] = ((profilesResult.data || []) as any[]).map((profile) => ({
@@ -960,6 +988,14 @@ function App() {
       client: project.client?.name || '업체 미지정',
       status: project.status || 'active',
     }));
+    const nextProjectMessages: ProjectMessage[] = ((projectMessagesResult.data || []) as any[]).map((message) => ({
+      id: message.id,
+      projectId: message.project_id,
+      userId: message.user_id,
+      author: message.user?.name || '알 수 없음',
+      content: message.content,
+      createdAt: message.created_at,
+    }));
 
     const nextJobTypes = (jobTypesResult.data || []).map((jobType) => jobType.name);
     const nextTaskTypes = (taskTypesResult.data || []).map((taskType) => taskType.name);
@@ -968,6 +1004,7 @@ function App() {
     setEmployees(nextEmployees.length ? nextEmployees : seedEmployees);
     setClients(nextClients);
     setProjects(nextProjects);
+    setProjectMessages(nextProjectMessages);
     setJobTypes(nextJobTypes.length ? nextJobTypes : seedJobTypes);
     setTaskTypes(nextTaskTypes.length ? nextTaskTypes : fallbackTaskTypes);
     setBackendStatus('Supabase 연결됨');
@@ -993,7 +1030,9 @@ function App() {
     const channel = supabase
       .channel(`planderworks-tasks-${currentUser.id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'task_watchers' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_messages' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, queueRefresh)
       .subscribe();
 
@@ -1118,7 +1157,11 @@ function App() {
     () =>
       tasks.filter(
         (task) =>
-          (task.assigneeId === currentUser?.id || task.to === currentUser?.name || (currentUser?.isPrototype && task.to === '인성이형')) &&
+          (
+            (currentUser?.id && getTaskRecipientIds(task).includes(currentUser.id)) ||
+            task.to.split(', ').includes(currentUser?.name || '') ||
+            (currentUser?.isPrototype && task.to.split(', ').includes('인성이형'))
+          ) &&
           task.type !== '보고' &&
           task.type !== '제안',
       ),
@@ -1151,6 +1194,10 @@ function App() {
   const selectedProjectTasks = useMemo(
     () => (selectedProject ? visibleTasks.filter((task) => task.projectId === selectedProject.id) : []),
     [selectedProject, visibleTasks],
+  );
+  const selectedProjectMessages = useMemo(
+    () => (selectedProject ? projectMessages.filter((message) => message.projectId === selectedProject.id) : []),
+    [projectMessages, selectedProject],
   );
 
   const selectedTask = useMemo(
@@ -1366,7 +1413,8 @@ function App() {
         return message;
       }
 
-      const rows = assignees.map((assignee) => ({
+      const primaryAssignee = assignees[0];
+      const row = {
         title: task.title,
         description: task.summary,
         task_type: task.type,
@@ -1374,16 +1422,17 @@ function App() {
         started_at: task.status === '진행중' ? new Date().toISOString() : null,
         priority: priorityToDb[task.priority],
         creator_id: currentUser.id,
-        assignee_id: assignee.id,
+        assignee_id: primaryAssignee.id,
         client_id: clientId,
         project_id: task.projectId && isUuid(task.projectId) ? task.projectId : null,
         due_at: parseDueDate(task.due),
-      }));
+      };
 
       const { data, error } = await supabase
         .from('tasks')
-        .insert(rows)
-        .select('id');
+        .insert(row)
+        .select('id')
+        .single();
 
       if (error) {
         const message = `업무 저장 실패: ${error.message}`;
@@ -1391,25 +1440,31 @@ function App() {
         return message;
       }
 
-      for (const createdTask of data || []) {
-        const fileError = await uploadTaskFiles(createdTask.id, task.files || []);
-        if (fileError) {
-          const message = `첨부파일 저장 실패: ${fileError}`;
-          setBackendStatus(message);
-          return message;
-        }
+      const watcherRows = assignees.map((assignee) => ({
+        task_id: data.id,
+        user_id: assignee.id,
+      }));
+      const { error: watcherError } = await supabase.from('task_watchers').insert(watcherRows);
+
+      if (watcherError) {
+        const message = `수신자 저장 실패: ${watcherError.message}`;
+        setBackendStatus(message);
+        return message;
       }
 
-      await Promise.all(
-        (data || []).map((createdTask) =>
-          supabase.functions.invoke('send-task-notification', {
-            body: { taskId: createdTask.id },
-          }),
-        ),
-      );
+      const fileError = await uploadTaskFiles(data.id, task.files || []);
+      if (fileError) {
+        const message = `첨부파일 저장 실패: ${fileError}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await supabase.functions.invoke('send-task-notification', {
+        body: { taskId: data.id },
+      });
 
       await loadBackendData();
-      const message = `업무 ${data?.length || rows.length}건을 전송했습니다.`;
+      const message = `업무 1건을 ${assignees.length}명에게 전송했습니다.`;
       setBackendStatus(message);
       setViewHistory((history) => [...history, activeView].slice(-12));
       setActiveView('sent');
@@ -1420,28 +1475,31 @@ function App() {
       ? assignees
       : uniqueRecipients.map((name) => employees.find((employee) => employee.name === name)).filter(Boolean) as Employee[];
 
-    const nextTasks: Task[] = prototypeAssignees.map((assignee, index) => ({
-      id: `${Date.now()}-${index}`,
+    const recipientNames = prototypeAssignees.map((assignee) => assignee.name);
+    const nextTask: Task = {
+      id: `${Date.now()}`,
       status: task.status || '대기',
       startedAt: task.status === '진행중' ? new Date().toISOString() : null,
-      watchers: task.watchers || [],
+      watchers: recipientNames,
       comments: [],
       ...task,
+      recipientIds: prototypeAssignees.map((assignee) => assignee.id),
+      assigneeId: prototypeAssignees[0]?.id,
       files: (task.files || []).map((file, fileIndex) => ({
-        id: `${Date.now()}-${index}-${fileIndex}`,
+        id: `${Date.now()}-${fileIndex}`,
         name: file.name,
         path: '',
         size: file.size,
         mimeType: file.type,
       })),
       from: currentUser?.name || task.from,
-      to: assignee.name,
-    }));
+      to: recipientNames.join(', '),
+    };
 
-    setTasks((current) => [...nextTasks, ...current]);
+    setTasks((current) => [nextTask, ...current]);
     setViewHistory((history) => [...history, activeView].slice(-12));
     setActiveView('sent');
-    return `업무 ${nextTasks.length}건을 전송했습니다.`;
+    return `업무 1건을 ${prototypeAssignees.length}명에게 전송했습니다.`;
   };
 
   const addClient = async (client: Omit<Client, 'id'>): Promise<string> => {
@@ -1575,6 +1633,39 @@ function App() {
     setActiveView('project');
     setBackendStatus('프로젝트가 생성되었습니다.');
     return '프로젝트가 생성되었습니다.';
+  };
+
+  const addProjectMessage = async (projectId: string, content: string): Promise<string> => {
+    const nextContent = content.trim();
+    if (!nextContent) return '메시지를 입력해주세요.';
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('project_messages').insert({
+        project_id: projectId,
+        user_id: currentUser.id,
+        content: nextContent,
+      });
+
+      if (error) {
+        const message = `메시지 저장 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '메시지가 등록되었습니다.';
+    }
+
+    const nextMessage: ProjectMessage = {
+      id: `${Date.now()}`,
+      projectId,
+      userId: currentUser?.id || 'prototype',
+      author: currentUser?.name || '나',
+      content: nextContent,
+      createdAt: new Date().toISOString(),
+    };
+    setProjectMessages((current) => [...current, nextMessage]);
+    return '메시지가 등록되었습니다.';
   };
 
   const addJobType = async (name: string): Promise<string> => {
@@ -1919,7 +2010,7 @@ function App() {
   const markTaskRead = async (task: Task) => {
     if (!currentUser) return;
     const readAt = new Date().toISOString();
-    const shouldMarkAssigneeRead = !task.readAt && (task.assigneeId === currentUser.id || (currentUser.isPrototype && task.to === currentUser.name));
+    const shouldMarkAssigneeRead = !task.readAt && (getTaskRecipientIds(task).includes(currentUser.id) || (currentUser.isPrototype && task.to.split(', ').includes(currentUser.name)));
     const shouldMarkCreatorRead = !task.creatorReadAt && task.status === '완료 요청' && (task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name));
 
     if (!shouldMarkAssigneeRead && !shouldMarkCreatorRead) return;
@@ -2278,8 +2369,10 @@ function App() {
         {activeView === 'project' ? (
           <ProjectPage
             currentUser={currentUser}
+            messages={selectedProjectMessages}
             project={selectedProject}
             tasks={selectedProjectTasks}
+            onAddMessage={addProjectMessage}
             onDeleteTask={deleteTask}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
             onUpdateTaskStatus={updateTaskStatus}
@@ -3462,20 +3555,37 @@ function TaskListPage({
 
 function ProjectPage({
   currentUser,
+  messages,
   project,
   tasks,
+  onAddMessage,
   onDeleteTask,
   onOpenTask,
   onUpdateTaskStatus,
 }: {
   currentUser: AppUser;
+  messages: ProjectMessage[];
   project: Project | null;
   tasks: Task[];
+  onAddMessage: (projectId: string, content: string) => Promise<string>;
   onDeleteTask: TaskDeleteHandler;
   onOpenTask: (task: Task) => void;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const activeTasks = tasks.filter((task) => task.status !== '완료');
+  const [message, setMessage] = useState('');
+  const [messageStatus, setMessageStatus] = useState('');
+  const [messageLoading, setMessageLoading] = useState(false);
+
+  const submitMessage = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!project || messageLoading) return;
+    setMessageLoading(true);
+    const result = await onAddMessage(project.id, message);
+    setMessageLoading(false);
+    setMessageStatus(result);
+    if (!result.includes('실패') && !result.includes('입력')) setMessage('');
+  };
 
   return (
     <section className="page-shell">
@@ -3487,20 +3597,55 @@ function ProjectPage({
         </div>
       </div>
 
-      <div className="task-board list-surface">
-        <div className="task-list">
-          {project ? (
-            tasks.length ? (
-              tasks.map((task) => (
-                <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
-              ))
+      <div className="project-detail-grid">
+        <div className="task-board list-surface">
+          <div className="task-list">
+            {project ? (
+              tasks.length ? (
+                tasks.map((task) => (
+                  <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
+                ))
+              ) : (
+                <EmptyState text="이 프로젝트에 연결된 업무가 없습니다." />
+              )
             ) : (
-              <EmptyState text="이 프로젝트에 연결된 업무가 없습니다." />
-            )
-          ) : (
-            <EmptyState text="프로젝트를 선택해주세요." />
-          )}
+              <EmptyState text="프로젝트를 선택해주세요." />
+            )}
+          </div>
         </div>
+        {project ? (
+          <aside className="project-chat-panel">
+            <div className="section-head tight">
+              <div>
+                <p className="eyebrow">Project Chat</p>
+                <h2>프로젝트 대화</h2>
+              </div>
+              <MessageSquareText size={22} />
+            </div>
+            <div className="project-message-list">
+              {messages.length ? (
+                messages.map((item) => (
+                  <article className="project-message" data-own={item.userId === currentUser.id} key={item.id}>
+                    <div>
+                      <strong>{item.author}</strong>
+                      <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+                    </div>
+                    <p>{item.content}</p>
+                  </article>
+                ))
+              ) : (
+                <p className="mini-empty">아직 대화가 없습니다.</p>
+              )}
+            </div>
+            <form className="project-chat-form" onSubmit={submitMessage}>
+              <textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="프로젝트 대화를 입력하세요" rows={3} />
+              {messageStatus ? <p className="admin-note">{messageStatus}</p> : null}
+              <button className="primary-action wide" disabled={messageLoading} type="submit">
+                {messageLoading ? '진행중...' : '메시지 등록'}
+              </button>
+            </form>
+          </aside>
+        ) : null}
       </div>
     </section>
   );
@@ -5904,8 +6049,8 @@ function TaskCard({
     (currentUser.isPrototype && task.from === currentUser.name);
   const canManage =
     canDelete ||
-    task.assigneeId === currentUser.id ||
-    (currentUser.isPrototype && task.to === currentUser.name);
+    getTaskRecipientIds(task).includes(currentUser.id) ||
+    (currentUser.isPrototype && task.to.split(', ').includes(currentUser.name));
 
   const updateStatus = async (status: TaskStatus) => {
     if (loadingStatus) return;

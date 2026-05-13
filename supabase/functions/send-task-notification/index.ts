@@ -63,7 +63,8 @@ Deno.serve(async (req) => {
       creator_id,
       assignee_id,
       creator:profiles!tasks_creator_id_fkey(name),
-      assignee:profiles!tasks_assignee_id_fkey(name)
+      assignee:profiles!tasks_assignee_id_fkey(name),
+      task_watchers(user_id, user:profiles(name))
     `)
     .eq('id', taskId)
     .single();
@@ -84,14 +85,31 @@ Deno.serve(async (req) => {
     }
   }
 
-  if (!task.assignee_id) {
-    return jsonResponse({ sent: 0, skipped: 'No assignee' });
+  const recipientIds = Array.from(
+    new Set(
+      [
+        ...((task.task_watchers || []).map((watcher: { user_id?: string }) => watcher.user_id)),
+        task.assignee_id,
+      ].filter((userId): userId is string => Boolean(userId)),
+    ),
+  );
+  const recipientNames = Array.from(
+    new Set(
+      [
+        ...((task.task_watchers || []).map((watcher: { user?: { name?: string } }) => watcher.user?.name)),
+        task.assignee?.name,
+      ].filter((name): name is string => Boolean(name)),
+    ),
+  );
+
+  if (!recipientIds.length) {
+    return jsonResponse({ sent: 0, skipped: 'No recipients' });
   }
 
   const { data: subscriptions, error: subscriptionError } = await admin
     .from('push_subscriptions')
     .select('id, endpoint, p256dh, auth')
-    .eq('user_id', task.assignee_id);
+    .in('user_id', recipientIds);
 
   if (subscriptionError) {
     return jsonResponse({ error: subscriptionError.message }, 400);
@@ -101,7 +119,7 @@ Deno.serve(async (req) => {
 
   const payload = JSON.stringify({
     title: '새 업무가 도착했습니다',
-    body: `${task.creator?.name || 'Plander'} → ${task.assignee?.name || '담당자'}: ${task.title}`,
+    body: `${task.creator?.name || 'Plander'} → ${recipientNames.join(', ') || '담당자'}: ${task.title}`,
     url: `/?taskId=${task.id}`,
     taskId: task.id,
   });

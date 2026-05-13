@@ -2673,6 +2673,67 @@ h1 {
   padding: 0;
 }
 
+.project-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 18px;
+  align-items: start;
+}
+
+.project-chat-panel {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--card-bg);
+}
+
+.project-message-list {
+  max-height: 420px;
+  display: grid;
+  gap: 10px;
+  overflow: auto;
+}
+
+.project-message {
+  display: grid;
+  gap: 6px;
+  border: 1px solid var(--card-line);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--panel);
+}
+
+.project-message[data-own='true'] {
+  background: var(--panel-2);
+}
+
+.project-message div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.project-message small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.project-message p {
+  color: var(--text);
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.project-chat-form {
+  display: grid;
+  gap: 10px;
+}
+
 .compact-list {
   max-height: 360px;
   overflow: auto;
@@ -2907,6 +2968,14 @@ h1 {
 
   .stats-grid {
     grid-template-columns: 1fr;
+  }
+
+  .project-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .project-chat-panel {
+    position: static;
   }
 
   .task-card {
