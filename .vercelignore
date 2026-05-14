@@ -1,0 +1,7 @@
+android
+ios
+electron
+build
+release
+node_modules
+*.log
