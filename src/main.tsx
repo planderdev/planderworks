@@ -5649,6 +5649,7 @@ function SettingsPage({
   taskTypes,
   pushEnabled,
   pushLoading,
+  pushPreferences,
   pushStatus,
   themeMode,
   onRegisterPush,
