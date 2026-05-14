@@ -12,6 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CircleUserRound,
+  Download,
   FileText,
   FolderKanban,
   LayoutDashboard,
@@ -2742,6 +2743,7 @@ function App() {
           setProjectCreateOpen(true);
           setSidebarOpen(false);
         }}
+        onInstallApp={handleInstallApp}
         onLogout={handleLogout}
         onOpenProfile={() => {
           setProfileOpen(true);
@@ -3192,6 +3194,7 @@ function Sidebar({
   open,
   onClose,
   onCreateProject,
+  onInstallApp,
   onLogout,
   onNavigate,
   onOpenProject,
@@ -3207,6 +3210,7 @@ function Sidebar({
   open: boolean;
   onClose: () => void;
   onCreateProject: () => void;
+  onInstallApp: () => void;
   onLogout: () => void;
   onNavigate: (view: ActiveView) => void;
   onOpenProject: (projectId: string) => void;
@@ -3324,6 +3328,11 @@ function Sidebar({
             </div>
           )
         ) : null}
+
+        <button className="sidebar-install-button" onClick={onInstallApp} type="button">
+          <Download size={17} />
+          <span>앱 다운로드</span>
+        </button>
 
         <div className="profile-card">
           <button className="profile-card-main" onClick={() => setAdminOpen((open) => !open)} type="button">
