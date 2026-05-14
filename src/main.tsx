@@ -5781,7 +5781,7 @@ function SettingsPage({
             <div className="push-preference-list">
               {[
                 { key: 'task' as const, label: '업무전달' },
-                { key: 'report' as const, label: '건의사항전달' },
+                { key: 'report' as const, label: '보고·제안' },
                 { key: 'projectMessage' as const, label: '채팅창 메시지' },
               ].map((item) => (
                 <label className="toggle-row" key={item.key}>
