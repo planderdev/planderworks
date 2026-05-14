@@ -2239,6 +2239,17 @@ h1 {
   white-space: pre-wrap;
 }
 
+.inline-link {
+  color: #5ea2ff;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.inline-link:hover {
+  color: #8fbfff;
+}
+
 .detail-files {
   display: grid;
   gap: 8px;

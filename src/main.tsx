@@ -600,6 +600,33 @@ const hasValidMobilePhoneLength = (value: string) => {
 
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const isActiveView = (value: unknown): value is ActiveView => typeof value === 'string' && appViews.includes(value as ActiveView);
+const urlPattern = /((?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi;
+
+function renderLinkedText(text: string) {
+  if (!text) return null;
+  const nodes: React.ReactNode[] = [];
+  let lastIndex = 0;
+
+  text.replace(urlPattern, (match, _url, offset: number) => {
+    if (offset > lastIndex) nodes.push(text.slice(lastIndex, offset));
+
+    const trimmedUrl = match.replace(/[.,!?;:)\]}]+$/g, '');
+    const trailingText = match.slice(trimmedUrl.length);
+    const href = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
+
+    nodes.push(
+      <a className="inline-link" href={href} key={`${trimmedUrl}-${offset}`} target="_blank" rel="noopener noreferrer">
+        {trimmedUrl}
+      </a>,
+    );
+    if (trailingText) nodes.push(trailingText);
+    lastIndex = offset + match.length;
+    return match;
+  });
+
+  if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
+  return nodes.length ? nodes : text;
+}
 
 const startOfCalendarDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
 const addCalendarDays = (date: Date, days: number) => {
@@ -3609,7 +3636,7 @@ function TaskDetailModal({
         </div>
         <div className="task-detail-body">
           <h3>내용</h3>
-          <p>{task.summary || '내용이 없습니다.'}</p>
+          <p>{task.summary ? renderLinkedText(task.summary) : '내용이 없습니다.'}</p>
         </div>
         <div className="detail-files">
           <h3>첨부파일</h3>
@@ -6759,7 +6786,7 @@ function TaskCard({
         <button className="task-title-button" onClick={() => onOpenTask?.(task)} type="button">
           {task.title}
         </button>
-        <p>{task.summary}</p>
+        <p>{renderLinkedText(task.summary)}</p>
         <div className="task-meta">
           <span>{task.from} → {task.to}</span>
           <span>{task.client}</span>
