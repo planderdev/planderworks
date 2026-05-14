@@ -2,11 +2,29 @@
   "name": "Plander Works",
   "short_name": "Works",
   "description": "Plander internal task and project workspace.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "browser"],
   "background_color": "#050506",
   "theme_color": "#050506",
+  "orientation": "portrait-primary",
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "업무 생성",
+      "short_name": "업무생성",
+      "url": "/#create",
+      "icons": [{ "src": "/plander-app-icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "캘린더",
+      "short_name": "캘린더",
+      "url": "/#calendar",
+      "icons": [{ "src": "/plander-app-icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
   "icons": [
     {
       "src": "/plander-app-icon.svg",

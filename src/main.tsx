@@ -37,6 +37,11 @@ import {
 import { hasSupabaseConfig, supabase } from './supabaseClient';
 import './styles.css';
 
+type BeforeInstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+};
+
 type ThemeMode = 'system' | 'light' | 'dark';
 type ActiveView =
   | 'dashboard'
@@ -869,6 +874,11 @@ function App() {
   const [pushLoading, setPushLoading] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushPreferences, setPushPreferences] = useState<PushPreferences>(defaultPushPreferences);
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [installStatus, setInstallStatus] = useState('브라우저 메뉴 또는 설치 버튼으로 Plander Works를 앱처럼 설치할 수 있습니다.');
+  const [appInstalled, setAppInstalled] = useState(
+    () => window.matchMedia('(display-mode: standalone)').matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true,
+  );
   const [popupMessage, setPopupMessage] = useState('');
   const [confirmRequest, setConfirmRequest] = useState<{ id: number; message: string } | null>(null);
   const [forwardHistory, setForwardHistory] = useState<ActiveView[]>([]);
@@ -886,6 +896,35 @@ function App() {
   const realtimeRefreshTimer = useRef<number | null>(null);
 
   const getAppHistoryUrl = (view: ActiveView) => `${window.location.pathname}#${view}`;
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      setInstallStatus('서비스 워커 등록에 실패했습니다. 브라우저 새로고침 후 다시 시도해주세요.');
+    });
+  }, []);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+      setInstallStatus('이 기기에 Plander Works를 설치할 수 있습니다.');
+    };
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+      setAppInstalled(true);
+      setInstallStatus('이 기기에 Plander Works가 설치되었습니다.');
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
 
   useEffect(() => {
     applyTheme(themeMode);
@@ -2639,6 +2678,35 @@ function App() {
     setPushLoading(false);
   };
 
+  const handleInstallApp = async () => {
+    if (appInstalled) {
+      const message = '이미 앱으로 설치된 상태입니다.';
+      setInstallStatus(message);
+      showActionPopup(message);
+      return;
+    }
+
+    if (!installPrompt) {
+      const message = '브라우저 메뉴의 “앱 설치” 또는 “홈 화면에 추가”를 사용해주세요.';
+      setInstallStatus(message);
+      showActionPopup(message);
+      return;
+    }
+
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+
+    if (choice.outcome === 'accepted') {
+      setInstallPrompt(null);
+      setAppInstalled(true);
+      setInstallStatus('이 기기에 Plander Works가 설치되었습니다.');
+      showActionPopup('앱 설치가 완료되었습니다.');
+      return;
+    }
+
+    setInstallStatus('앱 설치가 취소되었습니다.');
+  };
+
   if (!authReady) {
     return (
       <div className="auth-shell">
@@ -2828,7 +2896,11 @@ function App() {
             pushLoading={pushLoading}
             pushPreferences={pushPreferences}
             pushStatus={pushStatus}
+            installStatus={installStatus}
+            appInstalled={appInstalled}
+            canPromptInstall={Boolean(installPrompt)}
             onRegisterPush={handleRegisterPush}
+            onInstallApp={handleInstallApp}
             onAddJobType={addJobType}
             onDeleteJobType={deleteJobType}
             onAddTaskType={addTaskType}
@@ -5675,8 +5747,12 @@ function SettingsPage({
   pushLoading,
   pushPreferences,
   pushStatus,
+  installStatus,
+  appInstalled,
+  canPromptInstall,
   themeMode,
   onRegisterPush,
+  onInstallApp,
   onAddJobType,
   onDeleteJobType,
   onAddTaskType,
@@ -5696,8 +5772,12 @@ function SettingsPage({
   pushLoading: boolean;
   pushPreferences: PushPreferences;
   pushStatus: string;
+  installStatus: string;
+  appInstalled: boolean;
+  canPromptInstall: boolean;
   themeMode: ThemeMode;
   onRegisterPush: () => void;
+  onInstallApp: () => void;
   onAddJobType: JobTypeSubmitHandler;
   onDeleteJobType: JobTypeDeleteHandler;
   onAddTaskType: TaskTypeSubmitHandler;
@@ -5794,6 +5874,15 @@ function SettingsPage({
             <h2>테마</h2>
             <p>업무 영역은 라이트/다크/시스템 설정을 따르고, 사이드바는 Plander 블랙을 유지합니다.</p>
             <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
+          </div>
+          <div className="page-card settings-card">
+            <h2>앱 설치</h2>
+            <p>{installStatus}</p>
+            <button className="primary-action" disabled={appInstalled && !canPromptInstall} onClick={onInstallApp} type="button">
+              <Plus size={17} />
+              {appInstalled ? '설치 완료' : canPromptInstall ? '이 기기에 설치' : '설치 안내'}
+            </button>
+            <p className="admin-note">맥/윈도우/안드로이드 Chrome·Edge는 설치 버튼이 뜨고, iPhone Safari는 공유 버튼에서 “홈 화면에 추가”로 설치합니다.</p>
           </div>
           <div className="page-card settings-card">
             <h2>푸시알림</h2>

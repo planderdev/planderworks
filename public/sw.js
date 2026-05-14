@@ -1,3 +1,22 @@
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('fetch', (event) => {
+  if (event.request.mode !== 'navigate') return;
+
+  event.respondWith(
+    fetch(event.request).catch(() => new Response('Plander Works는 네트워크 연결이 필요합니다.', {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      status: 503,
+    })),
+  );
+});
+
 self.addEventListener('push', (event) => {
   const payload = event.data
     ? event.data.json()
