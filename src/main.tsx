@@ -184,6 +184,7 @@ type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'comments' 
   toIds?: string[];
   toList?: string[];
   clientId?: string;
+  projectId?: string | null;
   files?: File[];
 };
 
@@ -1584,9 +1585,11 @@ function App() {
       ? recipientIds.map((id) => employees.find((employee) => employee.id === id))
       : uniqueRecipients.map((name) => employees.find((employee) => employee.name === name))
     ).filter((employee): employee is Employee => Boolean(employee));
-    const client = task.clientId && isUuid(task.clientId)
+    const project = task.projectId ? projects.find((item) => item.id === task.projectId) : null;
+    const projectClient = project?.clientId ? clients.find((item) => item.id === project.clientId) : null;
+    const client = projectClient || (task.clientId && isUuid(task.clientId)
       ? clients.find((item) => item.id === task.clientId)
-      : clients.find((item) => item.name === task.client);
+      : clients.find((item) => item.name === task.client));
     const clientId = client?.id && isUuid(client.id) ? client.id : null;
 
     if (!assignees.length) {
@@ -2301,10 +2304,10 @@ function App() {
     const title = updates.title.trim();
     const summary = updates.summary.trim();
     const assignee = employees.find((employee) => employee.id === updates.assigneeId);
-    const client = clients.find((item) => item.id === updates.clientId);
     const project = updates.projectId ? projects.find((item) => item.id === updates.projectId) : null;
+    const client = project?.clientId ? clients.find((item) => item.id === project.clientId) : clients.find((item) => item.id === updates.clientId);
 
-    if (!title || !summary || !updates.type || !assignee || !client || !updates.due || !updates.priority) {
+    if (!title || !summary || !updates.type || !assignee || !project || !client || !updates.due || !updates.priority) {
       return '모든 항목을 입력해주세요.';
     }
 
@@ -2734,7 +2737,7 @@ function App() {
         {activeView === 'sent' ? (
           <TaskListPage title="보낸 업무" initialStatus={taskListFilters.sent || '전체'} tasks={sentTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
-        {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
+        {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} projects={projects} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
           <ReportsPage tasks={reportTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
@@ -3684,50 +3687,45 @@ function TaskEditModal({
 }) {
   const typeOptions = taskTypes.length ? taskTypes : fallbackTaskTypes;
   const fallbackAssigneeId = task.assigneeId || employees.find((employee) => employee.name === task.to)?.id || employees[0]?.id || '';
-  const fallbackClientId = task.clientId || clients.find((client) => client.name === task.client)?.id || clients[0]?.id || '';
+  const fallbackProjectId = task.projectId || projects[0]?.id || '';
+  const fallbackProject = projects.find((project) => project.id === fallbackProjectId);
+  const fallbackClientId = fallbackProject?.clientId || task.clientId || clients.find((client) => client.name === task.client)?.id || clients[0]?.id || '';
   const [form, setForm] = useState<TaskUpdateDraft>({
     title: task.title,
     summary: task.summary,
     type: task.type,
     assigneeId: fallbackAssigneeId,
     clientId: fallbackClientId,
-    projectId: task.projectId || '',
+    projectId: fallbackProjectId,
     due: task.dueAt || '',
     priority: task.priority,
   });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
-  const sortedProjects = [...projects].sort((a, b) => {
-    const aMatchesClient = a.clientId === form.clientId ? 0 : 1;
-    const bMatchesClient = b.clientId === form.clientId ? 0 : 1;
-    if (aMatchesClient !== bMatchesClient) return aMatchesClient - bMatchesClient;
-    return a.name.localeCompare(b.name, 'ko-KR');
-  });
+  const sortedProjects = [...projects].sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
 
   useEffect(() => {
     const nextAssigneeId = task.assigneeId || employees.find((employee) => employee.name === task.to)?.id || employees[0]?.id || '';
-    const nextClientId = task.clientId || clients.find((client) => client.name === task.client)?.id || clients[0]?.id || '';
+    const nextProjectId = task.projectId || projects[0]?.id || '';
+    const nextProject = projects.find((project) => project.id === nextProjectId);
+    const nextClientId = nextProject?.clientId || task.clientId || clients.find((client) => client.name === task.client)?.id || clients[0]?.id || '';
     setForm({
       title: task.title,
       summary: task.summary,
       type: task.type,
       assigneeId: nextAssigneeId,
       clientId: nextClientId,
-      projectId: task.projectId || '',
+      projectId: nextProjectId,
       due: task.dueAt || '',
       priority: task.priority,
     });
     setStatus('');
-  }, [clients, employees, task]);
-
-  const changeClient = (clientId: string) => {
-    setForm((current) => ({ ...current, clientId }));
-  };
+  }, [clients, employees, projects, task]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading) return;
-    if (!form.title.trim() || !form.summary.trim() || !form.type || !form.assigneeId || !form.clientId || !form.due || !form.priority) {
+    if (!form.title.trim() || !form.summary.trim() || !form.type || !form.assigneeId || !form.projectId || !form.due || !form.priority) {
       setStatus('모든 항목을 입력해주세요.');
       return;
     }
@@ -3768,18 +3766,15 @@ function TaskEditModal({
             </select>
           </label>
           <label>
-            관련 업체
-            <select value={form.clientId} onChange={(event) => changeClient(event.target.value)}>
-              {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
-            </select>
-          </label>
-          <label>
             프로젝트
-            <select value={form.projectId || ''} onChange={(event) => setForm({ ...form, projectId: event.target.value || null })}>
-              <option value="">미지정</option>
+            <select value={form.projectId || ''} onChange={(event) => {
+              const project = projects.find((item) => item.id === event.target.value);
+              setForm({ ...form, projectId: project?.id || '', clientId: project?.clientId || '' });
+            }}>
+              <option value="">프로젝트 선택</option>
               {sortedProjects.map((project) => (
                 <option key={project.id} value={project.id}>
-                  {project.clientId === form.clientId ? project.name : `${project.name} · ${project.client}`}
+                  {project.name} · {project.client}
                 </option>
               ))}
             </select>
@@ -4184,11 +4179,13 @@ function ProjectPage({
 function TaskCreatePage({
   clients,
   employees,
+  projects,
   taskTypes,
   onCreateTask,
 }: {
   clients: Client[];
   employees: Employee[];
+  projects: Project[];
   taskTypes: string[];
   onCreateTask: TaskSubmitHandler;
 }) {
@@ -4201,7 +4198,7 @@ function TaskCreatePage({
         </div>
       </div>
       <div className="page-card">
-        <TaskForm clients={clients} employees={employees} taskTypes={taskTypes} onSubmit={onCreateTask} />
+        <TaskForm clients={clients} employees={employees} projects={projects} taskTypes={taskTypes} onSubmit={onCreateTask} />
       </div>
     </section>
   );
@@ -6069,11 +6066,13 @@ function SimpleTypeModal({
 function TaskForm({
   clients,
   employees,
+  projects,
   taskTypes,
   onSubmit,
 }: {
   clients: Client[];
   employees: Employee[];
+  projects: Project[];
   taskTypes: string[];
   onSubmit: TaskSubmitHandler;
 }) {
@@ -6082,7 +6081,7 @@ function TaskForm({
     type: typeOptions[0] as TaskType,
     title: '',
     toIds: employees[1]?.id ? [employees[1].id] : [],
-    clientId: clients[0]?.id || '',
+    projectId: projects[0]?.id || '',
     due: '',
     priority: '보통' as Priority,
     summary: '',
@@ -6102,10 +6101,10 @@ function TaskForm({
 
   useEffect(() => {
     setForm((current) => {
-      if (current.clientId && clients.some((client) => client.id === current.clientId)) return current;
-      return { ...current, clientId: clients[0]?.id || '' };
+      if (current.projectId && projects.some((project) => project.id === current.projectId)) return current;
+      return { ...current, projectId: projects[0]?.id || '' };
     });
-  }, [clients]);
+  }, [projects]);
 
   useEffect(() => {
     setForm((current) => (typeOptions.includes(current.type) ? current : { ...current, type: typeOptions[0] || '업무 요청' }));
@@ -6150,7 +6149,7 @@ function TaskForm({
       setError('받는 담당자를 한 명 이상 선택해주세요.');
       return;
     }
-    if (!form.type || !form.clientId || !form.due || !form.priority || !form.title.trim() || !form.summary.trim()) {
+    if (!form.type || !form.projectId || !form.due || !form.priority || !form.title.trim() || !form.summary.trim()) {
       setError('첨부파일을 제외한 모든 항목을 입력해주세요.');
       return;
     }
@@ -6158,7 +6157,8 @@ function TaskForm({
     setError('');
     setLoading(true);
     setStatus('전송중입니다.');
-    const selectedClient = clients.find((client) => client.id === form.clientId);
+    const selectedProject = projects.find((project) => project.id === form.projectId);
+    const selectedClient = selectedProject?.clientId ? clients.find((client) => client.id === selectedProject.clientId) : null;
     const message = await onSubmit({
       title: form.title,
       from: '인성이형',
@@ -6166,7 +6166,9 @@ function TaskForm({
       toIds: validRecipientIds,
       toList: validRecipients,
       clientId: selectedClient?.id || undefined,
-      client: selectedClient?.name || '',
+      client: selectedClient?.name || selectedProject?.client || '',
+      projectId: selectedProject?.id || null,
+      projectName: selectedProject?.name || '',
       due: form.due,
       priority: form.priority,
       type: form.type,
@@ -6207,10 +6209,14 @@ function TaskForm({
         </div>
       </label>
       <label>
-        관련 업체
-        <select required value={form.clientId} onChange={(event) => setForm({ ...form, clientId: event.target.value })}>
-          <option value="">업체 선택</option>
-          {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
+        프로젝트
+        <select required value={form.projectId} onChange={(event) => setForm({ ...form, projectId: event.target.value })}>
+          <option value="">프로젝트 선택</option>
+          {projects.map((project) => (
+            <option key={project.id} value={project.id}>
+              {project.name} · {project.client}
+            </option>
+          ))}
         </select>
       </label>
       <label>
