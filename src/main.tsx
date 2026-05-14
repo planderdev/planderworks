@@ -208,8 +208,6 @@ type OperationDraft = Omit<OperationItem, 'id' | 'lastCompletedAt'> & {
   lastCompletedAt?: string | null;
 };
 type GoogleCalendarSettings = {
-  clientId: string;
-  apiKey: string;
   calendarId: string;
 };
 type CalendarEventItem = {
@@ -224,39 +222,11 @@ type CalendarEventItem = {
   allDay: boolean;
   onClick: () => void;
 };
-type GoogleTokenResponse = {
-  access_token?: string;
-  error?: string;
-  error_description?: string;
-};
-type GoogleTokenClient = {
-  requestAccessToken: (options?: { prompt?: string }) => void;
-};
-type GoogleEventResponse = {
-  id?: string;
-  items?: Array<{ id?: string }>;
-  error?: { message?: string };
-};
 type GoogleCalendarSyncResult = {
   created: number;
   updated: number;
   failed: number;
 };
-declare global {
-  interface Window {
-    google?: {
-      accounts?: {
-        oauth2?: {
-          initTokenClient: (config: {
-            client_id: string;
-            scope: string;
-            callback: (response: GoogleTokenResponse) => void;
-          }) => GoogleTokenClient;
-        };
-      };
-    };
-  }
-}
 
 type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
 type TaskUpdateHandler = (task: Task, updates: TaskUpdateDraft) => Promise<string>;
@@ -471,122 +441,25 @@ function getInitialOperations() {
 }
 
 const googleCalendarSettingsStorageKey = 'plander-google-calendar-settings';
-const googleCalendarScope = 'https://www.googleapis.com/auth/calendar.events';
-const googleIdentityScriptSrc = 'https://accounts.google.com/gsi/client';
-let googleIdentityScriptPromise: Promise<void> | null = null;
 
 function getInitialGoogleCalendarSettings(): GoogleCalendarSettings {
   const saved = localStorage.getItem(googleCalendarSettingsStorageKey);
-  if (!saved) return { clientId: '', apiKey: '', calendarId: 'primary' };
+  if (!saved) return { calendarId: '' };
 
   try {
     const parsed = JSON.parse(saved) as Partial<GoogleCalendarSettings>;
     return {
-      clientId: parsed.clientId || '',
-      apiKey: parsed.apiKey || '',
-      calendarId: parsed.calendarId || 'primary',
+      calendarId: parsed.calendarId || '',
     };
   } catch {
-    return { clientId: '', apiKey: '', calendarId: 'primary' };
+    return { calendarId: '' };
   }
 }
 
 function normalizeGoogleCalendarSettings(settings: GoogleCalendarSettings): GoogleCalendarSettings {
   return {
-    clientId: settings.clientId.trim(),
-    apiKey: settings.apiKey.trim(),
-    calendarId: settings.calendarId.trim() || 'primary',
+    calendarId: settings.calendarId.trim(),
   };
-}
-
-function loadGoogleIdentityScript() {
-  if (window.google?.accounts?.oauth2) return Promise.resolve();
-  if (googleIdentityScriptPromise) return googleIdentityScriptPromise;
-
-  googleIdentityScriptPromise = new Promise<void>((resolve, reject) => {
-    const existingScript = document.querySelector<HTMLScriptElement>(`script[src="${googleIdentityScriptSrc}"]`);
-
-    if (existingScript) {
-      existingScript.addEventListener('load', () => resolve(), { once: true });
-      existingScript.addEventListener('error', () => reject(new Error('Google 인증 스크립트를 불러오지 못했습니다.')), { once: true });
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = googleIdentityScriptSrc;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Google 인증 스크립트를 불러오지 못했습니다.'));
-    document.head.appendChild(script);
-  });
-
-  return googleIdentityScriptPromise;
-}
-
-async function requestGoogleCalendarAccessToken(clientId: string) {
-  await loadGoogleIdentityScript();
-
-  return new Promise<string>((resolve, reject) => {
-    const oauth = window.google?.accounts?.oauth2;
-
-    if (!oauth) {
-      reject(new Error('Google 인증 모듈을 사용할 수 없습니다.'));
-      return;
-    }
-
-    const client = oauth.initTokenClient({
-      client_id: clientId,
-      scope: googleCalendarScope,
-      callback: (response) => {
-        if (response.error || !response.access_token) {
-          reject(new Error(response.error_description || response.error || 'Google Calendar 권한 승인에 실패했습니다.'));
-          return;
-        }
-
-        resolve(response.access_token);
-      },
-    });
-
-    client.requestAccessToken();
-  });
-}
-
-function getGoogleCalendarApiUrl(settings: GoogleCalendarSettings, path: string, params?: Record<string, string>) {
-  const calendarId = encodeURIComponent(settings.calendarId || 'primary');
-  const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${calendarId}${path}`);
-
-  Object.entries(params || {}).forEach(([key, value]) => {
-    if (value) url.searchParams.set(key, value);
-  });
-
-  if (settings.apiKey) url.searchParams.set('key', settings.apiKey);
-
-  return url;
-}
-
-async function fetchGoogleCalendar<T>(
-  settings: GoogleCalendarSettings,
-  accessToken: string,
-  path: string,
-  init: RequestInit = {},
-  params?: Record<string, string>,
-) {
-  const response = await fetch(getGoogleCalendarApiUrl(settings, path, params), {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      ...(init.headers || {}),
-    },
-  });
-  const data = (await response.json().catch(() => ({}))) as T & GoogleEventResponse;
-
-  if (!response.ok) {
-    throw new Error(data.error?.message || `Google Calendar 요청 실패 (${response.status})`);
-  }
-
-  return data as T;
 }
 
 function getCalendarEndDate(event: CalendarEventItem) {
@@ -594,96 +467,40 @@ function getCalendarEndDate(event: CalendarEventItem) {
   return new Date(event.start.getTime() + 60 * 60 * 1000);
 }
 
-function toGoogleCalendarPayload(event: CalendarEventItem) {
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Seoul';
-
-  if (event.allDay) {
-    const endDate = addCalendarDays(startOfCalendarDay(event.end), 1);
-    return {
-      summary: event.title,
-      description: `${event.kind}\n${event.description}\n\nPlanderWorks: ${event.sourceUrl}`,
-      source: { title: 'PlanderWorks', url: event.sourceUrl },
-      start: { date: formatDateInputValue(startOfCalendarDay(event.start)) },
-      end: { date: formatDateInputValue(endDate) },
-      extendedProperties: {
-        private: {
-          planderWorksId: event.id,
-          planderSource: 'PlanderWorks',
-        },
-      },
-    };
-  }
-
-  return {
-    summary: event.title,
-    description: `${event.kind}\n${event.description}\n\nPlanderWorks: ${event.sourceUrl}`,
-    source: { title: 'PlanderWorks', url: event.sourceUrl },
-    start: { dateTime: event.start.toISOString(), timeZone },
-    end: { dateTime: getCalendarEndDate(event).toISOString(), timeZone },
-    extendedProperties: {
-      private: {
-        planderWorksId: event.id,
-        planderSource: 'PlanderWorks',
-      },
-    },
-  };
+function toGoogleCalendarSyncPayload(events: CalendarEventItem[]) {
+  return events.map((event) => ({
+    id: event.id,
+    title: event.title,
+    kind: event.kind,
+    description: event.description,
+    sourceUrl: event.sourceUrl,
+    allDay: event.allDay,
+    startAt: event.start.toISOString(),
+    endAt: getCalendarEndDate(event).toISOString(),
+    startDate: formatDateInputValue(startOfCalendarDay(event.start)),
+    endDate: formatDateInputValue(addCalendarDays(startOfCalendarDay(event.end), 1)),
+  }));
 }
 
 async function syncEventsToGoogleCalendar(settings: GoogleCalendarSettings, events: CalendarEventItem[]) {
   const normalizedSettings = normalizeGoogleCalendarSettings(settings);
 
-  if (!normalizedSettings.clientId) throw new Error('Google Client ID를 먼저 저장해주세요.');
+  if (!supabase) throw new Error('Supabase 연결이 필요합니다.');
+  if (!normalizedSettings.calendarId) throw new Error('Google Calendar ID를 먼저 저장해주세요.');
   if (!events.length) throw new Error('옮길 스케줄이 없습니다.');
 
-  const accessToken = await requestGoogleCalendarAccessToken(normalizedSettings.clientId);
-  const result: GoogleCalendarSyncResult = { created: 0, updated: 0, failed: 0 };
+  const { data, error } = await supabase.functions.invoke('sync-google-calendar', {
+    body: {
+      calendarId: normalizedSettings.calendarId,
+      events: toGoogleCalendarSyncPayload(events),
+    },
+  });
 
-  for (const event of events) {
-    try {
-      const searchResult = await fetchGoogleCalendar<GoogleEventResponse>(
-        normalizedSettings,
-        accessToken,
-        '/events',
-        { method: 'GET' },
-        {
-          maxResults: '1',
-          singleEvents: 'true',
-          showDeleted: 'false',
-          privateExtendedProperty: `planderWorksId=${event.id}`,
-        },
-      );
-      const existingEventId = searchResult.items?.[0]?.id;
-      const payload = toGoogleCalendarPayload(event);
-
-      if (existingEventId) {
-        await fetchGoogleCalendar<GoogleEventResponse>(
-          normalizedSettings,
-          accessToken,
-          `/events/${encodeURIComponent(existingEventId)}`,
-          {
-            method: 'PATCH',
-            body: JSON.stringify(payload),
-          },
-        );
-        result.updated += 1;
-      } else {
-        await fetchGoogleCalendar<GoogleEventResponse>(
-          normalizedSettings,
-          accessToken,
-          '/events',
-          {
-            method: 'POST',
-            body: JSON.stringify(payload),
-          },
-        );
-        result.created += 1;
-      }
-    } catch {
-      result.failed += 1;
-    }
+  if (error || data?.error) {
+    throw new Error(data?.error || error?.message || 'Google Calendar 동기화에 실패했습니다.');
   }
 
-  return result;
+  return data as GoogleCalendarSyncResult;
 }
 
 function getInitialTheme(): ThemeMode {
@@ -1043,12 +860,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem(operationStorageKey, JSON.stringify(operations));
   }, [operations]);
-
-  useEffect(() => {
-    if (googleCalendarSettings.clientId) {
-      void loadGoogleIdentityScript();
-    }
-  }, [googleCalendarSettings.clientId]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -4410,6 +4221,7 @@ function CalendarPage({
       : anchorDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
   const syncGoogleCalendar = async () => {
     if (googleSyncLoading) return;
+    if (currentUser.accountRole !== 'admin') return;
 
     if (!(await requestActionConfirm(`Google Calendar로 스케줄 ${calendarEvents.length}건을 옮기시겠습니까?`))) return;
 
@@ -4439,10 +4251,12 @@ function CalendarPage({
           <p className="calendar-current-date">{currentDateLabel}</p>
         </div>
         <div className="calendar-controls">
-          <button className="primary-action calendar-sync-button" disabled={googleSyncLoading || !calendarEvents.length} onClick={syncGoogleCalendar} type="button">
-            <SendHorizontal size={16} />
-            {googleSyncLoading ? '진행중...' : '구글캘린더로 스케줄 옮기기'}
-          </button>
+          {currentUser.accountRole === 'admin' ? (
+            <button className="primary-action calendar-sync-button" disabled={googleSyncLoading || !calendarEvents.length} onClick={syncGoogleCalendar} type="button">
+              <SendHorizontal size={16} />
+              {googleSyncLoading ? '진행중...' : '구글캘린더로 스케줄 옮기기'}
+            </button>
+          ) : null}
           <button className="icon-button" aria-label="이전" onClick={() => moveCalendar(-1)} type="button">
             <ChevronLeft size={18} />
           </button>
@@ -5805,29 +5619,12 @@ function SettingsPage({
         </div>
         <form className="page-card settings-card google-calendar-settings" onSubmit={submitGoogleCalendarSettings}>
           <h2>Google Calendar</h2>
-          <label>
-            Client ID
-            <input
-              inputMode="text"
-              placeholder="OAuth Client ID"
-              value={googleForm.clientId}
-              onChange={(event) => setGoogleForm((current) => ({ ...current, clientId: event.target.value }))}
-            />
-          </label>
-          <label>
-            API Key
-            <input
-              inputMode="text"
-              placeholder="선택"
-              value={googleForm.apiKey}
-              onChange={(event) => setGoogleForm((current) => ({ ...current, apiKey: event.target.value }))}
-            />
-          </label>
+          <p>서비스 계정으로 회사 공용 캘린더에 스케줄을 내보냅니다. Google 로그인창은 뜨지 않습니다.</p>
           <label>
             Calendar ID
             <input
               inputMode="text"
-              placeholder="primary"
+              placeholder="xxxxx@group.calendar.google.com"
               value={googleForm.calendarId}
               onChange={(event) => setGoogleForm((current) => ({ ...current, calendarId: event.target.value }))}
             />
