@@ -81,6 +81,16 @@ create table if not exists public.project_messages (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.project_message_reads (
+  message_id uuid not null references public.project_messages(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  read_at timestamptz not null default now(),
+  primary key (message_id, user_id)
+);
+
+create index if not exists project_message_reads_user_id_idx
+on public.project_message_reads(user_id);
+
 create table if not exists public.tasks (
   id uuid primary key default gen_random_uuid(),
   title text not null,
@@ -169,6 +179,15 @@ create table if not exists public.push_subscriptions (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.push_preferences (
+  user_id uuid primary key references public.profiles(id) on delete cascade,
+  task_enabled boolean not null default true,
+  report_enabled boolean not null default true,
+  project_message_enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -220,6 +239,11 @@ for each row execute function public.set_task_started_at();
 drop trigger if exists set_push_subscriptions_updated_at on public.push_subscriptions;
 create trigger set_push_subscriptions_updated_at
 before update on public.push_subscriptions
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_push_preferences_updated_at on public.push_preferences;
+create trigger set_push_preferences_updated_at
+before update on public.push_preferences
 for each row execute function public.set_updated_at();
 
 create or replace function public.handle_new_user()
@@ -313,12 +337,14 @@ alter table public.clients enable row level security;
 alter table public.projects enable row level security;
 alter table public.project_members enable row level security;
 alter table public.project_messages enable row level security;
+alter table public.project_message_reads enable row level security;
 alter table public.tasks enable row level security;
 alter table public.task_watchers enable row level security;
 alter table public.task_comments enable row level security;
 alter table public.task_files enable row level security;
 alter table public.activity_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
+alter table public.push_preferences enable row level security;
 
 drop policy if exists "job types are readable" on public.job_types;
 create policy "job types are readable"
@@ -451,6 +477,25 @@ on public.project_messages for insert
 to authenticated
 with check (user_id = auth.uid());
 
+drop policy if exists "project message reads are readable" on public.project_message_reads;
+create policy "project message reads are readable"
+on public.project_message_reads for select
+to authenticated
+using (true);
+
+drop policy if exists "users create own project message reads" on public.project_message_reads;
+create policy "users create own project message reads"
+on public.project_message_reads for insert
+to authenticated
+with check (user_id = auth.uid());
+
+drop policy if exists "users update own project message reads" on public.project_message_reads;
+create policy "users update own project message reads"
+on public.project_message_reads for update
+to authenticated
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
+
 drop policy if exists "task participants read tasks" on public.tasks;
 drop policy if exists "authenticated users read tasks" on public.tasks;
 create policy "authenticated users read tasks"
@@ -569,6 +614,13 @@ with check (uploaded_by = auth.uid());
 drop policy if exists "users manage own push subscriptions" on public.push_subscriptions;
 create policy "users manage own push subscriptions"
 on public.push_subscriptions for all
+to authenticated
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
+
+drop policy if exists "users manage own push preferences" on public.push_preferences;
+create policy "users manage own push preferences"
+on public.push_preferences for all
 to authenticated
 using (user_id = auth.uid())
 with check (user_id = auth.uid());

@@ -88,10 +88,29 @@ Deno.serve(async (req) => {
     return jsonResponse({ sent: 0, skipped: 'No recipients' });
   }
 
+  const { data: preferences, error: preferencesError } = await admin
+    .from('push_preferences')
+    .select('user_id, project_message_enabled')
+    .in('user_id', recipientIds);
+
+  if (preferencesError) {
+    return jsonResponse({ error: preferencesError.message }, 400);
+  }
+
+  const preferencesByUser = new Map((preferences || []).map((preference: { user_id: string; project_message_enabled: boolean }) => [preference.user_id, preference]));
+  const enabledRecipientIds = recipientIds.filter((userId) => {
+    const preference = preferencesByUser.get(userId);
+    return preference ? preference.project_message_enabled : true;
+  });
+
+  if (!enabledRecipientIds.length) {
+    return jsonResponse({ sent: 0, skipped: 'Recipients disabled project message push' });
+  }
+
   const { data: subscriptions, error: subscriptionError } = await admin
     .from('push_subscriptions')
-    .select('id, endpoint, p256dh, auth')
-    .in('user_id', recipientIds);
+    .select('id, user_id, endpoint, p256dh, auth')
+    .in('user_id', enabledRecipientIds);
 
   if (subscriptionError) {
     return jsonResponse({ error: subscriptionError.message }, 400);

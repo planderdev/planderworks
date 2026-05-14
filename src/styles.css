@@ -2628,6 +2628,35 @@ h1 {
   gap: 10px;
 }
 
+.push-preference-list {
+  display: grid;
+  gap: 8px;
+}
+
+.toggle-row {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: var(--panel-2);
+}
+
+.toggle-row span {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 850;
+}
+
+.toggle-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: #4b8ef7;
+}
+
 .google-calendar-settings label {
   display: grid;
   gap: 7px;
@@ -2823,6 +2852,14 @@ h1 {
 .project-message small {
   color: var(--muted);
   font-size: 0.72rem;
+}
+
+.project-message-readers {
+  display: block;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 .project-message p {

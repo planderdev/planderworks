@@ -60,6 +60,11 @@ const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 's
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 const MAX_TASK_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_FILE_SIZE_LABEL = '10MB';
+const defaultPushPreferences: PushPreferences = {
+  task: true,
+  report: true,
+  projectMessage: true,
+};
 
 type AppUser = {
   id: string;
@@ -141,6 +146,14 @@ type ProjectMessage = {
   author: string;
   content: string;
   createdAt: string;
+  readByIds: string[];
+  readBy: string[];
+};
+
+type PushPreferences = {
+  task: boolean;
+  report: boolean;
+  projectMessage: boolean;
 };
 
 type Employee = {
@@ -247,6 +260,7 @@ type TaskTypeDeleteHandler = (name: string) => Promise<string>;
 type EmployeeSubmitHandler = (employee: NewEmployee) => Promise<string>;
 type EmployeeUpdateHandler = (employeeId: string, updates: EmployeeUpdate) => Promise<string>;
 type GoogleCalendarSettingsHandler = (settings: GoogleCalendarSettings) => Promise<string>;
+type PushPreferencesUpdateHandler = (preferences: PushPreferences) => Promise<string>;
 
 function showActionPopup(message: string) {
   window.dispatchEvent(new CustomEvent('plander-action-complete', { detail: message }));
@@ -826,6 +840,7 @@ function App() {
   const [pushStatus, setPushStatus] = useState('종 버튼을 누르면 이 기기 업무 푸시알림을 켤 수 있습니다.');
   const [pushLoading, setPushLoading] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
+  const [pushPreferences, setPushPreferences] = useState<PushPreferences>(defaultPushPreferences);
   const [popupMessage, setPopupMessage] = useState('');
   const [confirmRequest, setConfirmRequest] = useState<{ id: number; message: string } | null>(null);
   const [forwardHistory, setForwardHistory] = useState<ActiveView[]>([]);
@@ -912,7 +927,19 @@ function App() {
 
     setBackendStatus('Supabase 동기화중');
 
-    const [profilesResult, jobTypesResult, taskTypesResult, clientsResult, projectsResult, projectMembersResult, projectMessagesResult, tasksResult, commentsResult] = await Promise.all([
+    const [
+      profilesResult,
+      jobTypesResult,
+      taskTypesResult,
+      clientsResult,
+      projectsResult,
+      projectMembersResult,
+      projectMessagesResult,
+      projectMessageReadsResult,
+      pushPreferencesResult,
+      tasksResult,
+      commentsResult,
+    ] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, email, name, phone, role, job_types(name)')
@@ -944,6 +971,15 @@ function App() {
         .select('id, project_id, user_id, content, created_at, user:profiles!project_messages_user_id_fkey(name)')
         .order('created_at', { ascending: true }),
       supabase
+        .from('project_message_reads')
+        .select('message_id, user_id, read_at, user:profiles!project_message_reads_user_id_fkey(name)')
+        .order('read_at', { ascending: true }),
+      supabase
+        .from('push_preferences')
+        .select('task_enabled, report_enabled, project_message_enabled')
+        .eq('user_id', currentUser.id)
+        .maybeSingle(),
+      supabase
         .from('tasks')
         .select(`
           id,
@@ -974,7 +1010,19 @@ function App() {
         .order('created_at', { ascending: true }),
     ]);
 
-    if (profilesResult.error || jobTypesResult.error || taskTypesResult.error || clientsResult.error || projectsResult.error || projectMembersResult.error || projectMessagesResult.error || tasksResult.error || commentsResult.error) {
+    if (
+      profilesResult.error ||
+      jobTypesResult.error ||
+      taskTypesResult.error ||
+      clientsResult.error ||
+      projectsResult.error ||
+      projectMembersResult.error ||
+      projectMessagesResult.error ||
+      projectMessageReadsResult.error ||
+      pushPreferencesResult.error ||
+      tasksResult.error ||
+      commentsResult.error
+    ) {
       setBackendStatus('Supabase 테이블 준비 필요');
       return;
     }
@@ -1098,6 +1146,16 @@ function App() {
       memberIds: projectMembersByProject[project.id]?.ids || [],
       memberNames: projectMembersByProject[project.id]?.names || [],
     }));
+    const messageReadsByMessage = ((projectMessageReadsResult.data || []) as any[]).reduce<Record<string, { ids: string[]; names: string[] }>>((groups, read) => {
+      const current = groups[read.message_id] || { ids: [], names: [] };
+      return {
+        ...groups,
+        [read.message_id]: {
+          ids: [...current.ids, read.user_id].filter(Boolean),
+          names: [...current.names, read.user?.name].filter(Boolean),
+        },
+      };
+    }, {});
     const nextProjectMessages: ProjectMessage[] = ((projectMessagesResult.data || []) as any[]).map((message) => ({
       id: message.id,
       projectId: message.project_id,
@@ -1105,7 +1163,16 @@ function App() {
       author: message.user?.name || '알 수 없음',
       content: message.content,
       createdAt: message.created_at,
+      readByIds: messageReadsByMessage[message.id]?.ids || [],
+      readBy: messageReadsByMessage[message.id]?.names || [],
     }));
+    const nextPushPreferences = pushPreferencesResult.data
+      ? {
+          task: Boolean((pushPreferencesResult.data as any).task_enabled),
+          report: Boolean((pushPreferencesResult.data as any).report_enabled),
+          projectMessage: Boolean((pushPreferencesResult.data as any).project_message_enabled),
+        }
+      : defaultPushPreferences;
 
     const nextJobTypes = (jobTypesResult.data || []).map((jobType) => jobType.name);
     const nextTaskTypes = (taskTypesResult.data || []).map((taskType) => taskType.name);
@@ -1115,6 +1182,7 @@ function App() {
     setClients(nextClients);
     setProjects(nextProjects);
     setProjectMessages(nextProjectMessages);
+    setPushPreferences(nextPushPreferences);
     setJobTypes(nextJobTypes.length ? nextJobTypes : seedJobTypes);
     setTaskTypes(nextTaskTypes.length ? nextTaskTypes : fallbackTaskTypes);
     setBackendStatus('Supabase 연결됨');
@@ -1144,6 +1212,8 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_members' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_messages' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'project_message_reads' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'push_preferences' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, queueRefresh)
       .subscribe();
 
@@ -1885,9 +1955,42 @@ function App() {
       author: currentUser?.name || '나',
       content: nextContent,
       createdAt: new Date().toISOString(),
+      readByIds: [],
+      readBy: [],
     };
     setProjectMessages((current) => [...current, nextMessage]);
     return '메시지가 등록되었습니다.';
+  };
+
+  const markProjectMessagesRead = async (messageIds: string[]) => {
+    const uniqueMessageIds = Array.from(new Set(messageIds.filter(Boolean)));
+    if (!uniqueMessageIds.length || !currentUser) return;
+
+    if (supabase && !currentUser.isPrototype) {
+      const rows = uniqueMessageIds.map((messageId) => ({
+        message_id: messageId,
+        user_id: currentUser.id,
+        read_at: new Date().toISOString(),
+      }));
+      const { error } = await supabase.from('project_message_reads').upsert(rows, { onConflict: 'message_id,user_id' });
+
+      if (error) {
+        setBackendStatus(`대화 읽음 처리 실패: ${error.message}`);
+        return;
+      }
+    }
+
+    setProjectMessages((current) =>
+      current.map((message) =>
+        uniqueMessageIds.includes(message.id) && !message.readByIds.includes(currentUser.id)
+          ? {
+              ...message,
+              readByIds: [...message.readByIds, currentUser.id],
+              readBy: [...message.readBy, currentUser.name],
+            }
+          : message,
+      ),
+    );
   };
 
   const addJobType = async (name: string): Promise<string> => {
@@ -2121,6 +2224,32 @@ function App() {
     setGoogleCalendarSettings(normalizedSettings);
     localStorage.setItem(googleCalendarSettingsStorageKey, JSON.stringify(normalizedSettings));
     return 'Google Calendar 설정을 저장했습니다.';
+  };
+
+  const updatePushPreferences: PushPreferencesUpdateHandler = async (preferences) => {
+    setPushPreferences(preferences);
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('push_preferences').upsert(
+        {
+          user_id: currentUser.id,
+          task_enabled: preferences.task,
+          report_enabled: preferences.report,
+          project_message_enabled: preferences.projectMessage,
+        },
+        { onConflict: 'user_id' },
+      );
+
+      if (error) {
+        const message = `푸시알림 설정 저장 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      return '푸시알림 설정을 저장했습니다.';
+    }
+
+    return '푸시알림 설정을 저장했습니다.';
   };
 
   const updateTaskStatus = async (taskId: string, status: TaskStatus): Promise<string> => {
@@ -2621,6 +2750,7 @@ function App() {
             onAddMessage={addProjectMessage}
             onDeleteTask={deleteTask}
             onEditProject={(projectId) => setEditingProjectId(projectId)}
+            onMarkMessagesRead={markProjectMessagesRead}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
             onUpdateTaskStatus={updateTaskStatus}
           />
@@ -2666,6 +2796,7 @@ function App() {
             themeMode={themeMode}
             pushEnabled={pushEnabled}
             pushLoading={pushLoading}
+            pushPreferences={pushPreferences}
             pushStatus={pushStatus}
             onRegisterPush={handleRegisterPush}
             onAddJobType={addJobType}
@@ -2673,6 +2804,7 @@ function App() {
             onAddTaskType={addTaskType}
             onDeleteTaskType={deleteTaskType}
             onSaveGoogleCalendarSettings={saveGoogleCalendarSettings}
+            onUpdatePushPreferences={updatePushPreferences}
             onUpdateOwnProfile={updateOwnProfile}
             onThemeChange={setThemeMode}
           />
@@ -3112,6 +3244,7 @@ function Topbar({
   currentUser,
   pushEnabled,
   pushLoading,
+  pushPreferences,
   pushStatus,
   showSearch,
   themeMode,
@@ -3894,6 +4027,7 @@ function ProjectPage({
   onAddMessage,
   onDeleteTask,
   onEditProject,
+  onMarkMessagesRead,
   onOpenTask,
   onUpdateTaskStatus,
 }: {
@@ -3904,6 +4038,7 @@ function ProjectPage({
   onAddMessage: (projectId: string, content: string) => Promise<string>;
   onDeleteTask: TaskDeleteHandler;
   onEditProject: (projectId: string) => void;
+  onMarkMessagesRead: (messageIds: string[]) => Promise<void>;
   onOpenTask: (task: Task) => void;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
@@ -3923,6 +4058,17 @@ function ProjectPage({
       list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
     });
   }, [latestMessageId, project?.id]);
+
+  useEffect(() => {
+    if (!project || !messages.length) return;
+    const unreadMessageIds = messages
+      .filter((item) => item.userId !== currentUser.id && !item.readByIds.includes(currentUser.id))
+      .map((item) => item.id);
+
+    if (unreadMessageIds.length) {
+      void onMarkMessagesRead(unreadMessageIds);
+    }
+  }, [currentUser.id, messages, onMarkMessagesRead, project]);
 
   const sendMessage = async () => {
     if (!project || messageLoading) return;
@@ -4004,6 +4150,11 @@ function ProjectPage({
                       <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
                     </div>
                     <p>{item.content}</p>
+                    {item.readBy.filter((name) => name !== item.author).length ? (
+                      <small className="project-message-readers">
+                        읽음: {item.readBy.filter((name) => name !== item.author).join(', ')}
+                      </small>
+                    ) : null}
                   </article>
                 ))
               ) : (
@@ -5506,6 +5657,7 @@ function SettingsPage({
   onAddTaskType,
   onDeleteTaskType,
   onSaveGoogleCalendarSettings,
+  onUpdatePushPreferences,
   onUpdateOwnProfile,
   onThemeChange,
 }: {
@@ -5517,6 +5669,7 @@ function SettingsPage({
   taskTypes: string[];
   pushEnabled: boolean;
   pushLoading: boolean;
+  pushPreferences: PushPreferences;
   pushStatus: string;
   themeMode: ThemeMode;
   onRegisterPush: () => void;
@@ -5525,6 +5678,7 @@ function SettingsPage({
   onAddTaskType: TaskTypeSubmitHandler;
   onDeleteTaskType: TaskTypeDeleteHandler;
   onSaveGoogleCalendarSettings: GoogleCalendarSettingsHandler;
+  onUpdatePushPreferences: PushPreferencesUpdateHandler;
   onUpdateOwnProfile: (updates: OwnProfileUpdate) => Promise<string>;
   onThemeChange: (mode: ThemeMode) => void;
 }) {
@@ -5544,6 +5698,7 @@ function SettingsPage({
   const [googleForm, setGoogleForm] = useState<GoogleCalendarSettings>(googleCalendarSettings);
   const [googleStatus, setGoogleStatus] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [pushPreferencesLoading, setPushPreferencesLoading] = useState(false);
 
   useEffect(() => {
     setProfileForm({
@@ -5591,6 +5746,13 @@ function SettingsPage({
     setGoogleStatus(message);
     showActionPopup(message);
   };
+  const changePushPreference = async (key: keyof PushPreferences, enabled: boolean) => {
+    if (pushPreferencesLoading) return;
+    setPushPreferencesLoading(true);
+    const message = await onUpdatePushPreferences({ ...pushPreferences, [key]: enabled });
+    setPushPreferencesLoading(false);
+    showActionPopup(message);
+  };
 
   return (
     <section className="page-shell">
@@ -5615,6 +5777,23 @@ function SettingsPage({
               <Bell size={17} />
               {pushLoading ? '진행중...' : pushEnabled ? '이 기기 알림 끄기' : '이 기기 알림 켜기'}
             </button>
+            <div className="push-preference-list">
+              {[
+                { key: 'task' as const, label: '업무전달' },
+                { key: 'report' as const, label: '건의사항전달' },
+                { key: 'projectMessage' as const, label: '채팅창 메시지' },
+              ].map((item) => (
+                <label className="toggle-row" key={item.key}>
+                  <span>{item.label}</span>
+                  <input
+                    checked={pushPreferences[item.key]}
+                    disabled={pushPreferencesLoading}
+                    onChange={(event) => changePushPreference(item.key, event.target.checked)}
+                    type="checkbox"
+                  />
+                </label>
+              ))}
+            </div>
           </div>
         </div>
         <form className="page-card settings-card google-calendar-settings" onSubmit={submitGoogleCalendarSettings}>

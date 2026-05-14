@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
       task:tasks(
         id,
         title,
+        task_type,
         creator_id,
         assignee_id,
         task_watchers(user_id)
@@ -89,10 +90,30 @@ Deno.serve(async (req) => {
     return jsonResponse({ sent: 0, skipped: 'No recipients' });
   }
 
+  const preferenceColumn = task.task_type === '보고' || task.task_type === '제안' ? 'report_enabled' : 'task_enabled';
+  const { data: preferences, error: preferencesError } = await admin
+    .from('push_preferences')
+    .select(`user_id, ${preferenceColumn}`)
+    .in('user_id', recipientIds);
+
+  if (preferencesError) {
+    return jsonResponse({ error: preferencesError.message }, 400);
+  }
+
+  const preferencesByUser = new Map((preferences || []).map((preference: Record<string, boolean | string>) => [preference.user_id, preference]));
+  const enabledRecipientIds = recipientIds.filter((userId) => {
+    const preference = preferencesByUser.get(userId);
+    return preference ? Boolean(preference[preferenceColumn]) : true;
+  });
+
+  if (!enabledRecipientIds.length) {
+    return jsonResponse({ sent: 0, skipped: 'Recipients disabled push category' });
+  }
+
   const { data: subscriptions, error: subscriptionError } = await admin
     .from('push_subscriptions')
-    .select('id, endpoint, p256dh, auth')
-    .in('user_id', recipientIds);
+    .select('id, user_id, endpoint, p256dh, auth')
+    .in('user_id', enabledRecipientIds);
 
   if (subscriptionError) {
     return jsonResponse({ error: subscriptionError.message }, 400);
