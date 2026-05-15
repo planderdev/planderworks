@@ -3814,12 +3814,14 @@ function TaskDetailModal({
         </div>
         <div className="task-detail-meta">
           <span>
+            보낸 사람:
             <Avatar name={task.from} src={task.creatorAvatarUrl} size="xs" />
-            보낸 사람: {task.from}
+            {task.from}
           </span>
           <span>
+            받는 사람:
             <Avatar name={task.to} src={task.assigneeAvatarUrl} size="xs" />
-            받는 사람: {task.to}
+            {task.to}
             <strong className="read-badge" data-read={getTaskReadLabel(task)}>{getTaskReadLabel(task)}</strong>
           </span>
           <span>관련 업체: {task.client}</span>
