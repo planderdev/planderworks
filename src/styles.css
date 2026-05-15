@@ -713,6 +713,16 @@ h1 {
   font-size: clamp(2rem, 5vw, 3.8rem);
   line-height: 1.04;
   letter-spacing: 0;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+h2,
+h3,
+.task-title-button,
+.dashboard-flow-row span {
+  word-break: keep-all;
+  overflow-wrap: break-word;
 }
 
 .hero-copy {
@@ -3028,6 +3038,483 @@ h1 {
 
 .danger-action {
   color: #9f2424;
+}
+
+/* Plander Works OS redesign layer */
+:root[data-theme='light'] {
+  --bg: #eef1f5;
+  --panel: #fbfcfe;
+  --panel-2: #f2f5f9;
+  --card-bg: #ffffff;
+  --card-line: #cfd6e2;
+  --text: #10141b;
+  --muted: #687180;
+  --soft: #e3e8f0;
+  --line: #d8dee8;
+  --shadow: 0 18px 46px rgba(22, 29, 42, 0.08);
+  --surface-glow: rgba(255, 255, 255, 0.74);
+}
+
+:root[data-theme='dark'] {
+  --bg: #07090d;
+  --panel: #0f1319;
+  --panel-2: #171c24;
+  --card-bg: #10151d;
+  --card-line: #27303d;
+  --text: #f6f8fb;
+  --muted: #99a2b1;
+  --soft: #202733;
+  --line: #222a36;
+  --shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+  --surface-glow: rgba(255, 255, 255, 0.045);
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.035), transparent 240px),
+    var(--bg);
+  font-size: 15px;
+}
+
+.app {
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03), transparent 38%),
+    var(--bg);
+}
+
+.sidebar {
+  width: 300px;
+  gap: 18px;
+  padding: 20px 14px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.018) 34%, rgba(0, 0, 0, 0.22)),
+    #050507;
+  border-right: 1px solid rgba(210, 216, 226, 0.14);
+  box-shadow: 18px 0 44px rgba(0, 0, 0, 0.22);
+}
+
+.brand-row {
+  padding: 4px 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.brand-logo {
+  width: 132px;
+}
+
+.brand-subtitle {
+  color: #d6dae2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sidebar-nav {
+  gap: 6px;
+}
+
+.nav-button,
+.create-split-button,
+.sidebar-install-button,
+.project-nav-button {
+  border-radius: 8px;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.nav-button {
+  min-height: 42px;
+  border-color: transparent;
+  color: #cdd3dd;
+  background: transparent;
+}
+
+.nav-button:hover,
+.nav-button[data-active='true'] {
+  border-color: rgba(255, 255, 255, 0.13);
+  background: rgba(255, 255, 255, 0.075);
+}
+
+.nav-button[data-active='true'] {
+  color: #ffffff;
+  box-shadow: inset 3px 0 0 #d7dbe3;
+}
+
+.create-split-button,
+.sidebar-install-button {
+  border-color: rgba(255, 255, 255, 0.15);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.045)),
+    rgba(120, 128, 142, 0.16);
+}
+
+.create-split-button:hover,
+.create-split-button[data-active='true'],
+.sidebar-install-button:hover {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.07)),
+    rgba(150, 158, 172, 0.22);
+  transform: translateY(-1px);
+}
+
+.sidebar-bottom-layer {
+  padding: 10px;
+  border-color: rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035)),
+    rgba(9, 10, 13, 0.96);
+  backdrop-filter: blur(18px);
+}
+
+.profile-card {
+  min-height: 66px;
+  border-color: rgba(255, 255, 255, 0.12);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035)),
+    #0c0e12;
+}
+
+.workspace {
+  padding: 24px 26px 32px;
+}
+
+.topbar {
+  min-height: 52px;
+  margin-bottom: 22px;
+}
+
+.search-box,
+.theme-switcher,
+.icon-button,
+.account-button,
+.filters button,
+.task-person-filter,
+.account-popover,
+.project-chat-send-button {
+  border-color: var(--line);
+  background:
+    linear-gradient(180deg, var(--surface-glow), transparent),
+    var(--panel);
+  box-shadow: none;
+}
+
+.search-box {
+  height: 44px;
+  max-width: 620px;
+  border-radius: 8px;
+}
+
+.account-button,
+.icon-button {
+  height: 40px;
+  border-radius: 8px;
+}
+
+.icon-button {
+  width: 40px;
+}
+
+.page-shell {
+  gap: 20px;
+}
+
+.page-head {
+  padding: 0;
+}
+
+.page-head h1 {
+  font-size: clamp(1.72rem, 3.1vw, 2.7rem);
+  line-height: 1.08;
+}
+
+.eyebrow {
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+
+.stats-grid {
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card,
+.dashboard-flow-section,
+.page-card,
+.task-board,
+.compose-panel,
+.team-panel,
+.client-card,
+.calendar-panel,
+.operations-urgent-card,
+.operations-row,
+.modal-card,
+.action-popup,
+.comment-item,
+.project-chat-panel,
+.project-message,
+.table-row,
+.person-row,
+.file-row,
+.job-type-card,
+.type-row,
+.empty-state {
+  border: 1px solid var(--card-line) !important;
+  border-radius: 8px !important;
+  background:
+    linear-gradient(180deg, var(--surface-glow), transparent 90px),
+    var(--card-bg) !important;
+  box-shadow: none !important;
+}
+
+.stat-card {
+  min-height: 126px;
+  align-content: end;
+  padding: 18px 18px 17px;
+}
+
+.stat-card strong {
+  margin: 10px 0 3px;
+  font-size: 2.35rem;
+  line-height: 0.98;
+}
+
+.stat-card::before,
+.dashboard-flow-section::before {
+  width: 3px;
+}
+
+.content-grid {
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 20px;
+}
+
+.dashboard-flow {
+  gap: 16px;
+}
+
+.dashboard-flow-section {
+  padding: 16px;
+}
+
+.dashboard-flow-head {
+  min-height: 44px;
+}
+
+.dashboard-flow-head strong {
+  font-size: 1.05rem;
+}
+
+.dashboard-flow-list {
+  gap: 9px;
+}
+
+.dashboard-flow-row {
+  min-height: 50px;
+  border-color: var(--card-line);
+  background: var(--panel-2);
+}
+
+.side-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.compose-panel,
+.team-panel,
+.task-board,
+.page-card {
+  padding: 18px;
+}
+
+.task-list {
+  gap: 12px;
+}
+
+.task-board.list-surface .task-list,
+.report-task-list {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.task-card {
+  gap: 14px;
+  padding: 15px 15px 15px 18px;
+}
+
+.task-title-row {
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.task-type,
+.priority,
+.status,
+.task-direction-badge,
+.read-badge {
+  min-height: 23px;
+  padding: 0 8px;
+  font-size: 0.7rem;
+}
+
+.task-title-button {
+  margin-bottom: 9px;
+  font-size: 1.03rem;
+  line-height: 1.34;
+}
+
+.task-card p {
+  margin-bottom: 14px;
+  line-height: 1.48;
+}
+
+.task-meta {
+  gap: 7px 10px;
+  font-size: 0.78rem;
+}
+
+.task-side {
+  min-width: 74px;
+}
+
+.status {
+  color: #dbe2ec;
+  background: #2d3542;
+}
+
+.status[data-status='진행중'] {
+  color: #d8e7ff;
+  background: #1f3f73;
+}
+
+.status[data-status='완료 요청'] {
+  color: #15191f;
+  background: #d69732;
+}
+
+.status[data-status='보류'] {
+  color: #ffd9d9;
+  background: #7b3030;
+}
+
+.status[data-status='완료'] {
+  color: #d9f6e4;
+  background: #20523a;
+}
+
+.avatar {
+  border-color: rgba(255, 255, 255, 0.18);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.16), transparent),
+    #232a35;
+}
+
+.form-grid input,
+.form-grid select,
+.form-grid textarea,
+.form-stack input,
+.form-stack select,
+.form-stack textarea,
+.inline-form input,
+.google-calendar-settings input {
+  border-color: var(--line);
+  background: var(--panel-2);
+}
+
+.primary-action {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: linear-gradient(180deg, #ffffff, #d1d7e1);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.secondary-action,
+.danger-action {
+  border-color: var(--line);
+  background: var(--panel-2);
+}
+
+.client-grid {
+  gap: 14px;
+}
+
+.client-card {
+  min-height: 156px;
+  padding: 16px;
+}
+
+.calendar-panel {
+  padding: 18px;
+}
+
+.month-board,
+.week-calendar {
+  gap: 10px;
+}
+
+.month-cell {
+  min-height: 118px;
+  padding: 10px;
+}
+
+.calendar-task-pill,
+.calendar-range-pill {
+  border-radius: 6px;
+}
+
+.operations-urgent-list {
+  gap: 14px;
+}
+
+.operations-urgent-card {
+  min-height: 136px;
+  padding: 16px;
+}
+
+.operations-row {
+  border-color: var(--card-line);
+  padding: 15px 16px;
+}
+
+.operation-category,
+.operation-status,
+.operation-category-table,
+.operation-status-table,
+.reminder-chip {
+  min-height: 24px;
+  border-radius: 999px;
+}
+
+.project-detail-grid {
+  grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  gap: 20px;
+}
+
+.project-chat-panel {
+  padding: 16px;
+}
+
+.project-message-list {
+  gap: 10px;
+}
+
+.project-message {
+  width: min(68%, 310px);
+  padding: 11px;
+}
+
+.comment-list {
+  gap: 10px;
+}
+
+.comment-item {
+  padding: 12px;
+}
+
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.68);
+  backdrop-filter: blur(8px);
+}
+
+.modal-card {
+  border-color: var(--card-line);
 }
 
 @media (max-width: 1180px) {
