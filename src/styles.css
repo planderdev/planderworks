@@ -4516,11 +4516,11 @@ h1 {
   --project-soft: rgba(255, 255, 255, 0.08);
   --project-line: rgba(255, 255, 255, 0.16);
   --project-muted: rgba(247, 248, 251, 0.64);
-  color: #080808;
+  color: #fff;
   background:
-    radial-gradient(circle at 45% 8%, rgba(8, 8, 8, 0.08), transparent 34%),
-    #f7f6f2;
-  border-color: rgba(255, 255, 255, 0.72);
+    radial-gradient(circle at 45% 8%, rgba(255, 255, 255, 0.12), transparent 34%),
+    linear-gradient(135deg, #101113, #050506 72%);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 :root[data-theme='dark'] .project-folder-tabs button,
