@@ -4998,6 +4998,217 @@ h1 {
   background: linear-gradient(180deg, #c85578, #963551);
 }
 
+:root[data-color-theme='metal-silver'] .workspace[data-immersive='true'],
+:root[data-color-theme='pastel-pink'] .workspace[data-immersive='true'] {
+  background: var(--bg);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell,
+:root[data-color-theme='pastel-pink'] .project-mode-shell {
+  color: var(--project-ink);
+  border-color: var(--project-line);
+  background:
+    radial-gradient(circle at 45% 8%, rgba(255, 255, 255, 0.58), transparent 34%),
+    linear-gradient(135deg, var(--project-paper), var(--project-soft) 72%);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-canvas,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas {
+  color: var(--project-ink);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.7), transparent 30%),
+    radial-gradient(circle at 88% 0%, rgba(255, 255, 255, 0.52), transparent 28%),
+    var(--project-paper);
+  border-color: var(--project-line);
+}
+
+:root[data-color-theme='metal-silver'] .project-folder-tabs button,
+:root[data-color-theme='pastel-pink'] .project-folder-tabs button {
+  border-color: var(--project-line);
+  color: var(--project-muted);
+  background: linear-gradient(180deg, var(--project-panel), var(--project-soft));
+}
+
+:root[data-color-theme='metal-silver'] .project-folder-tabs button[data-active='true'],
+:root[data-color-theme='pastel-pink'] .project-folder-tabs button[data-active='true'] {
+  border-color: var(--project-line);
+  color: var(--project-ink);
+  background: linear-gradient(180deg, #ffffff, var(--project-panel));
+  box-shadow: 10px -10px 24px rgba(44, 42, 48, 0.1);
+}
+
+:root[data-color-theme='metal-silver'] .project-folder-tabs button svg,
+:root[data-color-theme='metal-silver'] .project-folder-tabs .project-folder-close,
+:root[data-color-theme='pastel-pink'] .project-folder-tabs button svg,
+:root[data-color-theme='pastel-pink'] .project-folder-tabs .project-folder-close {
+  color: var(--project-ink);
+}
+
+:root[data-color-theme='metal-silver'] .project-folder-tabs .project-folder-add,
+:root[data-color-theme='pastel-pink'] .project-folder-tabs .project-folder-add {
+  color: var(--project-ink);
+  background: var(--project-panel);
+  border-color: var(--project-line);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .page-card,
+:root[data-color-theme='metal-silver'] .project-mode-shell .task-board.list-surface,
+:root[data-color-theme='metal-silver'] .project-mode-shell .operations-urgent-panel,
+:root[data-color-theme='metal-silver'] .project-mode-shell .calendar-panel,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-inspector-card,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-chat-panel,
+:root[data-color-theme='metal-silver'] .project-mode-shell .report-compose-card,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .page-card,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .task-board.list-surface,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .operations-urgent-panel,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .calendar-panel,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-inspector-card,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-chat-panel,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .report-compose-card {
+  color: var(--project-ink);
+  background: var(--project-panel) !important;
+  border-color: var(--project-line);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-canvas .filters button,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .filters select,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .task-person-filter,
+:root[data-color-theme='metal-silver'] .project-mode-shell .theme-switcher,
+:root[data-color-theme='metal-silver'] .project-mode-shell .account-button,
+:root[data-color-theme='metal-silver'] .project-mode-shell .account-popover,
+:root[data-color-theme='metal-silver'] .project-mode-shell .icon-button,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-edit-button,
+:root[data-color-theme='metal-silver'] .project-inspector-head .secondary-action,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .filters button,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .filters select,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .task-person-filter,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .theme-switcher,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .account-button,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .account-popover,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .icon-button,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-edit-button,
+:root[data-color-theme='pastel-pink'] .project-inspector-head .secondary-action {
+  color: var(--project-ink);
+  background: var(--project-panel);
+  border-color: var(--project-line);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-canvas .eyebrow,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .mini-empty,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-mode-head p:not(.eyebrow),
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-member-strip,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-filter-strip span,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-task-columns,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-task-row-title small,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-task-due,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-task-assignees small,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-head p:not(.eyebrow),
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-people > span,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-meta span,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-file-grid small,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-comments small,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-attention-note,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .task-card p,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .task-meta,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .task-meta span,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .eyebrow,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .mini-empty,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-mode-head p:not(.eyebrow),
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-member-strip,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-filter-strip span,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-task-columns,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-task-row-title small,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-task-due,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-task-assignees small,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-head p:not(.eyebrow),
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-people > span,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-meta span,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-file-grid small,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-comments small,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-attention-note,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .task-card p,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .task-meta,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .task-meta span {
+  color: var(--project-muted);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-current-name,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-mode-head h1,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-board-toolbar h2,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-task-row,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-task-row-title strong,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-head h2,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-chat-panel .section-head h2,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .task-title-button,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-people strong,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-meta strong,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-summary p,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-comments > p,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-file-grid button,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-current-name,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-mode-head h1,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-board-toolbar h2,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-task-row,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-task-row-title strong,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-head h2,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-chat-panel .section-head h2,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .task-title-button,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-people strong,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-meta strong,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-summary p,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-comments > p,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-file-grid button {
+  color: var(--project-ink);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-member-pill,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-member-avatars > strong,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-badges > span:not(.status),
+:root[data-color-theme='metal-silver'] .project-mode-canvas .task-type,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .priority,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .task-direction-badge,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .read-badge,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-board-toolbar span,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-member-pill,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-member-avatars > strong,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-badges > span:not(.status),
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .task-type,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .priority,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .task-direction-badge,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .read-badge,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-board-toolbar span {
+  color: var(--project-ink);
+  background: var(--project-soft);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-summary,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-files,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-inspector-comments,
+:root[data-color-theme='metal-silver'] .project-mode-canvas .project-file-grid button,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-summary,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-files,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-inspector-comments,
+:root[data-color-theme='pastel-pink'] .project-mode-canvas .project-file-grid button {
+  background: rgba(255, 255, 255, 0.48);
+  border-color: var(--project-line);
+}
+
+:root[data-color-theme='metal-silver'] .project-message,
+:root[data-color-theme='pastel-pink'] .project-message {
+  color: var(--project-ink);
+  background: rgba(255, 255, 255, 0.58);
+}
+
+:root[data-color-theme='metal-silver'] .project-message[data-own='true'] {
+  color: #f7f8fa;
+  background: #32363d;
+}
+
+:root[data-color-theme='pastel-pink'] .project-message[data-own='true'] {
+  color: #fff7fa;
+  background: #963551;
+}
+
 @media (max-width: 1180px) {
   .sidebar {
     position: fixed;
