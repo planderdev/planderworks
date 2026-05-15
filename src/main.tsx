@@ -148,6 +148,8 @@ type Project = {
   client: string;
   status: string;
   createdBy?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   memberIds: string[];
   memberNames: string[];
 };
@@ -1226,7 +1228,7 @@ function App() {
         .order('created_at', { ascending: false }),
       supabase
         .from('projects')
-        .select('id, name, status, client_id, created_by, client:clients(name)')
+        .select('id, name, status, client_id, created_by, created_at, updated_at, client:clients(name)')
         .order('created_at', { ascending: false }),
       supabase
         .from('project_members')
@@ -1419,6 +1421,8 @@ function App() {
       client: project.client?.name || '업체 미지정',
       status: project.status || 'active',
       createdBy: project.created_by,
+      createdAt: project.created_at || null,
+      updatedAt: project.updated_at || null,
       memberIds: projectMembersByProject[project.id]?.ids || [],
       memberNames: projectMembersByProject[project.id]?.names || [],
     }));
@@ -2101,6 +2105,8 @@ function App() {
         client: client.name,
         status: 'active',
         createdBy: currentUser?.id || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
         memberIds,
         memberNames,
       };
@@ -2118,7 +2124,7 @@ function App() {
         status: 'active',
         created_by: currentUser.id,
       })
-      .select('id, name, status, client_id, client:clients(name)')
+      .select('id, name, status, client_id, created_by, created_at, updated_at, client:clients(name)')
       .single();
 
     if (error) {
@@ -2149,6 +2155,8 @@ function App() {
       client: (data as any).client?.name || client.name,
       status: data.status || 'active',
       createdBy: data.created_by || currentUser.id,
+      createdAt: data.created_at || null,
+      updatedAt: data.updated_at || null,
       memberIds,
       memberNames,
     };
@@ -2180,6 +2188,7 @@ function App() {
         clientId: client.id,
         client: client.name,
         status: nextStatus,
+        updatedAt: new Date().toISOString(),
         memberIds,
         memberNames,
       };
@@ -3454,6 +3463,17 @@ function ProjectCreateModal({
     if (!message.includes('실패') && !message.includes('선택') && !message.includes('입력')) onClose();
   };
 
+  const reactivateProject = async () => {
+    if (!project || !onUpdateProject || loading || completeLoading) return;
+    if (!(await requestActionConfirm('프로젝트를 다시 진행중 프로젝트로 옮길까요?'))) return;
+
+    setCompleteLoading(true);
+    const message = await onUpdateProject(project.id, { ...form, status: 'active' });
+    setCompleteLoading(false);
+    showActionPopup(message);
+    if (!message.includes('실패') && !message.includes('선택') && !message.includes('입력')) onClose();
+  };
+
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
@@ -3509,10 +3529,10 @@ function ProjectCreateModal({
           <FolderKanban size={17} />
           {loading ? '진행중...' : isEdit ? '프로젝트 저장' : '프로젝트 생성'}
         </button>
-        {isEdit && !isCompleted ? (
-          <button className="secondary-action wide" disabled={loading || completeLoading || !clients.length} onClick={completeProject} type="button">
+        {isEdit ? (
+          <button className="secondary-action wide" disabled={loading || completeLoading || !clients.length} onClick={isCompleted ? reactivateProject : completeProject} type="button">
             <CheckCircle2 size={17} />
-            {completeLoading ? '진행중...' : '프로젝트 완료'}
+            {completeLoading ? '진행중...' : isCompleted ? '프로젝트 다시 진행' : '프로젝트 완료'}
           </button>
         ) : null}
       </form>
@@ -3558,10 +3578,22 @@ function Sidebar({
   const [adminOpen, setAdminOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [completedProjectsOpen, setCompletedProjectsOpen] = useState(false);
+  const [completedYearOpen, setCompletedYearOpen] = useState<Record<string, boolean>>({});
   const activeProjects = projects.filter((project) => project.status !== 'completed');
   const completedProjects = projects.filter((project) => project.status === 'completed');
   const activeProjectUnread = activeProjects.reduce((sum, project) => sum + (projectUnreadCounts[project.id] || 0), 0);
   const completedProjectUnread = completedProjects.reduce((sum, project) => sum + (projectUnreadCounts[project.id] || 0), 0);
+  const completedProjectsByYear = Object.entries(
+    completedProjects.reduce<Record<string, Project[]>>((groups, project) => {
+      const yearSource = project.updatedAt || project.createdAt;
+      const date = yearSource ? new Date(yearSource) : new Date();
+      const year = Number.isNaN(date.getTime()) ? String(new Date().getFullYear()) : String(date.getFullYear());
+      return {
+        ...groups,
+        [year]: [...(groups[year] || []), project],
+      };
+    }, {}),
+  ).sort(([firstYear], [secondYear]) => Number(secondYear) - Number(firstYear));
 
   const renderProjectButton = (project: Project) => {
     const unreadCount = projectUnreadCounts[project.id] || 0;
@@ -3639,9 +3671,26 @@ function Sidebar({
             </button>
           </div>
           {completedProjectsOpen ? (
-            <div className="project-nav-list">
+            <div className="project-nav-list completed-project-year-list">
               {completedProjects.length ? (
-                completedProjects.map(renderProjectButton)
+                completedProjectsByYear.map(([year, yearProjects]) => {
+                  const yearOpen = Boolean(completedYearOpen[year]);
+                  const yearUnreadCount = yearProjects.reduce((sum, project) => sum + (projectUnreadCounts[project.id] || 0), 0);
+                  return (
+                    <div className="completed-project-year" key={year}>
+                      <button className="completed-project-year-button" onClick={() => setCompletedYearOpen((current) => ({ ...current, [year]: !yearOpen }))} type="button">
+                        <span>{year}년</span>
+                        {yearUnreadCount > 0 ? <small className="nav-unread-badge">{yearUnreadCount}</small> : null}
+                        <ChevronDown size={14} data-open={yearOpen} />
+                      </button>
+                      {yearOpen ? (
+                        <div className="project-nav-list completed-project-list">
+                          {yearProjects.map(renderProjectButton)}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })
               ) : (
                 <p className="project-nav-empty">완료된 프로젝트가 없습니다.</p>
               )}
@@ -4688,14 +4737,6 @@ function ProjectPage({
               ))}
             </select>
           </label>
-          <div className="project-range-filter">
-            <span>기간</span>
-            <div>
-              <small>시작일</small>
-              <i />
-              <small>마감일</small>
-            </div>
-          </div>
           <label>
             <span>정렬</span>
             <select defaultValue="최신순">

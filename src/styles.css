@@ -594,6 +594,50 @@ button:disabled {
   margin: 4px 0 2px;
 }
 
+.completed-project-year-list {
+  gap: 8px;
+}
+
+.completed-project-year {
+  display: grid;
+  gap: 6px;
+}
+
+.completed-project-year-button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: rgba(238, 241, 245, 0.9);
+  background: rgba(255, 255, 255, 0.045);
+  text-align: left;
+}
+
+.completed-project-year-button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 860;
+}
+
+.completed-project-year-button svg {
+  color: rgba(245, 247, 251, 0.62);
+  transition: transform 0.18s ease;
+}
+
+.completed-project-year-button svg[data-open='true'] {
+  transform: rotate(180deg);
+}
+
+.completed-project-list {
+  padding-left: 10px;
+}
+
 .project-unread-badge {
   min-width: 22px;
   height: 22px;
@@ -3725,7 +3769,7 @@ h1 {
 
 .project-filter-strip {
   display: grid;
-  grid-template-columns: minmax(130px, 0.9fr) minmax(140px, 0.9fr) minmax(210px, 1.4fr) minmax(130px, 0.72fr) auto;
+  grid-template-columns: minmax(130px, 0.9fr) minmax(140px, 0.9fr) minmax(130px, 0.72fr) auto;
   gap: 16px;
   align-items: end;
 }
