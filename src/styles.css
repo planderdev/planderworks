@@ -53,6 +53,12 @@ body {
   color: var(--text);
 }
 
+html.scroll-locked,
+body.scroll-locked {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 #root {
   width: 100%;
   max-width: 100%;
@@ -2748,12 +2754,15 @@ h1 {
   place-items: center;
   padding: 18px;
   background: rgba(0, 0, 0, 0.58);
+  overscroll-behavior: contain;
 }
 
 .modal-card {
   width: min(460px, 100%);
   max-height: min(720px, calc(100vh - 36px));
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 20px;
   border: 1px solid var(--line);
   border-radius: 8px;

@@ -992,7 +992,80 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+function useOverlayScrollLock() {
+  useEffect(() => {
+    const root = document.getElementById('root');
+    if (!root) return undefined;
+
+    let locked = false;
+    let scrollY = 0;
+    let frame = 0;
+
+    const hasOpenOverlay = () =>
+      Boolean(document.querySelector('.modal-backdrop, .mobile-overlay[data-open="true"], .sidebar[data-open="true"]'));
+
+    const lock = () => {
+      if (locked) return;
+      locked = true;
+      scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      document.documentElement.classList.add('scroll-locked');
+      document.body.classList.add('scroll-locked');
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+    };
+
+    const unlock = () => {
+      if (!locked) return;
+      locked = false;
+      const fixedTop = document.body.style.top;
+      document.documentElement.classList.remove('scroll-locked');
+      document.body.classList.remove('scroll-locked');
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      window.scrollTo(0, fixedTop ? Math.abs(parseInt(fixedTop, 10)) : scrollY);
+    };
+
+    const syncLock = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        if (hasOpenOverlay()) {
+          lock();
+          return;
+        }
+        unlock();
+      });
+    };
+
+    const observer = new MutationObserver(syncLock);
+    observer.observe(root, {
+      attributes: true,
+      attributeFilter: ['class', 'data-open', 'style'],
+      childList: true,
+      subtree: true,
+    });
+    window.addEventListener('resize', syncLock);
+    syncLock();
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener('resize', syncLock);
+      unlock();
+    };
+  }, []);
+}
+
 function App() {
+  useOverlayScrollLock();
+
   const [themeMode, setThemeMode] = useState<ThemeMode>(getInitialTheme);
   const [colorTheme, setColorTheme] = useState<ColorTheme>(getInitialColorTheme);
   const [sidebarOpen, setSidebarOpen] = useState(false);
