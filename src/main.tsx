@@ -3098,6 +3098,7 @@ function App() {
 
       <main
         className="workspace"
+        data-immersive={activeView === 'project' || activeView === 'reports'}
         data-swiping={swipeOffset !== 0}
         onTouchStart={handleWorkspaceTouchStart}
         onTouchMove={handleWorkspaceTouchMove}
@@ -5035,33 +5036,63 @@ function ReportsPage({
   const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안');
 
   return (
-    <section className="page-shell">
-      <div className="page-head">
-        <div>
-          <p className="eyebrow">Reports</p>
-          <h1>보고·제안</h1>
-        </div>
+    <section className="page-shell project-mode-shell reports-mode-shell">
+      <div className="project-folder-tabs reports-folder-tabs" role="tablist" aria-label="보고 제안">
+        <button aria-selected="true" data-active="true" role="tab" type="button">
+          <FileText size={19} />
+          <span>보고·제안</span>
+          <X size={15} />
+        </button>
       </div>
-      <div className="split-layout reports-layout">
-        <div className="task-list report-task-list">
-          {reportTasks.length ? (
-            reportTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                currentUser={currentUser}
-                direction={task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name) ? 'sent' : 'received'}
-                onOpenTask={onOpenTask}
-                onDeleteTask={onDeleteTask}
-                onUpdateStatus={onUpdateTaskStatus}
-              />
-            ))
-          ) : (
-            <EmptyState text="표시할 보고·제안이 없습니다." />
-          )}
+
+      <div className="project-mode-canvas reports-mode-canvas">
+        <div className="project-mode-tools">
+          <label className="project-search-pill">
+            <Search size={17} />
+            <input aria-label="보고 제안 검색" placeholder="보고, 제안, 담당자 검색" readOnly />
+            <span>⌘ K</span>
+          </label>
+          <button className="project-tool-button" aria-label="알림" type="button">
+            <Bell size={20} />
+          </button>
+          <button className="project-tool-button" aria-label="메시지" type="button">
+            <MessageSquareText size={20} />
+          </button>
+          <button className="project-tool-button" aria-label="캘린더" type="button">
+            <CalendarClock size={20} />
+          </button>
         </div>
-        <div className="page-card">
-          <ReportForm employees={employees} onCreateTask={onCreateTask} />
+
+        <div className="page-head project-page-head project-mode-head">
+          <div>
+            <div className="project-title-row">
+              <h1 className="project-current-name">보고·제안</h1>
+            </div>
+            <p>대표에게 전달한 보고와 직원 간 제안을 한 곳에서 확인합니다. · 전체 {reportTasks.length}건</p>
+          </div>
+        </div>
+
+        <div className="split-layout reports-layout reports-mode-layout">
+          <div className="task-list report-task-list">
+            {reportTasks.length ? (
+              reportTasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  currentUser={currentUser}
+                  direction={task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name) ? 'sent' : 'received'}
+                  onOpenTask={onOpenTask}
+                  onDeleteTask={onDeleteTask}
+                  onUpdateStatus={onUpdateTaskStatus}
+                />
+              ))
+            ) : (
+              <EmptyState text="표시할 보고·제안이 없습니다." />
+            )}
+          </div>
+          <div className="page-card report-compose-card">
+            <ReportForm employees={employees} onCreateTask={onCreateTask} />
+          </div>
         </div>
       </div>
     </section>

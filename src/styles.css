@@ -674,6 +674,14 @@ button:disabled {
   will-change: transform;
 }
 
+.workspace[data-immersive='true'] {
+  padding-top: 22px;
+}
+
+.workspace[data-immersive='true'] .topbar {
+  display: none;
+}
+
 .workspace[data-swiping='true'] {
   transition: none;
 }
@@ -3501,11 +3509,12 @@ h1 {
   --project-soft: rgba(10, 10, 10, 0.055);
   --project-line: rgba(8, 8, 8, 0.16);
   --project-muted: rgba(8, 8, 8, 0.58);
-  min-height: calc(100vh - 42px);
+  min-height: 0;
+  align-content: start;
   gap: 0;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 24px;
-  padding: 8px 22px 24px;
+  padding: 22px;
   color: var(--project-ink);
   background:
     radial-gradient(circle at 45% 8%, rgba(255, 255, 255, 0.15), transparent 34%),
@@ -3519,7 +3528,7 @@ h1 {
   gap: 14px;
   border: 1px solid rgba(255, 255, 255, 0.72);
   border-radius: 0 22px 22px 22px;
-  padding: 18px 28px 28px;
+  padding: 28px;
   background:
     radial-gradient(circle at 12% 7%, rgba(255, 255, 255, 0.96), transparent 38%),
     radial-gradient(circle at 86% 0%, rgba(255, 255, 255, 0.72), transparent 30%),
@@ -3536,7 +3545,7 @@ h1 {
   display: flex;
   align-items: flex-end;
   gap: 0;
-  margin: 0;
+  margin: 0 0 -1px;
   overflow-x: auto;
 }
 
@@ -3556,6 +3565,23 @@ h1 {
   text-align: left;
   transform: translateY(0);
   box-shadow: 10px -10px 22px rgba(0, 0, 0, 0.16);
+}
+
+.reports-mode-layout {
+  grid-template-columns: minmax(0, 1fr) 390px;
+}
+
+.reports-mode-shell .report-task-list {
+  align-items: start;
+}
+
+.reports-mode-shell .task-card {
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.report-compose-card {
+  border-color: var(--project-line);
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .project-folder-tabs button[data-active='true'] {
