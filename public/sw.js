@@ -1,19 +1,44 @@
+const SW_VERSION = 'plander-works-sw-20260515-1';
+
 self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    self.clients.claim().then(() =>
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'PLANDER_SW_READY', version: SW_VERSION });
+        });
+      }),
+    ),
+  );
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {
-  if (event.request.mode !== 'navigate') return;
+  const requestUrl = new URL(event.request.url);
+  const isSameOrigin = requestUrl.origin === self.location.origin;
+  const shouldBypassCache =
+    event.request.mode === 'navigate' ||
+    (isSameOrigin && ['document', 'script', 'style', 'manifest', 'worker'].includes(event.request.destination)) ||
+    (isSameOrigin && ['/index.html', '/build-meta.json', '/site.webmanifest'].includes(requestUrl.pathname));
+
+  if (!shouldBypassCache) return;
 
   event.respondWith(
-    fetch(event.request).catch(() => new Response('Plander Works는 네트워크 연결이 필요합니다.', {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-      status: 503,
-    })),
+    fetch(new Request(event.request, { cache: 'no-store' })).catch(() =>
+      new Response('Plander Works는 네트워크 연결이 필요합니다.', {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        status: 503,
+      }),
+    ),
   );
 });
 

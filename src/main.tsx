@@ -310,6 +310,25 @@ function requestActionConfirm(message: string) {
   });
 }
 
+let serviceWorkerRegistrationPromise: Promise<ServiceWorkerRegistration> | null = null;
+
+function registerPlanderServiceWorker() {
+  if (!('serviceWorker' in navigator)) {
+    return Promise.reject(new Error('Service worker is not supported.'));
+  }
+
+  if (!serviceWorkerRegistrationPromise) {
+    serviceWorkerRegistrationPromise = navigator.serviceWorker
+      .register('/sw.js', { updateViaCache: 'none' })
+      .then((registration) => {
+        void registration.update();
+        return registration;
+      });
+  }
+
+  return serviceWorkerRegistrationPromise;
+}
+
 function resolveActionConfirm(id: number, confirmed: boolean) {
   confirmResolvers.get(id)?.(confirmed);
   confirmResolvers.delete(id);
@@ -995,9 +1014,93 @@ function App() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
-    navigator.serviceWorker.register('/sw.js').catch(() => {
+    let reloadingForServiceWorker = false;
+    const hadServiceWorkerController = Boolean(navigator.serviceWorker.controller);
+
+    const activateWaitingWorker = (registration: ServiceWorkerRegistration) => {
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+    };
+
+    const handleControllerChange = () => {
+      if (!hadServiceWorkerController) return;
+      if (reloadingForServiceWorker) return;
+      reloadingForServiceWorker = true;
+      window.location.reload();
+    };
+
+    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+
+    registerPlanderServiceWorker().then((registration) => {
+      activateWaitingWorker(registration);
+
+      registration.addEventListener('updatefound', () => {
+        const installingWorker = registration.installing;
+        if (!installingWorker) return;
+
+        installingWorker.addEventListener('statechange', () => {
+          if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            installingWorker.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+    }).catch(() => {
       setInstallStatus('서비스 워커 등록에 실패했습니다. 브라우저 새로고침 후 다시 시도해주세요.');
     });
+
+    return () => {
+      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (import.meta.env.DEV) return;
+
+    const buildVersionStorageKey = 'plander-build-version';
+    let cancelled = false;
+
+    const checkBuildVersion = async () => {
+      try {
+        const response = await fetch(`/build-meta.json?t=${Date.now()}`, {
+          cache: 'no-store',
+          headers: { 'Cache-Control': 'no-cache' },
+        });
+        if (!response.ok) return;
+
+        const meta = await response.json() as { version?: string };
+        const version = meta.version;
+        if (!version || cancelled) return;
+
+        const savedVersion = localStorage.getItem(buildVersionStorageKey);
+        if (!savedVersion) {
+          localStorage.setItem(buildVersionStorageKey, version);
+          return;
+        }
+
+        if (savedVersion !== version) {
+          localStorage.setItem(buildVersionStorageKey, version);
+          window.location.reload();
+        }
+      } catch {
+        // 업데이트 확인 실패는 앱 사용을 막지 않습니다.
+      }
+    };
+
+    void checkBuildVersion();
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) void checkBuildVersion();
+    };
+
+    window.addEventListener('focus', checkBuildVersion);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener('focus', checkBuildVersion);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -1503,8 +1606,7 @@ function App() {
 
     let mounted = true;
 
-    navigator.serviceWorker
-      .register('/sw.js')
+    registerPlanderServiceWorker()
       .then((registration) => registration.pushManager.getSubscription())
       .then((subscription) => {
         if (!mounted) return;
@@ -2819,7 +2921,7 @@ function App() {
       return '브라우저 알림 권한이 허용되지 않았습니다.';
     }
 
-    const registration = await navigator.serviceWorker.register('/sw.js');
+    const registration = await registerPlanderServiceWorker();
     const existingSubscription = await registration.pushManager.getSubscription();
 
     if (existingSubscription) {

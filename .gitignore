@@ -8,3 +8,4 @@ release
 *.log
 .vercel
 supabase/.temp
+public/build-meta.json
