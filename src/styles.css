@@ -4405,6 +4405,53 @@ h1 {
 }
 
 @media (max-width: 1180px) {
+  .sidebar {
+    position: fixed;
+    transform: translateX(-104%);
+    transition: transform 180ms ease;
+  }
+
+  .sidebar[data-open='true'] {
+    transform: translateX(0);
+  }
+
+  .close-sidebar,
+  .menu-button {
+    display: grid;
+  }
+
+  .mobile-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    pointer-events: none;
+    background: rgba(0, 0, 0, 0);
+    transition: background 180ms ease;
+  }
+
+  .mobile-overlay[data-open='true'] {
+    pointer-events: auto;
+    background: rgba(0, 0, 0, 0.45);
+  }
+
+  .workspace {
+    margin-left: 0;
+    padding: 16px;
+    overflow-x: hidden;
+  }
+
+  .project-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+  }
+
+  .project-chat-panel {
+    order: -1;
+    position: static;
+  }
+
   .content-grid {
     grid-template-columns: 1fr;
   }
