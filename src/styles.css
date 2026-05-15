@@ -2162,7 +2162,7 @@ h1 {
   align-items: center;
   gap: 6px;
   border-radius: 6px;
-  padding: 0 8px;
+  padding: 0 8px 0 13px;
   color: var(--text);
   background: var(--soft);
   overflow: hidden;
@@ -2229,7 +2229,7 @@ h1 {
   gap: 4px;
   border: 1px solid var(--card-line);
   border-radius: 5px;
-  padding: 0 7px;
+  padding: 0 7px 0 12px;
   background: var(--card-bg);
   font-size: 0.76rem;
   pointer-events: auto;
@@ -2241,7 +2241,7 @@ h1 {
 
 .calendar-panel[data-mode='월'] .calendar-range-pill {
   min-height: 20px;
-  padding: 0 6px;
+  padding: 0 6px 0 11px;
   font-size: 0.68rem;
 }
 
