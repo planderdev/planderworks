@@ -4493,6 +4493,182 @@ h1 {
   color: #9f2424;
 }
 
+:root[data-theme='dark'] .workspace[data-immersive='true'] {
+  background: #050506;
+}
+
+:root[data-theme='dark'] .project-mode-shell {
+  --project-ink: #080808;
+  --project-paper: #ffffff;
+  --project-panel: #ffffff;
+  --project-soft: rgba(8, 8, 8, 0.07);
+  --project-line: rgba(8, 8, 8, 0.16);
+  --project-muted: rgba(8, 8, 8, 0.6);
+  color: #fff;
+  background:
+    radial-gradient(circle at 45% 8%, rgba(255, 255, 255, 0.12), transparent 34%),
+    linear-gradient(135deg, #101113, #050506 72%);
+}
+
+:root[data-theme='dark'] .project-folder-tabs button,
+:root[data-theme='dark'] .project-folder-tabs button[data-active='true'] {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  background: linear-gradient(180deg, #17181a, #050506);
+}
+
+:root[data-theme='dark'] .project-folder-tabs button svg,
+:root[data-theme='dark'] .project-folder-tabs .project-folder-close {
+  color: #fff;
+}
+
+:root[data-theme='dark'] .project-folder-tabs button[data-active='true'] {
+  box-shadow: 10px -10px 24px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme='dark'] .project-folder-close:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+:root[data-theme='dark'] .project-folder-tabs .project-folder-add {
+  color: #fff;
+  background: #050506;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+:root[data-theme='dark'] .project-mode-canvas {
+  color: var(--project-ink);
+  background:
+    radial-gradient(circle at 12% 7%, rgba(255, 255, 255, 0.98), transparent 36%),
+    radial-gradient(circle at 86% 0%, rgba(245, 245, 245, 0.78), transparent 30%),
+    var(--project-paper);
+  border-color: rgba(255, 255, 255, 0.78);
+}
+
+:root[data-theme='dark'] .project-mode-shell .page-card,
+:root[data-theme='dark'] .project-mode-shell .task-board.list-surface,
+:root[data-theme='dark'] .project-mode-shell .operations-urgent-panel,
+:root[data-theme='dark'] .project-mode-shell .calendar-panel,
+:root[data-theme='dark'] .project-mode-shell .project-inspector-card,
+:root[data-theme='dark'] .project-mode-shell .project-chat-panel,
+:root[data-theme='dark'] .project-mode-shell .report-compose-card {
+  color: var(--project-ink);
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-color: var(--project-line);
+}
+
+:root[data-theme='dark'] .project-mode-shell .task-board.list-surface.project-task-board {
+  background: #fff !important;
+}
+
+:root[data-theme='dark'] .project-mode-shell .project-task-list {
+  background: rgba(8, 8, 8, 0.025);
+}
+
+:root[data-theme='dark'] .project-mode-shell .project-task-row[data-selected='true'],
+:root[data-theme='dark'] .project-mode-shell .project-task-row:hover,
+:root[data-theme='dark'] .project-mode-shell .task-card:hover {
+  background: rgba(8, 8, 8, 0.05) !important;
+}
+
+:root[data-theme='dark'] .project-search-pill,
+:root[data-theme='dark'] .project-mode-shell .theme-switcher,
+:root[data-theme='dark'] .project-mode-shell .account-button,
+:root[data-theme='dark'] .project-mode-shell .account-popover,
+:root[data-theme='dark'] .project-mode-shell .icon-button,
+:root[data-theme='dark'] .project-mode-shell .project-edit-button,
+:root[data-theme='dark'] .project-inspector-head .secondary-action {
+  border-color: var(--project-line);
+  color: var(--project-ink);
+  background: #fff;
+}
+
+:root[data-theme='dark'] .project-mode-shell .theme-switcher button,
+:root[data-theme='dark'] .project-mode-shell .account-popover button {
+  color: var(--project-ink);
+}
+
+:root[data-theme='dark'] .project-mode-shell .theme-switcher button[data-active='true'] {
+  background: rgba(8, 8, 8, 0.08);
+}
+
+:root[data-theme='dark'] .project-mode-shell .icon-button[data-active='true'],
+:root[data-theme='dark'] .project-page-head > .primary-action,
+:root[data-theme='dark'] .project-mode-shell .primary-action,
+:root[data-theme='dark'] .project-chat-send-button {
+  border-color: #050506;
+  color: #fff;
+  background: #050506;
+}
+
+:root[data-theme='dark'] .project-mode-canvas .eyebrow,
+:root[data-theme='dark'] .project-mode-canvas .mini-empty,
+:root[data-theme='dark'] .project-mode-canvas .project-mode-head p:not(.eyebrow),
+:root[data-theme='dark'] .project-mode-canvas .project-member-strip,
+:root[data-theme='dark'] .project-mode-canvas .project-filter-strip span,
+:root[data-theme='dark'] .project-mode-canvas .project-task-columns,
+:root[data-theme='dark'] .project-mode-canvas .project-task-row-title small,
+:root[data-theme='dark'] .project-mode-canvas .project-task-due,
+:root[data-theme='dark'] .project-mode-canvas .project-task-assignees small,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-head p:not(.eyebrow),
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-people span,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-meta span,
+:root[data-theme='dark'] .project-mode-canvas .project-file-grid small,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-comments small,
+:root[data-theme='dark'] .project-mode-canvas .project-attention-note,
+:root[data-theme='dark'] .project-mode-canvas .task-card p,
+:root[data-theme='dark'] .project-mode-canvas .task-meta,
+:root[data-theme='dark'] .project-mode-canvas .task-meta span {
+  color: rgba(8, 8, 8, 0.62);
+}
+
+:root[data-theme='dark'] .project-mode-canvas .project-current-name,
+:root[data-theme='dark'] .project-mode-canvas .project-mode-head h1,
+:root[data-theme='dark'] .project-mode-canvas .project-board-toolbar h2,
+:root[data-theme='dark'] .project-mode-canvas .project-task-row,
+:root[data-theme='dark'] .project-mode-canvas .project-task-row-title strong,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-head h2,
+:root[data-theme='dark'] .project-mode-canvas .project-chat-panel .section-head h2,
+:root[data-theme='dark'] .project-mode-canvas .task-title-button,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-people strong,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-meta strong,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-summary p,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-comments > p,
+:root[data-theme='dark'] .project-mode-canvas .project-file-grid button {
+  color: var(--project-ink);
+}
+
+:root[data-theme='dark'] .project-mode-canvas .project-member-pill,
+:root[data-theme='dark'] .project-mode-canvas .project-member-avatars > strong,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-badges > span:not(.status),
+:root[data-theme='dark'] .project-mode-canvas .task-type,
+:root[data-theme='dark'] .project-mode-canvas .priority,
+:root[data-theme='dark'] .project-mode-canvas .task-direction-badge,
+:root[data-theme='dark'] .project-mode-canvas .read-badge,
+:root[data-theme='dark'] .project-mode-canvas .project-board-toolbar span {
+  color: rgba(8, 8, 8, 0.76);
+  background: rgba(8, 8, 8, 0.08);
+}
+
+:root[data-theme='dark'] .project-mode-canvas select,
+:root[data-theme='dark'] .project-mode-canvas input,
+:root[data-theme='dark'] .project-mode-canvas textarea,
+:root[data-theme='dark'] .project-chat-form textarea {
+  color: var(--project-ink);
+  background: #fff;
+  border-color: var(--project-line);
+}
+
+:root[data-theme='dark'] .project-message {
+  color: var(--project-ink);
+  background: rgba(8, 8, 8, 0.06);
+}
+
+:root[data-theme='dark'] .project-message[data-own='true'] {
+  color: #fff;
+  background: #1d2632;
+}
+
 @media (max-width: 1180px) {
   .sidebar {
     position: fixed;
