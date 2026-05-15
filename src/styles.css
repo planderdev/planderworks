@@ -181,13 +181,14 @@ button:disabled {
 
 .sidebar {
   width: 284px;
-  min-height: 100vh;
+  height: 100vh;
   position: sticky;
   top: 0;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 16px;
   padding: 22px 16px;
+  overflow: hidden;
   color: var(--silver-strong);
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 36%),
@@ -258,13 +259,28 @@ button:disabled {
   gap: 7px;
 }
 
+.sidebar-nav {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-nav::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
 .sidebar-section {
   margin-top: auto;
 }
 
 .sidebar-bottom-layer {
-  position: sticky;
-  bottom: 16px;
+  flex: 0 0 auto;
   display: grid;
   gap: 12px;
   margin-top: auto;
