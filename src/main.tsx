@@ -4491,6 +4491,7 @@ function ProjectPage({
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const activeTasks = tasks.filter((task) => task.status !== '완료');
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   const [message, setMessage] = useState('');
   const [messageStatus, setMessageStatus] = useState('');
   const [messageLoading, setMessageLoading] = useState(false);
@@ -4502,6 +4503,14 @@ function ProjectPage({
   const projectEmployees = project?.memberIds.length
     ? employees.filter((employee) => project.memberIds.includes(employee.id))
     : employees;
+  const focusedTask = tasks.find((task) => task.id === focusedTaskId) || tasks[0] || null;
+  const visibleProjects = project
+    ? [project, ...projects.filter((item) => item.id !== project.id)].slice(0, 3)
+    : projects.slice(0, 3);
+
+  useEffect(() => {
+    setFocusedTaskId(null);
+  }, [project?.id]);
 
   useEffect(() => {
     const list = messageListRef.current;
@@ -4548,35 +4557,9 @@ function ProjectPage({
 
   return (
     <section className="page-shell project-mode-shell">
-      <div className="page-head project-page-head project-mode-head">
-        <div>
-          <p className="eyebrow">Project Mode</p>
-          <div className="project-title-row">
-            <h1>{project?.name || '프로젝트'}</h1>
-            {project && canEditProject ? (
-              <button className="icon-button project-edit-button" aria-label="프로젝트 수정" onClick={() => onEditProject(project.id)} type="button">
-                <Pencil size={16} />
-              </button>
-            ) : null}
-          </div>
-          {project ? (
-            <p>
-              {project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건
-              {project.memberNames.length ? ` · 참여 ${project.memberNames.join(', ')}` : ''}
-            </p>
-          ) : null}
-        </div>
-        {project ? (
-          <button className="primary-action" onClick={() => setTaskCreateOpen(true)} type="button">
-            <Plus size={17} />
-            업무 생성
-          </button>
-        ) : null}
-      </div>
-
       {projects.length ? (
         <div className="project-folder-tabs" role="tablist" aria-label="프로젝트 선택">
-          {projects.slice(0, 6).map((item) => (
+          {visibleProjects.map((item) => (
             <button
               aria-selected={project?.id === item.id}
               data-active={project?.id === item.id}
@@ -4585,12 +4568,106 @@ function ProjectPage({
               role="tab"
               type="button"
             >
+              <FolderKanban size={19} />
               <span>{item.name}</span>
-              <small>{item.client}</small>
+              <X size={15} />
             </button>
           ))}
+          <button className="project-folder-add" aria-label="프로젝트 추가" type="button">
+            <Plus size={18} />
+          </button>
         </div>
       ) : null}
+
+      <div className="project-mode-canvas">
+        <div className="project-mode-tools">
+          <label className="project-search-pill">
+            <Search size={17} />
+            <input aria-label="프로젝트 검색" placeholder="업무, 프로젝트, 담당자 검색" readOnly />
+            <span>⌘ K</span>
+          </label>
+          <button className="project-tool-button" aria-label="알림" type="button">
+            <Bell size={20} />
+          </button>
+          <button className="project-tool-button" aria-label="메시지" type="button">
+            <MessageSquareText size={20} />
+          </button>
+          <button className="project-tool-button" aria-label="캘린더" type="button">
+            <CalendarClock size={20} />
+          </button>
+        </div>
+
+        <div className="page-head project-page-head project-mode-head">
+          <div>
+            <div className="project-title-row">
+              <h1>Project Mode</h1>
+              {project && canEditProject ? (
+                <button className="icon-button project-edit-button" aria-label="프로젝트 수정" onClick={() => onEditProject(project.id)} type="button">
+                  <Pencil size={16} />
+                </button>
+              ) : null}
+            </div>
+            {project ? (
+              <p>
+                {project.name} 프로젝트 보드 · {project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건
+              </p>
+            ) : (
+              <p>프로젝트를 선택해주세요.</p>
+            )}
+          </div>
+          {project ? (
+            <button className="primary-action" onClick={() => setTaskCreateOpen(true)} type="button">
+              <Plus size={17} />
+              업무 생성
+            </button>
+          ) : null}
+        </div>
+
+        <div className="project-filter-strip" aria-label="프로젝트 필터">
+          <label>
+            <span>전체 상태</span>
+            <select defaultValue="전체">
+              <option>전체</option>
+              <option>대기</option>
+              <option>진행중</option>
+              <option>완료 요청</option>
+              <option>보류</option>
+              <option>완료</option>
+            </select>
+          </label>
+          <label>
+            <span>담당자</span>
+            <select defaultValue="전체 담당자">
+              <option>전체 담당자</option>
+              {projectEmployees.map((employee) => (
+                <option key={employee.id}>{employee.name}</option>
+              ))}
+            </select>
+          </label>
+          <div className="project-range-filter">
+            <span>기간</span>
+            <div>
+              <small>시작일</small>
+              <i />
+              <small>마감일</small>
+            </div>
+          </div>
+          <label>
+            <span>정렬</span>
+            <select defaultValue="최신순">
+              <option>최신순</option>
+              <option>마감 임박순</option>
+            </select>
+          </label>
+          <div className="project-view-toggle">
+            <button data-active="true" aria-label="리스트 보기" type="button">
+              <Menu size={18} />
+            </button>
+            <button aria-label="그리드 보기" type="button">
+              <LayoutDashboard size={17} />
+            </button>
+          </div>
+        </div>
 
       {project && taskCreateOpen ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setTaskCreateOpen(false)}>
@@ -4617,87 +4694,251 @@ function ProjectPage({
         </div>
       ) : null}
 
-      <div className="project-detail-grid">
-        <div className="task-board list-surface project-task-board">
-          <div className="project-board-toolbar">
-            <div>
-              <p className="eyebrow">Task Table</p>
-              <h2>업무 목록</h2>
-            </div>
-            <div className="project-board-filters">
-              <span>전체 상태</span>
-              <span>담당자</span>
-              <span>마감일</span>
-            </div>
-          </div>
-          <div className="project-task-columns" aria-hidden="true">
-            <span>업무</span>
-            <span>담당/프로젝트</span>
-            <span>상태</span>
-          </div>
-          <div className="task-list project-task-list">
-            {project ? (
-              tasks.length ? (
-                tasks.map((task) => (
-                  <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
-                ))
-              ) : (
-                <EmptyState text="이 프로젝트에 연결된 업무가 없습니다." />
-              )
-            ) : (
-              <EmptyState text="프로젝트를 선택해주세요." />
-            )}
-          </div>
-        </div>
-        {project ? (
-          <aside className="project-chat-panel">
-            <div className="section-head tight">
+        <div className="project-detail-grid">
+          <div className="task-board list-surface project-task-board">
+            <div className="project-board-toolbar">
               <div>
-                <p className="eyebrow">Project Chat</p>
-                <h2>프로젝트 대화</h2>
+                <h2>업무 목록</h2>
+                <span>{tasks.length}</span>
               </div>
-              <MessageSquareText size={22} />
             </div>
-            <div className="project-message-list" ref={messageListRef}>
-              {messages.length ? (
-                messages.map((item) => (
-                  <article className="project-message" data-own={item.userId === currentUser.id} key={item.id}>
-                    <div className="project-message-head">
-                      <Avatar name={item.author} src={item.avatarUrl} size="sm" />
-                      <div>
-                        <strong>{item.author}</strong>
-                        <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
-                      </div>
-                    </div>
-                    <p>{item.content}</p>
-                    {item.readBy.filter((name) => name !== item.author).length ? (
-                      <small className="project-message-readers">
-                        읽음: {item.readBy.filter((name) => name !== item.author).join(', ')}
-                      </small>
-                    ) : null}
-                  </article>
-                ))
+            <div className="project-task-columns" aria-hidden="true">
+              <span>업무명</span>
+              <span>상태</span>
+              <span>담당자</span>
+              <span>마감</span>
+              <span>읽음</span>
+            </div>
+            <div className="project-task-list">
+              {project ? (
+                tasks.length ? (
+                  tasks.map((task) => (
+                    <ProjectTaskRow
+                      currentUser={currentUser}
+                      employees={employees}
+                      key={task.id}
+                      onOpenTask={onOpenTask}
+                      onSelect={setFocusedTaskId}
+                      selected={focusedTask?.id === task.id}
+                      task={task}
+                    />
+                  ))
+                ) : (
+                  <EmptyState text="이 프로젝트에 연결된 업무가 없습니다." />
+                )
               ) : (
-                <p className="mini-empty">아직 대화가 없습니다.</p>
+                <EmptyState text="프로젝트를 선택해주세요." />
               )}
             </div>
-            <form className="project-chat-form" onSubmit={submitMessage}>
-              <textarea
-                value={message}
-                onChange={(event) => setMessage(event.target.value)}
-                onKeyDown={handleMessageKeyDown}
-                placeholder="프로젝트 대화를 입력하세요"
-                rows={messageRows}
-              />
-              {messageStatus ? <p className="admin-note">{messageStatus}</p> : null}
-              <button className="project-chat-send-button" aria-label="대화 전송" disabled={messageLoading} type="submit">
-                <SendHorizontal size={18} />
-              </button>
-            </form>
-          </aside>
-        ) : null}
+          </div>
+          {project ? (
+            <aside className="project-inspector-panel">
+              <ProjectTaskInspector currentUser={currentUser} onOpenTask={onOpenTask} task={focusedTask} />
+
+              <div className="project-chat-panel">
+                <div className="section-head tight">
+                  <div>
+                    <p className="eyebrow">Project Chat</p>
+                    <h2>프로젝트 대화</h2>
+                  </div>
+                  <MessageSquareText size={22} />
+                </div>
+                <div className="project-message-list" ref={messageListRef}>
+                  {messages.length ? (
+                    messages.map((item) => (
+                      <article className="project-message" data-own={item.userId === currentUser.id} key={item.id}>
+                        <div className="project-message-head">
+                          <Avatar name={item.author} src={item.avatarUrl} size="sm" />
+                          <div>
+                            <strong>{item.author}</strong>
+                            <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+                          </div>
+                        </div>
+                        <p>{item.content}</p>
+                        {item.readBy.filter((name) => name !== item.author).length ? (
+                          <small className="project-message-readers">
+                            읽음: {item.readBy.filter((name) => name !== item.author).join(', ')}
+                          </small>
+                        ) : null}
+                      </article>
+                    ))
+                  ) : (
+                    <p className="mini-empty">아직 대화가 없습니다.</p>
+                  )}
+                </div>
+                <form className="project-chat-form" onSubmit={submitMessage}>
+                  <textarea
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
+                    onKeyDown={handleMessageKeyDown}
+                    placeholder="프로젝트 대화를 입력하세요"
+                    rows={messageRows}
+                  />
+                  {messageStatus ? <p className="admin-note">{messageStatus}</p> : null}
+                  <button className="project-chat-send-button" aria-label="대화 전송" disabled={messageLoading} type="submit">
+                    <SendHorizontal size={18} />
+                  </button>
+                </form>
+              </div>
+            </aside>
+          ) : null}
+        </div>
       </div>
     </section>
+  );
+}
+
+function ProjectTaskRow({
+  currentUser,
+  employees,
+  onOpenTask,
+  onSelect,
+  selected,
+  task,
+}: {
+  currentUser: AppUser;
+  employees: Employee[];
+  onOpenTask: (task: Task) => void;
+  onSelect: (taskId: string) => void;
+  selected: boolean;
+  task: Task;
+}) {
+  const recipientNames = (task.watchers.length ? task.watchers : task.to.split(', ')).map((name) => name.trim()).filter(Boolean);
+  const totalRecipients = Math.max(1, getTaskRecipientIds(task).length || recipientNames.length);
+  const readCount = task.readAt ? totalRecipients : 0;
+
+  return (
+    <button
+      className="project-task-row"
+      data-attention={needsTaskAttention(task, currentUser)}
+      data-selected={selected}
+      data-status-tone={getTaskStatusTone(task.status)}
+      onClick={() => onSelect(task.id)}
+      onDoubleClick={() => onOpenTask(task)}
+      type="button"
+    >
+      <span className="project-task-row-title">
+        <strong>{task.title}</strong>
+        <small>{task.projectName || task.client}</small>
+      </span>
+      <span className="status" data-status={task.status}>
+        {task.status}
+      </span>
+      <span className="project-task-assignees">
+        {recipientNames.slice(0, 3).map((name) => (
+          <Avatar key={name} name={name} src={employees.find((employee) => employee.name === name)?.avatarUrl} size="xs" />
+        ))}
+        <small>{recipientNames[0] || task.to || '미지정'}{recipientNames.length > 1 ? ` 외 ${recipientNames.length - 1}명` : ''}</small>
+      </span>
+      <span className="project-task-due">{task.dueAt ? formatDueDate(task.dueAt) : task.due}</span>
+      <span className="project-task-read">{readCount}/{totalRecipients}</span>
+    </button>
+  );
+}
+
+function ProjectTaskInspector({ currentUser, onOpenTask, task }: { currentUser: AppUser; onOpenTask: (task: Task) => void; task: Task | null }) {
+  if (!task) {
+    return (
+      <div className="project-inspector-card">
+        <p className="eyebrow">업무 상세</p>
+        <EmptyState text="선택된 업무가 없습니다." />
+      </div>
+    );
+  }
+
+  const recipientNames = (task.watchers.length ? task.watchers : task.to.split(', ')).map((name) => name.trim()).filter(Boolean);
+  const totalRecipients = Math.max(1, getTaskRecipientIds(task).length || recipientNames.length);
+  const readCount = task.readAt ? totalRecipients : 0;
+
+  return (
+    <div className="project-inspector-card" data-status-tone={getTaskStatusTone(task.status)}>
+      <div className="project-inspector-head">
+        <div>
+          <p className="eyebrow">업무 상세</p>
+          <div className="project-inspector-badges">
+            <span className="status" data-status={task.status}>{task.status}</span>
+            <span>{formatTaskTypeLabel(task.type)}</span>
+          </div>
+          <h2>{task.title}</h2>
+          <p>{task.from} → 담당자 {recipientNames.length || 1}명</p>
+        </div>
+        <button className="secondary-action" onClick={() => onOpenTask(task)} type="button">
+          <Pencil size={15} />
+          수정
+        </button>
+      </div>
+
+      <div className="project-inspector-people">
+        <span>
+          보낸 사람
+          <Avatar name={task.from} src={task.creatorAvatarUrl} size="sm" />
+          <strong>{task.from}</strong>
+        </span>
+        <span>
+          받는 사람
+          <strong>{recipientNames.join(', ') || task.to}</strong>
+          <em>읽음 {readCount}/{totalRecipients}</em>
+        </span>
+      </div>
+
+      <div className="project-inspector-meta">
+        <span>
+          <CalendarClock size={17} />
+          마감기한<br />
+          <strong>{task.dueAt ? formatDueDate(task.dueAt) : task.due}</strong>
+        </span>
+        <span>
+          <ShieldCheck size={17} />
+          우선순위<br />
+          <strong>{task.priority}</strong>
+        </span>
+        <span>
+          <Paperclip size={17} />
+          첨부파일<br />
+          <strong>{task.files.length}개</strong>
+        </span>
+      </div>
+
+      <div className="project-inspector-summary">
+        <p>{task.summary ? renderLinkedText(task.summary) : '내용이 없습니다.'}</p>
+      </div>
+
+      <div className="project-inspector-files">
+        <div>
+          <strong>첨부 파일 ({task.files.length})</strong>
+          <Download size={16} />
+        </div>
+        {task.files.length ? (
+          <div className="project-file-grid">
+            {task.files.slice(0, 2).map((file) => (
+              <span key={file.id}>
+                <FileText size={17} />
+                <strong>{file.name}</strong>
+                <small>{file.size ? `${Math.ceil(file.size / 1024)}KB` : '파일'}</small>
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="mini-empty">첨부파일이 없습니다.</p>
+        )}
+      </div>
+
+      <div className="project-inspector-comments">
+        <strong>댓글 <span>{task.comments.length}</span></strong>
+        {task.comments.slice(0, 2).map((comment) => (
+          <article key={comment.id}>
+            <Avatar name={comment.author} src={comment.avatarUrl} size="sm" />
+            <p>
+              <b>{comment.author}</b>
+              <small>{new Date(comment.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+              {comment.content}
+            </p>
+          </article>
+        ))}
+        {!task.comments.length ? <p className="mini-empty">아직 댓글이 없습니다.</p> : null}
+        {needsTaskAttention(task, currentUser) ? <small className="project-attention-note">확인이 필요한 업무입니다.</small> : null}
+      </div>
+    </div>
   );
 }
 
