@@ -1079,6 +1079,7 @@ function App() {
         const savedVersion = localStorage.getItem(buildVersionStorageKey);
         if (!savedVersion) {
           localStorage.setItem(buildVersionStorageKey, version);
+          window.location.reload();
           return;
         }
 

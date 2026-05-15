@@ -1,4 +1,4 @@
-const SW_VERSION = 'plander-works-sw-20260515-1';
+const SW_VERSION = 'plander-works-sw-20260516-1';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
