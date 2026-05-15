@@ -3547,12 +3547,6 @@ function Sidebar({
       </div>
 
       <nav className="sidebar-nav" aria-label="주 메뉴">
-        <div className="sidebar-create-split">
-          <button className="create-split-button" onClick={onCreateProject} type="button">
-            <FolderKanban size={16} />
-            <span>프로젝트 생성</span>
-          </button>
-        </div>
         {primaryNavItems
           .filter((item) => (showAdmin ? true : item.id !== 'operations'))
           .map((item) => {
@@ -3560,7 +3554,6 @@ function Sidebar({
           const badge = badges[item.id] || 0;
           const unreadBadge = unreadBadges[item.id] || 0;
           return (
-            <React.Fragment key={item.id}>
             <button className="nav-button" data-active={activeView === item.id} data-featured={item.id === 'create'} key={item.id} onClick={() => onNavigate(item.id)}>
               <Icon size={18} />
               <span>{item.label}</span>
@@ -3569,46 +3562,45 @@ function Sidebar({
                 {badge > 0 ? <small>{badge}</small> : null}
               </span>
             </button>
-            {item.id === 'clients' ? (
-              <div className="sidebar-projects">
-                <button className="nav-button project-toggle" data-active={activeView === 'project'} onClick={() => setProjectsOpen((open) => !open)} type="button">
-                  <FolderKanban size={18} />
-                  <span>프로젝트</span>
-                  <span className="nav-badges project-toggle-badges">
-                    {totalProjectUnread > 0 ? <small className="nav-unread-badge">{totalProjectUnread}</small> : null}
-                  </span>
-                  <ChevronDown size={16} data-open={projectsOpen} />
-                </button>
-                {projectsOpen ? (
-                  <div className="project-nav-list">
-                    {projects.length ? (
-                      projects.map((project) => {
-                        const unreadCount = projectUnreadCounts[project.id] || 0;
-                        return (
-                          <button
-                            className="project-nav-button"
-                            data-active={activeProjectId === project.id}
-                            data-unread={unreadCount > 0}
-                            key={project.id}
-                            onClick={() => onOpenProject(project.id)}
-                            type="button"
-                          >
-                            <span>{project.name}</span>
-                            <small>{project.client}</small>
-                            {unreadCount > 0 ? <strong className="project-unread-badge">{unreadCount}</strong> : null}
-                          </button>
-                        );
-                      })
-                    ) : (
-                      <p className="project-nav-empty">등록된 프로젝트가 없습니다.</p>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-            </React.Fragment>
           );
         })}
+        <div className="sidebar-projects">
+          <div className="sidebar-project-head">
+            <button className="sidebar-project-title" data-active={activeView === 'project'} onClick={() => setProjectsOpen((open) => !open)} type="button">
+              <span>프로젝트</span>
+              {totalProjectUnread > 0 ? <small className="nav-unread-badge">{totalProjectUnread}</small> : null}
+              <ChevronDown size={15} data-open={projectsOpen} />
+            </button>
+            <button className="sidebar-project-add" aria-label="프로젝트 추가" onClick={onCreateProject} type="button">
+              <Plus size={17} />
+            </button>
+          </div>
+          {projectsOpen ? (
+            <div className="project-nav-list">
+              {projects.length ? (
+                projects.map((project) => {
+                  const unreadCount = projectUnreadCounts[project.id] || 0;
+                  return (
+                    <button
+                      className="project-nav-button"
+                      data-active={activeProjectId === project.id}
+                      data-unread={unreadCount > 0}
+                      key={project.id}
+                      onClick={() => onOpenProject(project.id)}
+                      type="button"
+                    >
+                      <FolderKanban size={18} />
+                      <span>{project.name}</span>
+                      {unreadCount > 0 ? <strong className="project-unread-badge">{unreadCount}</strong> : null}
+                    </button>
+                  );
+                })
+              ) : (
+                <p className="project-nav-empty">등록된 프로젝트가 없습니다.</p>
+              )}
+            </div>
+          ) : null}
+        </div>
       </nav>
 
       <div className="sidebar-bottom-layer">
