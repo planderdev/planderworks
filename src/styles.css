@@ -5218,6 +5218,189 @@ h1 {
   background: #963551;
 }
 
+:root[data-color-theme='metal-silver'] .project-mode-shell .page-card,
+:root[data-color-theme='metal-silver'] .project-mode-shell .task-board,
+:root[data-color-theme='metal-silver'] .project-mode-shell .task-board.list-surface,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-board,
+:root[data-color-theme='metal-silver'] .project-mode-shell .calendar-panel,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-chat-panel,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-inspector-card,
+:root[data-color-theme='metal-silver'] .project-mode-shell .report-compose-card,
+:root[data-color-theme='british-green'] .project-mode-shell .page-card,
+:root[data-color-theme='british-green'] .project-mode-shell .task-board,
+:root[data-color-theme='british-green'] .project-mode-shell .task-board.list-surface,
+:root[data-color-theme='british-green'] .project-mode-shell .project-task-board,
+:root[data-color-theme='british-green'] .project-mode-shell .calendar-panel,
+:root[data-color-theme='british-green'] .project-mode-shell .project-chat-panel,
+:root[data-color-theme='british-green'] .project-mode-shell .project-inspector-card,
+:root[data-color-theme='british-green'] .project-mode-shell .report-compose-card,
+:root[data-color-theme='navy'] .project-mode-shell .page-card,
+:root[data-color-theme='navy'] .project-mode-shell .task-board,
+:root[data-color-theme='navy'] .project-mode-shell .task-board.list-surface,
+:root[data-color-theme='navy'] .project-mode-shell .project-task-board,
+:root[data-color-theme='navy'] .project-mode-shell .calendar-panel,
+:root[data-color-theme='navy'] .project-mode-shell .project-chat-panel,
+:root[data-color-theme='navy'] .project-mode-shell .project-inspector-card,
+:root[data-color-theme='navy'] .project-mode-shell .report-compose-card,
+:root[data-color-theme='orange'] .project-mode-shell .page-card,
+:root[data-color-theme='orange'] .project-mode-shell .task-board,
+:root[data-color-theme='orange'] .project-mode-shell .task-board.list-surface,
+:root[data-color-theme='orange'] .project-mode-shell .project-task-board,
+:root[data-color-theme='orange'] .project-mode-shell .calendar-panel,
+:root[data-color-theme='orange'] .project-mode-shell .project-chat-panel,
+:root[data-color-theme='orange'] .project-mode-shell .project-inspector-card,
+:root[data-color-theme='orange'] .project-mode-shell .report-compose-card,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .page-card,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .task-board,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .task-board.list-surface,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-board,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .calendar-panel,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-chat-panel,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-inspector-card,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .report-compose-card {
+  color: var(--project-ink);
+  background: var(--project-panel) !important;
+  border-color: var(--project-line) !important;
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-list,
+:root[data-color-theme='metal-silver'] .project-mode-shell .task-list,
+:root[data-color-theme='british-green'] .project-mode-shell .project-task-list,
+:root[data-color-theme='british-green'] .project-mode-shell .task-list,
+:root[data-color-theme='navy'] .project-mode-shell .project-task-list,
+:root[data-color-theme='navy'] .project-mode-shell .task-list,
+:root[data-color-theme='orange'] .project-mode-shell .project-task-list,
+:root[data-color-theme='orange'] .project-mode-shell .task-list,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-list,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .task-list {
+  background: transparent !important;
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-item,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-columns,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-board-toolbar,
+:root[data-color-theme='british-green'] .project-mode-shell .project-task-item,
+:root[data-color-theme='british-green'] .project-mode-shell .project-task-columns,
+:root[data-color-theme='british-green'] .project-mode-shell .project-board-toolbar,
+:root[data-color-theme='navy'] .project-mode-shell .project-task-item,
+:root[data-color-theme='navy'] .project-mode-shell .project-task-columns,
+:root[data-color-theme='navy'] .project-mode-shell .project-board-toolbar,
+:root[data-color-theme='orange'] .project-mode-shell .project-task-item,
+:root[data-color-theme='orange'] .project-mode-shell .project-task-columns,
+:root[data-color-theme='orange'] .project-mode-shell .project-board-toolbar,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-item,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-columns,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-board-toolbar {
+  border-color: var(--project-line);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-row,
+:root[data-color-theme='metal-silver'] .project-mode-shell .task-card,
+:root[data-color-theme='british-green'] .project-mode-shell .project-task-row,
+:root[data-color-theme='british-green'] .project-mode-shell .task-card,
+:root[data-color-theme='navy'] .project-mode-shell .project-task-row,
+:root[data-color-theme='navy'] .project-mode-shell .task-card,
+:root[data-color-theme='orange'] .project-mode-shell .project-task-row,
+:root[data-color-theme='orange'] .project-mode-shell .task-card,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-row,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .task-card {
+  color: var(--project-ink);
+  background: transparent !important;
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-row[data-selected='true'],
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-row:hover,
+:root[data-color-theme='metal-silver'] .project-mode-shell .task-card:hover,
+:root[data-color-theme='british-green'] .project-mode-shell .project-task-row[data-selected='true'],
+:root[data-color-theme='british-green'] .project-mode-shell .project-task-row:hover,
+:root[data-color-theme='british-green'] .project-mode-shell .task-card:hover,
+:root[data-color-theme='navy'] .project-mode-shell .project-task-row[data-selected='true'],
+:root[data-color-theme='navy'] .project-mode-shell .project-task-row:hover,
+:root[data-color-theme='navy'] .project-mode-shell .task-card:hover,
+:root[data-color-theme='orange'] .project-mode-shell .project-task-row[data-selected='true'],
+:root[data-color-theme='orange'] .project-mode-shell .project-task-row:hover,
+:root[data-color-theme='orange'] .project-mode-shell .task-card:hover,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-row[data-selected='true'],
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-row:hover,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .task-card:hover {
+  background: var(--project-soft) !important;
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-inspector-summary,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-inspector-files,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-inspector-comments,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-file-grid button,
+:root[data-color-theme='british-green'] .project-mode-shell .project-inspector-summary,
+:root[data-color-theme='british-green'] .project-mode-shell .project-inspector-files,
+:root[data-color-theme='british-green'] .project-mode-shell .project-inspector-comments,
+:root[data-color-theme='british-green'] .project-mode-shell .project-file-grid button,
+:root[data-color-theme='navy'] .project-mode-shell .project-inspector-summary,
+:root[data-color-theme='navy'] .project-mode-shell .project-inspector-files,
+:root[data-color-theme='navy'] .project-mode-shell .project-inspector-comments,
+:root[data-color-theme='navy'] .project-mode-shell .project-file-grid button,
+:root[data-color-theme='orange'] .project-mode-shell .project-inspector-summary,
+:root[data-color-theme='orange'] .project-mode-shell .project-inspector-files,
+:root[data-color-theme='orange'] .project-mode-shell .project-inspector-comments,
+:root[data-color-theme='orange'] .project-mode-shell .project-file-grid button,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-inspector-summary,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-inspector-files,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-inspector-comments,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-file-grid button {
+  color: var(--project-ink);
+  background: var(--project-soft) !important;
+  border-color: var(--project-line);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-chat-form textarea,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-mode-canvas input,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-mode-canvas select,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-mode-canvas textarea,
+:root[data-color-theme='british-green'] .project-mode-shell .project-chat-form textarea,
+:root[data-color-theme='british-green'] .project-mode-shell .project-mode-canvas input,
+:root[data-color-theme='british-green'] .project-mode-shell .project-mode-canvas select,
+:root[data-color-theme='british-green'] .project-mode-shell .project-mode-canvas textarea,
+:root[data-color-theme='navy'] .project-mode-shell .project-chat-form textarea,
+:root[data-color-theme='navy'] .project-mode-shell .project-mode-canvas input,
+:root[data-color-theme='navy'] .project-mode-shell .project-mode-canvas select,
+:root[data-color-theme='navy'] .project-mode-shell .project-mode-canvas textarea,
+:root[data-color-theme='orange'] .project-mode-shell .project-chat-form textarea,
+:root[data-color-theme='orange'] .project-mode-shell .project-mode-canvas input,
+:root[data-color-theme='orange'] .project-mode-shell .project-mode-canvas select,
+:root[data-color-theme='orange'] .project-mode-shell .project-mode-canvas textarea,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-chat-form textarea,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-mode-canvas input,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-mode-canvas select,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-mode-canvas textarea {
+  color: var(--project-ink);
+  background: var(--project-soft);
+  border-color: var(--project-line);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .month-cell,
+:root[data-color-theme='metal-silver'] .project-mode-shell .calendar-task-pill,
+:root[data-color-theme='metal-silver'] .project-mode-shell .calendar-range-pill,
+:root[data-color-theme='metal-silver'] .project-mode-shell .month-cell button,
+:root[data-color-theme='british-green'] .project-mode-shell .month-cell,
+:root[data-color-theme='british-green'] .project-mode-shell .calendar-task-pill,
+:root[data-color-theme='british-green'] .project-mode-shell .calendar-range-pill,
+:root[data-color-theme='british-green'] .project-mode-shell .month-cell button,
+:root[data-color-theme='navy'] .project-mode-shell .month-cell,
+:root[data-color-theme='navy'] .project-mode-shell .calendar-task-pill,
+:root[data-color-theme='navy'] .project-mode-shell .calendar-range-pill,
+:root[data-color-theme='navy'] .project-mode-shell .month-cell button,
+:root[data-color-theme='orange'] .project-mode-shell .month-cell,
+:root[data-color-theme='orange'] .project-mode-shell .calendar-task-pill,
+:root[data-color-theme='orange'] .project-mode-shell .calendar-range-pill,
+:root[data-color-theme='orange'] .project-mode-shell .month-cell button,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .month-cell,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .calendar-task-pill,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .calendar-range-pill,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .month-cell button {
+  color: var(--project-ink);
+  background: var(--project-soft) !important;
+  border-color: var(--project-line);
+}
+
 @media (max-width: 1180px) {
   .sidebar {
     position: fixed;
