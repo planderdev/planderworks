@@ -301,14 +301,29 @@ const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.Elemen
   { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
-  { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
   { id: 'calendar', label: '캘린더', icon: CalendarClock },
+  { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
 ];
 
 const adminNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'employees', label: '직원 관리', icon: UserCog },
   { id: 'settings', label: '설정', icon: Settings },
 ];
+
+const viewTitles: Record<ActiveView, string> = {
+  dashboard: '대시보드',
+  calendar: '캘린더',
+  allTasks: '참여 업무',
+  inbox: '받은 업무',
+  sent: '보낸 업무',
+  project: '프로젝트',
+  create: '업무 생성',
+  reports: '보고·제안',
+  clients: '업체관리',
+  employees: '직원 관리',
+  operations: '구독/정산관리',
+  settings: '설정',
+};
 
 const seedTasks: Task[] = [
   {
@@ -2805,6 +2820,10 @@ function App() {
         currentUser={currentUser}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        onCreateProject={() => {
+          setProjectCreateOpen(true);
+          setSidebarOpen(false);
+        }}
         onInstallApp={handleInstallApp}
         onLogout={handleLogout}
         onOpenProfile={() => {
@@ -2860,6 +2879,8 @@ function App() {
       >
         <Topbar
           currentUser={currentUser}
+          activeView={activeView}
+          badges={navBadges}
           pushEnabled={pushEnabled}
           pushLoading={pushLoading}
           pushStatus={pushStatus}
@@ -2892,17 +2913,17 @@ function App() {
           />
         ) : null}
         {activeView === 'inbox' ? (
-          <TaskListPage title="받은 업무" initialStatus={taskListFilters.inbox || '전체'} tasks={inboxTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage activeView={activeView} title="받은 업무" initialStatus={taskListFilters.inbox || '전체'} tasks={inboxTasks} tabCounts={{ inbox: inboxTasks.length, sent: sentTasks.length, allTasks: visibleTasks.length }} currentUser={currentUser} onNavigate={navigateTo} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'sent' ? (
-          <TaskListPage title="보낸 업무" initialStatus={taskListFilters.sent || '전체'} tasks={sentTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage activeView={activeView} title="보낸 업무" initialStatus={taskListFilters.sent || '전체'} tasks={sentTasks} tabCounts={{ inbox: inboxTasks.length, sent: sentTasks.length, allTasks: visibleTasks.length }} currentUser={currentUser} onNavigate={navigateTo} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} projects={projects} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
           <ReportsPage tasks={reportTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'allTasks' ? (
-          <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage activeView={activeView} title="참여 업무" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} employees={employees} tabCounts={{ inbox: inboxTasks.length, sent: sentTasks.length, allTasks: visibleTasks.length }} currentUser={currentUser} onNavigate={navigateTo} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'project' ? (
           <ProjectPage
@@ -3256,6 +3277,7 @@ function Sidebar({
   currentUser,
   open,
   onClose,
+  onCreateProject,
   onInstallApp,
   onLogout,
   onNavigate,
@@ -3271,6 +3293,7 @@ function Sidebar({
   currentUser: AppUser;
   open: boolean;
   onClose: () => void;
+  onCreateProject: () => void;
   onInstallApp: () => void;
   onLogout: () => void;
   onNavigate: (view: ActiveView) => void;
@@ -3310,36 +3333,39 @@ function Sidebar({
                 {badge > 0 ? <small>{badge}</small> : null}
               </span>
             </button>
-            {item.id === 'clients' ? (
-              <div className="sidebar-projects">
-                <button className="nav-button project-toggle" data-active={activeView === 'project'} onClick={() => setProjectsOpen((open) => !open)} type="button">
-                  <FolderKanban size={18} />
-                  <span>프로젝트</span>
-                  <ChevronDown size={16} data-open={projectsOpen} />
-                </button>
-                {projectsOpen ? (
-                  <div className="project-nav-list">
-                    {projects.length ? (
-                      projects.map((project) => (
-                        <button className="project-nav-button" data-active={activeProjectId === project.id} key={project.id} onClick={() => onOpenProject(project.id)} type="button">
-                          <span className="project-code">{project.name.slice(0, 2).toUpperCase()}</span>
-                          <span className="project-nav-copy">
-                            <span>{project.name}</span>
-                            <small>{project.client}</small>
-                          </span>
-                          <i aria-hidden="true" />
-                        </button>
-                      ))
-                    ) : (
-                      <p className="project-nav-empty">등록된 프로젝트가 없습니다.</p>
-                    )}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
             </React.Fragment>
           );
         })}
+
+        <div className="sidebar-projects">
+          <div className="project-section-head">
+            <button className="project-section-title" data-active={activeView === 'project'} onClick={() => setProjectsOpen((open) => !open)} type="button">
+              <span>프로젝트</span>
+              <ChevronDown size={15} data-open={projectsOpen} />
+            </button>
+            <button className="project-add-button" aria-label="프로젝트 생성" onClick={onCreateProject} type="button">
+              <Plus size={16} />
+            </button>
+          </div>
+          {projectsOpen ? (
+            <div className="project-nav-list">
+              {projects.length ? (
+                projects.map((project) => (
+                  <button className="project-nav-button" data-active={activeProjectId === project.id} key={project.id} onClick={() => onOpenProject(project.id)} type="button">
+                    <span className="project-code">{project.name.slice(0, 2).toUpperCase()}</span>
+                    <span className="project-nav-copy">
+                      <span>{project.name}</span>
+                      <small>{project.client}</small>
+                    </span>
+                    <i aria-hidden="true" />
+                  </button>
+                ))
+              ) : (
+                <p className="project-nav-empty">등록된 프로젝트가 없습니다.</p>
+              )}
+            </div>
+          ) : null}
+        </div>
       </nav>
 
       <div className="sidebar-bottom-layer">
@@ -3390,6 +3416,12 @@ function Sidebar({
             앱 다운로드
             <small>언제 어디서나 Plander Works</small>
           </span>
+          <span className="install-platforms" aria-hidden="true">
+            <b>mac</b>
+            <b>win</b>
+            <b>iOS</b>
+            <b>and</b>
+          </span>
         </button>
 
         <div className="profile-card">
@@ -3410,6 +3442,8 @@ function Sidebar({
 }
 
 function Topbar({
+  activeView,
+  badges,
   currentUser,
   pushEnabled,
   pushLoading,
@@ -3425,6 +3459,8 @@ function Topbar({
   onThemeChange,
   onMenuClick,
 }: {
+  activeView: ActiveView;
+  badges: Partial<Record<ActiveView, number>>;
   currentUser: AppUser;
   pushEnabled: boolean;
   pushLoading: boolean;
@@ -3441,6 +3477,8 @@ function Topbar({
 }) {
   const PushIcon = pushEnabled ? Bell : BellOff;
   const [accountOpen, setAccountOpen] = useState(false);
+  const activeTitle = viewTitles[activeView] || 'Plander Works';
+  const activeCount = badges[activeView] || 0;
 
   const goSettings = () => {
     onNavigate('settings');
@@ -3462,6 +3500,11 @@ function Topbar({
       <button className="icon-button menu-button" aria-label="메뉴 열기" onClick={onMenuClick}>
         <Menu size={21} />
       </button>
+
+      <div className="topbar-title">
+        <strong>{activeTitle}</strong>
+        {activeCount > 0 ? <small>{activeCount}</small> : null}
+      </div>
 
       {showSearch ? (
         <label className="search-box">
@@ -4122,20 +4165,26 @@ function DashboardClientSection({ clients, onNavigate }: { clients: Client[]; on
 }
 
 function TaskListPage({
+  activeView,
   title,
   initialStatus,
   tasks,
+  tabCounts,
   employees = [],
   currentUser,
+  onNavigate,
   onOpenTask,
   onDeleteTask,
   onUpdateTaskStatus,
 }: {
+  activeView: ActiveView;
   title: string;
   initialStatus: TaskListFilter;
   tasks: Task[];
+  tabCounts: { inbox: number; sent: number; allTasks: number };
   employees?: Employee[];
   currentUser: AppUser;
+  onNavigate: (view: ActiveView) => void;
   onOpenTask: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
@@ -4193,6 +4242,19 @@ function TaskListPage({
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="task-tabs">
+        {[
+          { id: 'inbox' as ActiveView, label: '받은 업무', count: tabCounts.inbox },
+          { id: 'sent' as ActiveView, label: '보낸 업무', count: tabCounts.sent },
+          { id: 'allTasks' as ActiveView, label: '참여 업무', count: tabCounts.allTasks },
+        ].map((tab) => (
+          <button data-active={activeView === tab.id} key={tab.id} onClick={() => onNavigate(tab.id)} type="button">
+            <span>{tab.label}</span>
+            <small>{tab.count}</small>
+          </button>
+        ))}
       </div>
 
       <div className="task-workspace">

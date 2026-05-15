@@ -1,4 +1,4 @@
-const SHELL_VERSION = 'planderworks-reference-ui-20260515-2';
+const SHELL_VERSION = 'planderworks-reference-ui-20260515-3';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(self.skipWaiting());
