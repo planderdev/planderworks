@@ -5154,6 +5154,9 @@ function ProjectPage({
   const [messageStatus, setMessageStatus] = useState('');
   const [messageLoading, setMessageLoading] = useState(false);
   const [taskCreateOpen, setTaskCreateOpen] = useState(false);
+  const [projectTaskStatus, setProjectTaskStatus] = useState<'전체' | TaskStatus>('전체');
+  const [projectTaskAssigneeId, setProjectTaskAssigneeId] = useState('전체');
+  const [projectTaskSort, setProjectTaskSort] = useState<'최신순' | '마감 임박순'>('최신순');
   const messageListRef = useRef<HTMLDivElement>(null);
   const messageRows = Math.min(5, Math.max(1, message.split('\n').length));
   const latestMessageId = messages[messages.length - 1]?.id;
@@ -5163,10 +5166,35 @@ function ProjectPage({
     : employees;
   const activeProjects = projects.filter((item) => item.status !== 'completed' && item.status !== 'deleted');
   const visibleProjects = activeProjects;
+  const filteredProjectTasks = useMemo(() => {
+    const statusFiltered = projectTaskStatus === '전체' ? tasks : tasks.filter((task) => task.status === projectTaskStatus);
+    const assigneeFiltered = projectTaskAssigneeId === '전체'
+      ? statusFiltered
+      : statusFiltered.filter((task) => getTaskRecipientIds(task).includes(projectTaskAssigneeId) || task.assigneeId === projectTaskAssigneeId);
+
+    if (projectTaskSort === '마감 임박순') {
+      return [...assigneeFiltered].sort((first, second) => {
+        const firstTime = first.dueAt ? new Date(first.dueAt).getTime() : Number.POSITIVE_INFINITY;
+        const secondTime = second.dueAt ? new Date(second.dueAt).getTime() : Number.POSITIVE_INFINITY;
+        return firstTime - secondTime;
+      });
+    }
+
+    return assigneeFiltered;
+  }, [projectTaskAssigneeId, projectTaskSort, projectTaskStatus, tasks]);
 
   useEffect(() => {
     setFocusedTaskId(null);
+    setProjectTaskStatus('전체');
+    setProjectTaskAssigneeId('전체');
+    setProjectTaskSort('최신순');
   }, [project?.id]);
+
+  useEffect(() => {
+    if (projectTaskAssigneeId !== '전체' && !projectEmployees.some((employee) => employee.id === projectTaskAssigneeId)) {
+      setProjectTaskAssigneeId('전체');
+    }
+  }, [projectEmployees, projectTaskAssigneeId]);
 
   useEffect(() => {
     const list = messageListRef.current;
@@ -5310,7 +5338,7 @@ function ProjectPage({
         <div className="project-filter-strip" aria-label="프로젝트 필터">
           <label>
             <span>전체 상태</span>
-            <select defaultValue="전체">
+            <select value={projectTaskStatus} onChange={(event) => setProjectTaskStatus(event.target.value as '전체' | TaskStatus)}>
               <option>전체</option>
               <option>대기</option>
               <option>진행중</option>
@@ -5321,16 +5349,16 @@ function ProjectPage({
           </label>
           <label>
             <span>담당자</span>
-            <select defaultValue="전체 담당자">
-              <option>전체 담당자</option>
+            <select value={projectTaskAssigneeId} onChange={(event) => setProjectTaskAssigneeId(event.target.value)}>
+              <option value="전체">전체 담당자</option>
               {projectEmployees.map((employee) => (
-                <option key={employee.id}>{employee.name}</option>
+                <option key={employee.id} value={employee.id}>{employee.name}</option>
               ))}
             </select>
           </label>
           <label>
             <span>정렬</span>
-            <select defaultValue="최신순">
+            <select value={projectTaskSort} onChange={(event) => setProjectTaskSort(event.target.value as '최신순' | '마감 임박순')}>
               <option>최신순</option>
               <option>마감 임박순</option>
             </select>
@@ -5367,7 +5395,7 @@ function ProjectPage({
             <div className="project-board-toolbar">
               <div>
                 <h2>업무 목록</h2>
-                <span>{tasks.length}</span>
+                <span>{filteredProjectTasks.length}</span>
               </div>
             </div>
             <div className="project-task-columns" aria-hidden="true">
@@ -5379,8 +5407,8 @@ function ProjectPage({
             </div>
             <div className="project-task-list">
               {project ? (
-                tasks.length ? (
-                  tasks.map((task) => (
+                filteredProjectTasks.length ? (
+                  filteredProjectTasks.map((task) => (
                     <ProjectTaskRow
                       currentUser={currentUser}
                       employees={employees}
@@ -5397,7 +5425,7 @@ function ProjectPage({
                     />
                   ))
                 ) : (
-                  <EmptyState text="이 프로젝트에 연결된 업무가 없습니다." />
+                  <EmptyState text="조건에 맞는 업무가 없습니다." />
                 )
               ) : (
                 <EmptyState text="프로젝트를 선택해주세요." />
