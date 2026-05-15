@@ -1108,6 +1108,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    const displayMode = window.matchMedia('(display-mode: standalone)');
+    const syncInstalledMode = () => {
+      setAppInstalled(displayMode.matches || (window.navigator as Navigator & { standalone?: boolean }).standalone === true);
+    };
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as BeforeInstallPromptEvent);
@@ -1119,10 +1123,13 @@ function App() {
       setInstallStatus('이 기기에 Plander Works가 설치되었습니다.');
     };
 
+    syncInstalledMode();
+    displayMode.addEventListener('change', syncInstalledMode);
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
+      displayMode.removeEventListener('change', syncInstalledMode);
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
@@ -3158,6 +3165,7 @@ function App() {
         projects={projects}
         projectUnreadCounts={projectUnreadCounts}
         showAdmin={isAdmin}
+        showInstallButton={!appInstalled}
       />
       <div className="mobile-overlay" data-open={sidebarOpen} onClick={() => setSidebarOpen(false)} />
 
@@ -3669,6 +3677,7 @@ function Sidebar({
   projects,
   projectUnreadCounts,
   showAdmin,
+  showInstallButton,
   unreadBadges,
 }: {
   activeView: ActiveView;
@@ -3688,6 +3697,7 @@ function Sidebar({
   projects: Project[];
   projectUnreadCounts: Record<string, number>;
   showAdmin: boolean;
+  showInstallButton: boolean;
   unreadBadges: Partial<Record<ActiveView, number>>;
 }) {
   const [adminOpen, setAdminOpen] = useState(false);
@@ -3906,10 +3916,12 @@ function Sidebar({
           )
         ) : null}
 
-        <button className="sidebar-install-button" onClick={onInstallApp} type="button">
-          <Download size={17} />
-          <span>앱 다운로드</span>
-        </button>
+        {showInstallButton ? (
+          <button className="sidebar-install-button" onClick={onInstallApp} type="button">
+            <Download size={17} />
+            <span>앱 다운로드</span>
+          </button>
+        ) : null}
 
         <div className="profile-card">
           <button className="profile-card-main" onClick={() => setAdminOpen((open) => !open)} type="button">
