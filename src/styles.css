@@ -3471,6 +3471,7 @@ h1 {
 }
 
 .project-message-list {
+  min-height: 300px;
   max-height: 420px;
   display: flex;
   flex-direction: column;
@@ -4388,7 +4389,7 @@ h1 {
 }
 
 .project-message-list {
-  max-height: 280px;
+  max-height: 420px;
 }
 
 .project-message {
@@ -4672,7 +4673,104 @@ h1 {
   }
 
   .project-detail-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    width: 100%;
+    min-width: 0;
+  }
+
+  .project-mode-shell {
+    padding: 12px;
+    border-radius: 18px;
+  }
+
+  .project-mode-canvas {
+    width: 100%;
+    min-width: 0;
+    gap: 12px;
+    border-radius: 0 16px 16px 16px;
+    padding: 18px;
+    overflow: hidden;
+  }
+
+  .project-folder-tabs {
+    width: 100%;
+  }
+
+  .project-folder-tabs button {
+    min-width: min(250px, calc(100vw - 70px));
+    height: 54px;
+    padding: 0 14px;
+  }
+
+  .project-folder-tabs button[data-active='true'] {
+    min-width: min(300px, calc(100vw - 70px));
+  }
+
+  .project-mode-tools {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .project-search-pill {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .project-tool-button {
+    width: 34px;
+    height: 34px;
+  }
+
+  .project-page-head {
+    gap: 12px;
+  }
+
+  .project-page-head > .primary-action {
+    width: 100%;
+    justify-content: center;
+    margin-left: 0;
+  }
+
+  .project-filter-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .project-filter-strip label {
+    min-width: 0;
+  }
+
+  .project-view-toggle {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .project-task-board,
+  .task-board.list-surface.project-task-board,
+  .project-chat-panel {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .project-task-columns {
+    display: none;
+  }
+
+  .project-task-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px 12px;
+    align-items: start;
+    padding: 14px 16px;
+  }
+
+  .project-task-row > :nth-child(n + 3) {
+    grid-column: 1 / -1;
+  }
+
+  .project-message-list {
+    min-height: 270px;
+    max-height: 360px;
   }
 
   .project-chat-panel {
