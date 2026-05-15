@@ -719,6 +719,28 @@ function getTaskFileSizeError(files: File[]) {
   return `파일은 1개당 ${MAX_TASK_FILE_SIZE_LABEL}까지만 첨부할 수 있습니다. (${oversizedFiles.map((file) => file.name).join(', ')})`;
 }
 
+async function getEdgeFunctionErrorMessage(data: any, error: any) {
+  if (data?.error) return String(data.error);
+
+  const response = error?.context;
+  if (response instanceof Response) {
+    try {
+      const body = await response.clone().json();
+      if (body?.error) return String(body.error);
+      if (body?.message) return String(body.message);
+    } catch {
+      try {
+        const text = await response.clone().text();
+        if (text) return text;
+      } catch {
+        return error?.message || 'Edge Function 호출에 실패했습니다.';
+      }
+    }
+  }
+
+  return error?.message || 'Edge Function 호출에 실패했습니다.';
+}
+
 function getAvatarFileError(file: File | null) {
   if (!file) return '';
   if (!AVATAR_FILE_TYPES.includes(file.type)) return '프로필 사진은 JPG, PNG, WEBP만 업로드할 수 있습니다.';
@@ -2203,7 +2225,15 @@ function App() {
 
   const addEmployee = async (employee: NewEmployee): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) return '계정 생성 실패: 로그인 세션이 만료되었습니다. 다시 로그인해주세요.';
+
       const { data, error } = await supabase.functions.invoke('create-user', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: {
           name: employee.name,
           email: employee.email,
@@ -2216,7 +2246,7 @@ function App() {
       });
 
       if (error || data?.error) {
-        const message = `계정 생성 실패: ${data?.error || error?.message}`;
+        const message = `계정 생성 실패: ${await getEdgeFunctionErrorMessage(data, error)}`;
         setBackendStatus(message);
         return message;
       }
@@ -2233,20 +2263,28 @@ function App() {
 
   const updateEmployee = async (employeeId: string, updates: EmployeeUpdate): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) return '직원 정보 수정 실패: 로그인 세션이 만료되었습니다. 다시 로그인해주세요.';
+
       const { data, error } = await supabase.functions.invoke('update-user', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: {
           userId: employeeId,
           name: updates.name,
           phone: updates.phone,
           jobType: updates.jobType,
-          role: roleToDb[updates.role],
+          role: roleToDb[updates.role] || 'staff',
           password: updates.password,
           avatarUrl: updates.avatarUrl || null,
         },
       });
 
       if (error || data?.error) {
-        const message = `직원 정보 수정 실패: ${data?.error || error?.message}`;
+        const message = `직원 정보 수정 실패: ${await getEdgeFunctionErrorMessage(data, error)}`;
         setBackendStatus(message);
         return message;
       }
@@ -2267,8 +2305,8 @@ function App() {
     if (supabase && !currentUser.isPrototype) {
       const { data: jobTypeData, error: jobTypeError } = await supabase
         .from('job_types')
+        .upsert({ name: updates.jobType }, { onConflict: 'name' })
         .select('id')
-        .eq('name', updates.jobType)
         .single();
 
       if (jobTypeError) return `담당업무 조회 실패: ${jobTypeError.message}`;
