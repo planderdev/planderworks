@@ -286,6 +286,8 @@ type ClientDeleteHandler = (client: Client) => Promise<string>;
 type ProjectDraft = { name: string; clientId: string; memberIds: string[]; status?: string };
 type ProjectSubmitHandler = (project: ProjectDraft) => Promise<string>;
 type ProjectUpdateHandler = (projectId: string, project: ProjectDraft) => Promise<string>;
+type ProjectStatusHandler = (project: Project, status: string) => Promise<string>;
+type ProjectPermanentDeleteHandler = (project: Project) => Promise<string>;
 type WorkScheduleSubmitHandler = (schedule: WorkScheduleDraft) => Promise<string>;
 type JobTypeSubmitHandler = (name: string) => Promise<string>;
 type JobTypeDeleteHandler = (name: string) => Promise<string>;
@@ -2239,6 +2241,73 @@ function App() {
     return '프로젝트가 수정되었습니다.';
   };
 
+  const updateProjectStatus: ProjectStatusHandler = async (project, status) => {
+    const nextUpdatedAt = new Date().toISOString();
+    const successMessage =
+      status === 'deleted'
+        ? '프로젝트가 휴지통으로 이동되었습니다.'
+        : status === 'active'
+          ? '프로젝트가 진행중으로 복구되었습니다.'
+          : status === 'completed'
+            ? '프로젝트가 완료되었습니다.'
+            : '프로젝트 상태가 변경되었습니다.';
+
+    const applyLocalStatus = () => {
+      setProjects((current) => current.map((item) => (item.id === project.id ? { ...item, status, updatedAt: nextUpdatedAt } : item)));
+
+      if (status === 'deleted' && selectedProjectId === project.id) {
+        const nextProject = projects.find((item) => item.id !== project.id && item.status !== 'completed' && item.status !== 'deleted');
+        setSelectedProjectId(nextProject?.id || null);
+        if (!nextProject) setActiveView('dashboard');
+      }
+    };
+
+    if (supabase && currentUser && !currentUser.isPrototype && isUuid(project.id)) {
+      const { error } = await supabase
+        .from('projects')
+        .update({ status })
+        .eq('id', project.id);
+
+      if (error) {
+        const message = `프로젝트 상태 변경 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      applyLocalStatus();
+      window.setTimeout(() => {
+        void loadBackendData();
+      }, 300);
+      return successMessage;
+    }
+
+    applyLocalStatus();
+    return successMessage;
+  };
+
+  const permanentlyDeleteProject: ProjectPermanentDeleteHandler = async (project) => {
+    if (supabase && currentUser && !currentUser.isPrototype && isUuid(project.id)) {
+      const { error } = await supabase.from('projects').delete().eq('id', project.id);
+
+      if (error) {
+        const message = `프로젝트 완전 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      setProjects((current) => current.filter((item) => item.id !== project.id));
+      setSelectedProjectId((current) => (current === project.id ? null : current));
+      window.setTimeout(() => {
+        void loadBackendData();
+      }, 300);
+      return '프로젝트가 완전히 삭제되었습니다.';
+    }
+
+    setProjects((current) => current.filter((item) => item.id !== project.id));
+    setSelectedProjectId((current) => (current === project.id ? null : current));
+    return '프로젝트가 완전히 삭제되었습니다.';
+  };
+
   const addProjectMessage = async (projectId: string, content: string): Promise<string> => {
     const nextContent = content.trim();
     if (!nextContent) return '메시지를 입력해주세요.';
@@ -3075,6 +3144,8 @@ function App() {
           openProject(projectId);
           setSidebarOpen(false);
         }}
+        onPermanentDeleteProject={permanentlyDeleteProject}
+        onRestoreProject={(project) => updateProjectStatus(project, 'active')}
         badges={navBadges}
         projects={projects}
         projectUnreadCounts={projectUnreadCounts}
@@ -3173,6 +3244,7 @@ function App() {
             onMarkMessagesRead={markProjectMessagesRead}
             onOpenProject={openProject}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
+            onTrashProject={(project) => updateProjectStatus(project, 'deleted')}
             onUpdateTaskStatus={updateTaskStatus}
           />
         ) : null}
@@ -3553,6 +3625,8 @@ function Sidebar({
   onNavigate,
   onOpenProject,
   onOpenProfile,
+  onPermanentDeleteProject,
+  onRestoreProject,
   projects,
   projectUnreadCounts,
   showAdmin,
@@ -3570,6 +3644,8 @@ function Sidebar({
   onNavigate: (view: ActiveView) => void;
   onOpenProject: (projectId: string) => void;
   onOpenProfile: () => void;
+  onPermanentDeleteProject: ProjectPermanentDeleteHandler;
+  onRestoreProject: ProjectStatusHandler;
   projects: Project[];
   projectUnreadCounts: Record<string, number>;
   showAdmin: boolean;
@@ -3579,8 +3655,11 @@ function Sidebar({
   const [projectsOpen, setProjectsOpen] = useState(true);
   const [completedProjectsOpen, setCompletedProjectsOpen] = useState(false);
   const [completedYearOpen, setCompletedYearOpen] = useState<Record<string, boolean>>({});
-  const activeProjects = projects.filter((project) => project.status !== 'completed');
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashLoadingId, setTrashLoadingId] = useState<string | null>(null);
+  const activeProjects = projects.filter((project) => project.status !== 'completed' && project.status !== 'deleted');
   const completedProjects = projects.filter((project) => project.status === 'completed');
+  const deletedProjects = projects.filter((project) => project.status === 'deleted');
   const activeProjectUnread = activeProjects.reduce((sum, project) => sum + (projectUnreadCounts[project.id] || 0), 0);
   const completedProjectUnread = completedProjects.reduce((sum, project) => sum + (projectUnreadCounts[project.id] || 0), 0);
   const completedProjectsByYear = Object.entries(
@@ -3611,6 +3690,24 @@ function Sidebar({
         {unreadCount > 0 ? <strong className="project-unread-badge">{unreadCount}</strong> : null}
       </button>
     );
+  };
+
+  const restoreProject = async (project: Project) => {
+    if (trashLoadingId) return;
+    if (!(await requestActionConfirm('프로젝트를 진행중 프로젝트로 복구할까요?'))) return;
+    setTrashLoadingId(project.id);
+    const message = await onRestoreProject(project, 'active');
+    setTrashLoadingId(null);
+    showActionPopup(message);
+  };
+
+  const deleteProjectForever = async (project: Project) => {
+    if (trashLoadingId) return;
+    if (!(await requestActionConfirm('프로젝트를 완전히 삭제할까요? 이 작업은 되돌릴 수 없습니다.'))) return;
+    setTrashLoadingId(project.id);
+    const message = await onPermanentDeleteProject(project);
+    setTrashLoadingId(null);
+    showActionPopup(message);
   };
 
   return (
@@ -3693,6 +3790,35 @@ function Sidebar({
                 })
               ) : (
                 <p className="project-nav-empty">완료된 프로젝트가 없습니다.</p>
+              )}
+            </div>
+          ) : null}
+        </div>
+        <div className="sidebar-projects sidebar-projects-secondary">
+          <div className="sidebar-project-head single">
+            <button className="sidebar-project-title" onClick={() => setTrashOpen((open) => !open)} type="button">
+              <span>프로젝트 휴지통</span>
+              {deletedProjects.length > 0 ? <small className="nav-unread-badge">{deletedProjects.length}</small> : null}
+              <ChevronDown size={15} data-open={trashOpen} />
+            </button>
+          </div>
+          {trashOpen ? (
+            <div className="project-nav-list project-trash-list">
+              {deletedProjects.length ? (
+                deletedProjects.map((project) => (
+                  <div className="project-trash-row" key={project.id}>
+                    <FolderKanban size={17} />
+                    <span>{project.name}</span>
+                    <button aria-label={`${project.name} 복구`} disabled={trashLoadingId === project.id} onClick={() => restoreProject(project)} type="button">
+                      복구
+                    </button>
+                    <button aria-label={`${project.name} 완전 삭제`} disabled={trashLoadingId === project.id} onClick={() => deleteProjectForever(project)} type="button">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="project-nav-empty">휴지통이 비어 있습니다.</p>
               )}
             </div>
           ) : null}
@@ -4561,6 +4687,7 @@ function ProjectPage({
   onMarkMessagesRead,
   onOpenProject,
   onOpenTask,
+  onTrashProject,
   onUpdateTaskStatus,
 }: {
   clients: Client[];
@@ -4579,6 +4706,7 @@ function ProjectPage({
   onMarkMessagesRead: (messageIds: string[]) => Promise<void>;
   onOpenProject: (projectId: string) => void;
   onOpenTask: (task: Task) => void;
+  onTrashProject: ProjectStatusHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const activeTasks = tasks.filter((task) => task.status !== '완료');
@@ -4594,9 +4722,9 @@ function ProjectPage({
   const projectEmployees = project?.memberIds.length
     ? employees.filter((employee) => project.memberIds.includes(employee.id))
     : employees;
-  const activeProjects = projects.filter((item) => item.status !== 'completed');
+  const activeProjects = projects.filter((item) => item.status !== 'completed' && item.status !== 'deleted');
   const visibleProjects = project
-    ? [project, ...activeProjects.filter((item) => item.id !== project.id)].slice(0, 3)
+    ? [project, ...activeProjects.filter((item) => item.id !== project.id)].filter((item) => item.status !== 'deleted').slice(0, 3)
     : activeProjects.slice(0, 3);
 
   useEffect(() => {
@@ -4650,6 +4778,12 @@ function ProjectPage({
     setFocusedTaskId((current) => (current === taskId ? null : taskId));
   };
 
+  const trashProject = async (targetProject: Project) => {
+    if (!(await requestActionConfirm('프로젝트를 삭제할까요? 삭제된 프로젝트는 프로젝트 휴지통에서 관리할 수 있습니다.'))) return;
+    const message = await onTrashProject(targetProject, 'deleted');
+    showActionPopup(message);
+  };
+
   return (
     <section className="page-shell project-mode-shell">
       <div className="project-folder-tabs" role="tablist" aria-label="프로젝트 선택">
@@ -4664,7 +4798,14 @@ function ProjectPage({
           >
             <FolderKanban size={19} />
             <span>{item.name}</span>
-            <X size={15} />
+            <X
+              className="project-folder-close"
+              size={15}
+              onClick={(event) => {
+                event.stopPropagation();
+                void trashProject(item);
+              }}
+            />
           </button>
         ))}
         <button className="project-folder-add" aria-label="프로젝트 추가" onClick={onCreateProject} type="button">
@@ -4701,9 +4842,23 @@ function ProjectPage({
               ) : null}
             </div>
             {project ? (
-              <p>
-                {project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건
-              </p>
+              <>
+                <p>
+                  {project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건
+                </p>
+                <div className="project-member-strip" aria-label="프로젝트 참여인원">
+                  <span>참여인원</span>
+                  <div className="project-member-avatars">
+                    {projectEmployees.slice(0, 6).map((employee) => (
+                      <span className="project-member-pill" key={employee.id}>
+                        <Avatar name={employee.name} src={employee.avatarUrl} size="xs" />
+                        <small>{employee.name}</small>
+                      </span>
+                    ))}
+                    {projectEmployees.length > 6 ? <strong>+{projectEmployees.length - 6}</strong> : null}
+                  </div>
+                </div>
+              </>
             ) : (
               <p>프로젝트를 선택해주세요.</p>
             )}

@@ -299,30 +299,21 @@ button:disabled {
 }
 
 .sidebar-install-button {
-  min-height: 94px;
-  display: grid;
-  grid-template-columns: 18px 1fr;
-  align-content: center;
-  align-items: start;
-  gap: 6px 9px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
-  padding: 14px;
+  padding: 0 12px;
   color: #f5f7fb;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)),
     rgba(10, 11, 13, 0.74);
   font-size: 0.84rem;
   font-weight: 850;
-  text-align: left;
-}
-
-.sidebar-install-button::after {
-  content: '언제 어디서나 Plander Works';
-  grid-column: 1 / -1;
-  color: rgba(229, 233, 240, 0.58);
-  font-size: 0.7rem;
-  font-weight: 700;
+  text-align: center;
 }
 
 .sidebar-install-button:hover {
@@ -636,6 +627,48 @@ button:disabled {
 
 .completed-project-list {
   padding-left: 10px;
+}
+
+.project-trash-list {
+  gap: 7px;
+}
+
+.project-trash-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  padding: 8px 9px;
+  color: rgba(238, 241, 245, 0.88);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.project-trash-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 820;
+}
+
+.project-trash-row button {
+  min-height: 26px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
+  padding: 0 8px;
+  color: rgba(245, 247, 251, 0.9);
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.68rem;
+  font-weight: 850;
+}
+
+.project-trash-row button:last-child {
+  color: #ffb6b6;
 }
 
 .project-unread-badge {
@@ -3639,6 +3672,16 @@ h1 {
   flex: 0 0 auto;
 }
 
+.project-folder-close {
+  border-radius: 6px;
+  padding: 2px;
+  cursor: pointer;
+}
+
+.project-folder-close:hover {
+  background: rgba(8, 8, 8, 0.08);
+}
+
 .project-folder-tabs span {
   min-width: 0;
   flex: 1;
@@ -3748,6 +3791,52 @@ h1 {
   line-height: 1.45;
 }
 
+.project-member-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  color: rgba(8, 8, 8, 0.62);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.project-member-avatars {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.project-member-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(8, 8, 8, 0.08);
+  border-radius: 999px;
+  padding: 2px 7px 2px 2px;
+  color: rgba(8, 8, 8, 0.74);
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.project-member-pill small {
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.project-member-avatars > strong {
+  display: inline-grid;
+  min-width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  color: rgba(8, 8, 8, 0.74);
+  background: rgba(8, 8, 8, 0.08);
+  font-size: 0.7rem;
+}
+
 .project-page-head > .primary-action,
 .project-mode-shell .primary-action {
   color: #fff;
@@ -3774,8 +3863,7 @@ h1 {
   align-items: end;
 }
 
-.project-filter-strip label,
-.project-range-filter {
+.project-filter-strip label {
   min-width: 0;
   display: grid;
   gap: 7px;
@@ -3796,43 +3884,6 @@ h1 {
   color: rgba(8, 8, 8, 0.78);
   background: rgba(255, 255, 255, 0.52);
   font-weight: 800;
-}
-
-.project-range-filter > div {
-  min-height: 38px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  color: rgba(8, 8, 8, 0.52);
-}
-
-.project-range-filter i {
-  position: relative;
-  height: 3px;
-  border-radius: 99px;
-  background: #060606;
-}
-
-.project-range-filter i::before,
-.project-range-filter i::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  width: 18px;
-  height: 18px;
-  border: 4px solid #050505;
-  border-radius: 50%;
-  background: var(--project-paper);
-  transform: translateY(-50%);
-}
-
-.project-range-filter i::before {
-  left: 0;
-}
-
-.project-range-filter i::after {
-  right: 0;
 }
 
 .project-view-toggle {
