@@ -1175,7 +1175,7 @@ h1 {
   font-size: 0.84rem;
 }
 
-.task-meta span {
+.task-meta > span {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -2320,7 +2320,7 @@ h1 {
   margin: 16px 0;
 }
 
-.task-detail-meta span {
+.task-detail-meta > span {
   min-height: 38px;
   display: flex;
   align-items: center;
