@@ -4636,6 +4636,7 @@ function CalendarPage({
   const [mode, setMode] = useState<'일' | '주' | '월'>('월');
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [scheduleCreateOpen, setScheduleCreateOpen] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] = useState<WorkSchedule | null>(null);
   const [googleSyncLoading, setGoogleSyncLoading] = useState(false);
   const [googleSyncStatus, setGoogleSyncStatus] = useState('');
   const calendarTasks = tasks.filter((task) =>
@@ -4673,7 +4674,7 @@ function CalendarPage({
 
       return {
         id: `schedule-${schedule.id}`,
-        title: schedule.title,
+        title: `${schedule.creatorName} - ${schedule.title}`,
         start: startDate,
         end: rangeEnd,
         days: Math.max(1, diffCalendarDays(startDate, rangeEnd) + 1),
@@ -4681,7 +4682,7 @@ function CalendarPage({
         description: `${schedule.memo || '메모 없음'}\n작성: ${schedule.creatorName}`,
         sourceUrl: `${window.location.origin}/#calendar`,
         allDay: false,
-        onClick: () => showActionPopup(`${schedule.title}${schedule.memo ? ` · ${schedule.memo}` : ''}`),
+        onClick: () => setSelectedSchedule(schedule),
       };
     })
     .filter((item): item is CalendarEventItem => Boolean(item));
@@ -4812,6 +4813,12 @@ function CalendarPage({
         <ScheduleCreateModal
           onAddSchedule={onAddSchedule}
           onClose={() => setScheduleCreateOpen(false)}
+        />
+      ) : null}
+      {selectedSchedule ? (
+        <ScheduleDetailModal
+          schedule={selectedSchedule}
+          onClose={() => setSelectedSchedule(null)}
         />
       ) : null}
 
@@ -4999,6 +5006,42 @@ function ScheduleCreateModal({
           {loading ? '진행중...' : '스케줄 추가'}
         </button>
       </form>
+    </div>
+  );
+}
+
+function ScheduleDetailModal({
+  schedule,
+  onClose,
+}: {
+  schedule: WorkSchedule;
+  onClose: () => void;
+}) {
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <article className="modal-card schedule-detail-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">Schedule</p>
+            <h2>{schedule.creatorName} - {schedule.title}</h2>
+          </div>
+          <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="task-detail-meta schedule-detail-meta">
+          <span>작성자: {schedule.creatorName}</span>
+          <span>시작: {formatDueDate(schedule.startAt)}</span>
+          <span>종료: {formatDueDate(schedule.endAt)}</span>
+        </div>
+        <div className="task-detail-body">
+          <h3>내용</h3>
+          <p>{schedule.memo || '내용이 없습니다.'}</p>
+        </div>
+        <button className="primary-action wide" onClick={onClose} type="button">
+          확인
+        </button>
+      </article>
     </div>
   );
 }

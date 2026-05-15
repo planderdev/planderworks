@@ -2350,6 +2350,10 @@ h1 {
   width: min(680px, 100%);
 }
 
+.schedule-detail-modal {
+  width: min(560px, 100%);
+}
+
 .task-detail-meta {
   display: grid;
   grid-template-columns: minmax(220px, 0.85fr) minmax(0, 1.15fr);
@@ -2371,6 +2375,10 @@ h1 {
 
 .task-detail-meta > span:first-child {
   white-space: nowrap;
+}
+
+.schedule-detail-meta {
+  grid-template-columns: 1fr;
 }
 
 .task-detail-recipients {
