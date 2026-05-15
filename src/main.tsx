@@ -3153,6 +3153,7 @@ function App() {
             taskTypes={taskTypes}
             tasks={selectedProjectTasks}
             onAddMessage={addProjectMessage}
+            onCreateProject={() => setProjectCreateOpen(true)}
             onCreateTask={createProjectTask}
             onDeleteTask={deleteTask}
             onEditProject={(projectId) => setEditingProjectId(projectId)}
@@ -4465,6 +4466,7 @@ function ProjectPage({
   taskTypes,
   tasks,
   onAddMessage,
+  onCreateProject,
   onCreateTask,
   onDeleteTask,
   onEditProject,
@@ -4482,6 +4484,7 @@ function ProjectPage({
   taskTypes: string[];
   tasks: Task[];
   onAddMessage: (projectId: string, content: string) => Promise<string>;
+  onCreateProject: () => void;
   onCreateTask: TaskSubmitHandler;
   onDeleteTask: TaskDeleteHandler;
   onEditProject: (projectId: string) => void;
@@ -4503,7 +4506,6 @@ function ProjectPage({
   const projectEmployees = project?.memberIds.length
     ? employees.filter((employee) => project.memberIds.includes(employee.id))
     : employees;
-  const focusedTask = tasks.find((task) => task.id === focusedTaskId) || tasks[0] || null;
   const visibleProjects = project
     ? [project, ...projects.filter((item) => item.id !== project.id)].slice(0, 3)
     : projects.slice(0, 3);
@@ -4555,29 +4557,31 @@ function ProjectPage({
     await sendMessage();
   };
 
+  const toggleFocusedTask = (taskId: string) => {
+    setFocusedTaskId((current) => (current === taskId ? null : taskId));
+  };
+
   return (
     <section className="page-shell project-mode-shell">
-      {projects.length ? (
-        <div className="project-folder-tabs" role="tablist" aria-label="프로젝트 선택">
-          {visibleProjects.map((item) => (
-            <button
-              aria-selected={project?.id === item.id}
-              data-active={project?.id === item.id}
-              key={item.id}
-              onClick={() => onOpenProject(item.id)}
-              role="tab"
-              type="button"
-            >
-              <FolderKanban size={19} />
-              <span>{item.name}</span>
-              <X size={15} />
-            </button>
-          ))}
-          <button className="project-folder-add" aria-label="프로젝트 추가" type="button">
-            <Plus size={18} />
+      <div className="project-folder-tabs" role="tablist" aria-label="프로젝트 선택">
+        {visibleProjects.map((item) => (
+          <button
+            aria-selected={project?.id === item.id}
+            data-active={project?.id === item.id}
+            key={item.id}
+            onClick={() => onOpenProject(item.id)}
+            role="tab"
+            type="button"
+          >
+            <FolderKanban size={19} />
+            <span>{item.name}</span>
+            <X size={15} />
           </button>
-        </div>
-      ) : null}
+        ))}
+        <button className="project-folder-add" aria-label="프로젝트 추가" onClick={onCreateProject} type="button">
+          <Plus size={18} />
+        </button>
+      </div>
 
       <div className="project-mode-canvas">
         <div className="project-mode-tools">
@@ -4607,9 +4611,10 @@ function ProjectPage({
                 </button>
               ) : null}
             </div>
+            <h2 className="project-current-name">{project?.name || '프로젝트'}</h2>
             {project ? (
               <p>
-                {project.name} 프로젝트 보드 · {project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건
+                {project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건
               </p>
             ) : (
               <p>프로젝트를 선택해주세요.</p>
@@ -4718,8 +4723,8 @@ function ProjectPage({
                       employees={employees}
                       key={task.id}
                       onOpenTask={onOpenTask}
-                      onSelect={setFocusedTaskId}
-                      selected={focusedTask?.id === task.id}
+                      onSelect={toggleFocusedTask}
+                      selected={focusedTaskId === task.id}
                       task={task}
                     />
                   ))
@@ -4732,54 +4737,50 @@ function ProjectPage({
             </div>
           </div>
           {project ? (
-            <aside className="project-inspector-panel">
-              <ProjectTaskInspector currentUser={currentUser} onOpenTask={onOpenTask} task={focusedTask} />
-
-              <div className="project-chat-panel">
-                <div className="section-head tight">
-                  <div>
-                    <p className="eyebrow">Project Chat</p>
-                    <h2>프로젝트 대화</h2>
-                  </div>
-                  <MessageSquareText size={22} />
+            <aside className="project-chat-panel">
+              <div className="section-head tight">
+                <div>
+                  <p className="eyebrow">Project Chat</p>
+                  <h2>프로젝트 대화</h2>
                 </div>
-                <div className="project-message-list" ref={messageListRef}>
-                  {messages.length ? (
-                    messages.map((item) => (
-                      <article className="project-message" data-own={item.userId === currentUser.id} key={item.id}>
-                        <div className="project-message-head">
-                          <Avatar name={item.author} src={item.avatarUrl} size="sm" />
-                          <div>
-                            <strong>{item.author}</strong>
-                            <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
-                          </div>
-                        </div>
-                        <p>{item.content}</p>
-                        {item.readBy.filter((name) => name !== item.author).length ? (
-                          <small className="project-message-readers">
-                            읽음: {item.readBy.filter((name) => name !== item.author).join(', ')}
-                          </small>
-                        ) : null}
-                      </article>
-                    ))
-                  ) : (
-                    <p className="mini-empty">아직 대화가 없습니다.</p>
-                  )}
-                </div>
-                <form className="project-chat-form" onSubmit={submitMessage}>
-                  <textarea
-                    value={message}
-                    onChange={(event) => setMessage(event.target.value)}
-                    onKeyDown={handleMessageKeyDown}
-                    placeholder="프로젝트 대화를 입력하세요"
-                    rows={messageRows}
-                  />
-                  {messageStatus ? <p className="admin-note">{messageStatus}</p> : null}
-                  <button className="project-chat-send-button" aria-label="대화 전송" disabled={messageLoading} type="submit">
-                    <SendHorizontal size={18} />
-                  </button>
-                </form>
+                <MessageSquareText size={22} />
               </div>
+              <div className="project-message-list" ref={messageListRef}>
+                {messages.length ? (
+                  messages.map((item) => (
+                    <article className="project-message" data-own={item.userId === currentUser.id} key={item.id}>
+                      <div className="project-message-head">
+                        <Avatar name={item.author} src={item.avatarUrl} size="sm" />
+                        <div>
+                          <strong>{item.author}</strong>
+                          <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+                        </div>
+                      </div>
+                      <p>{item.content}</p>
+                      {item.readBy.filter((name) => name !== item.author).length ? (
+                        <small className="project-message-readers">
+                          읽음: {item.readBy.filter((name) => name !== item.author).join(', ')}
+                        </small>
+                      ) : null}
+                    </article>
+                  ))
+                ) : (
+                  <p className="mini-empty">아직 대화가 없습니다.</p>
+                )}
+              </div>
+              <form className="project-chat-form" onSubmit={submitMessage}>
+                <textarea
+                  value={message}
+                  onChange={(event) => setMessage(event.target.value)}
+                  onKeyDown={handleMessageKeyDown}
+                  placeholder="프로젝트 대화를 입력하세요"
+                  rows={messageRows}
+                />
+                {messageStatus ? <p className="admin-note">{messageStatus}</p> : null}
+                <button className="project-chat-send-button" aria-label="대화 전송" disabled={messageLoading} type="submit">
+                  <SendHorizontal size={18} />
+                </button>
+              </form>
             </aside>
           ) : null}
         </div>
@@ -4808,31 +4809,37 @@ function ProjectTaskRow({
   const readCount = task.readAt ? totalRecipients : 0;
 
   return (
-    <button
-      className="project-task-row"
-      data-attention={needsTaskAttention(task, currentUser)}
-      data-selected={selected}
-      data-status-tone={getTaskStatusTone(task.status)}
-      onClick={() => onSelect(task.id)}
-      onDoubleClick={() => onOpenTask(task)}
-      type="button"
-    >
-      <span className="project-task-row-title">
-        <strong>{task.title}</strong>
-        <small>{task.projectName || task.client}</small>
-      </span>
-      <span className="status" data-status={task.status}>
-        {task.status}
-      </span>
-      <span className="project-task-assignees">
-        {recipientNames.slice(0, 3).map((name) => (
-          <Avatar key={name} name={name} src={employees.find((employee) => employee.name === name)?.avatarUrl} size="xs" />
-        ))}
-        <small>{recipientNames[0] || task.to || '미지정'}{recipientNames.length > 1 ? ` 외 ${recipientNames.length - 1}명` : ''}</small>
-      </span>
-      <span className="project-task-due">{task.dueAt ? formatDueDate(task.dueAt) : task.due}</span>
-      <span className="project-task-read">{readCount}/{totalRecipients}</span>
-    </button>
+    <article className="project-task-item" data-open={selected}>
+      <button
+        className="project-task-row"
+        data-attention={needsTaskAttention(task, currentUser)}
+        data-selected={selected}
+        data-status-tone={getTaskStatusTone(task.status)}
+        onClick={() => onSelect(task.id)}
+        type="button"
+      >
+        <span className="project-task-row-title">
+          <strong>{task.title}</strong>
+          <small>{task.projectName || task.client}</small>
+        </span>
+        <span className="status" data-status={task.status}>
+          {task.status}
+        </span>
+        <span className="project-task-assignees">
+          {recipientNames.slice(0, 3).map((name) => (
+            <Avatar key={name} name={name} src={employees.find((employee) => employee.name === name)?.avatarUrl} size="xs" />
+          ))}
+          <small>{recipientNames[0] || task.to || '미지정'}{recipientNames.length > 1 ? ` 외 ${recipientNames.length - 1}명` : ''}</small>
+        </span>
+        <span className="project-task-due">{task.dueAt ? formatDueDate(task.dueAt) : task.due}</span>
+        <span className="project-task-read">{readCount}/{totalRecipients}</span>
+      </button>
+      <div className="project-task-expanded" aria-hidden={!selected} data-open={selected}>
+        <div className="project-task-expanded-inner">
+          <ProjectTaskInspector currentUser={currentUser} onOpenTask={onOpenTask} task={task} />
+        </div>
+      </div>
+    </article>
   );
 }
 
