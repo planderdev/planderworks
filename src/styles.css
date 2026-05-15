@@ -5401,6 +5401,38 @@ h1 {
   border-color: var(--project-line);
 }
 
+:root[data-color-theme='metal-silver'] .project-mode-shell .task-board.list-surface.project-task-board,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .task-board.list-surface.project-task-board {
+  color: var(--project-ink);
+  background: var(--project-panel) !important;
+  border-color: var(--project-line) !important;
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-board .project-task-list,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-board .project-task-list {
+  background: color-mix(in srgb, var(--project-panel) 72%, var(--project-soft)) !important;
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-board .project-task-item,
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-board .project-task-columns,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-board .project-task-item,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-board .project-task-columns {
+  border-color: var(--project-line);
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-board .project-task-row,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-board .project-task-row {
+  color: var(--project-ink);
+  background: transparent !important;
+}
+
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-board .project-task-row[data-selected='true'],
+:root[data-color-theme='metal-silver'] .project-mode-shell .project-task-board .project-task-row:hover,
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-board .project-task-row[data-selected='true'],
+:root[data-color-theme='pastel-pink'] .project-mode-shell .project-task-board .project-task-row:hover {
+  background: var(--project-soft) !important;
+}
+
 @media (max-width: 1180px) {
   .sidebar {
     position: fixed;
