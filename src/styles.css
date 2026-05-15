@@ -4070,7 +4070,8 @@ h1 {
   align-items: center;
   border: 0;
   border-bottom: 0;
-  padding: 17px 18px;
+  min-height: 74px;
+  padding: 10px 18px;
   color: var(--project-ink);
   background: transparent;
   text-align: left;
@@ -4138,7 +4139,7 @@ h1 {
 .project-task-row-title {
   min-width: 0;
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .project-task-row-title strong {
