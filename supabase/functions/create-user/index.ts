@@ -44,6 +44,7 @@ Deno.serve(async (req) => {
   const phone = String(body.phone || '').trim();
   const role: UserRole = body.role === 'admin' ? 'admin' : 'staff';
   const jobTypeName = String(body.jobType || '').trim();
+  const avatarUrl = body.avatarUrl ? String(body.avatarUrl).trim() : null;
 
   if (!email || !password || !name) {
     return jsonResponse({ error: 'Missing required fields' }, 400);
@@ -73,6 +74,7 @@ Deno.serve(async (req) => {
       name,
       role,
       job_type: jobTypeName,
+      avatar_url: avatarUrl,
     },
   });
 
@@ -101,6 +103,7 @@ Deno.serve(async (req) => {
         name,
         role,
         job_type: jobTypeName,
+        avatar_url: avatarUrl,
       },
     });
 
@@ -118,6 +121,7 @@ Deno.serve(async (req) => {
     phone,
     role,
     job_type_id: jobTypeId,
+    avatar_url: avatarUrl,
   });
 
   if (profileError) {

@@ -79,6 +79,7 @@ type AppUser = {
   role: string;
   accountRole: 'admin' | 'staff';
   isPrototype: boolean;
+  avatarUrl?: string | null;
 };
 
 type Task = {
@@ -105,6 +106,8 @@ type Task = {
   watchers: string[];
   files: TaskFile[];
   comments: TaskComment[];
+  creatorAvatarUrl?: string | null;
+  assigneeAvatarUrl?: string | null;
 };
 
 type TaskFile = {
@@ -121,6 +124,7 @@ type TaskComment = {
   parentId?: string | null;
   userId?: string;
   author: string;
+  avatarUrl?: string | null;
   content: string;
   createdAt: string;
 };
@@ -150,6 +154,7 @@ type ProjectMessage = {
   projectId: string;
   userId: string;
   author: string;
+  avatarUrl?: string | null;
   content: string;
   createdAt: string;
   readByIds: string[];
@@ -170,17 +175,18 @@ type Employee = {
   jobType: string;
   role: '관리자' | '사용자';
   load: number;
+  avatarUrl?: string | null;
 };
 
 type NewEmployee = Omit<Employee, 'id' | 'load'> & {
   password?: string;
 };
 
-type EmployeeUpdate = Pick<Employee, 'name' | 'phone' | 'jobType' | 'role'> & {
+type EmployeeUpdate = Pick<Employee, 'name' | 'phone' | 'jobType' | 'role' | 'avatarUrl'> & {
   password?: string;
 };
 
-type OwnProfileUpdate = Pick<Employee, 'name' | 'phone' | 'jobType'> & {
+type OwnProfileUpdate = Pick<Employee, 'name' | 'phone' | 'jobType' | 'avatarUrl'> & {
   password?: string;
 };
 
@@ -544,6 +550,7 @@ function getUserFromSession(session: Session | null): AppUser | null {
     email: session.user.email,
     role: session.user.user_metadata?.job_type || 'Plander',
     accountRole: session.user.user_metadata?.role === 'admin' ? 'admin' : 'staff',
+    avatarUrl: session.user.user_metadata?.avatar_url || null,
     isPrototype: false,
   };
 }
@@ -612,6 +619,14 @@ const taskCardSummaryLimit = 90;
 function truncateText(value: string, limit = taskCardSummaryLimit) {
   const normalized = value.replace(/\s+/g, ' ').trim();
   return normalized.length > limit ? `${normalized.slice(0, limit).trimEnd()}...` : normalized;
+}
+
+function getAvatarInitials(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) return 'P';
+  const parts = trimmed.split(/\s+/).filter(Boolean);
+  if (/[가-힣]/.test(trimmed)) return trimmed.slice(0, 1);
+  return parts.slice(0, 2).map((part) => part[0]).join('').toUpperCase();
 }
 
 function renderLinkedText(text: string) {
@@ -1016,7 +1031,7 @@ function App() {
     ] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, email, name, phone, role, job_types(name)')
+        .select('id, email, name, phone, role, avatar_url, job_types(name)')
         .order('created_at', { ascending: true }),
       supabase
         .from('job_types')
@@ -1038,15 +1053,15 @@ function App() {
         .order('created_at', { ascending: false }),
       supabase
         .from('project_members')
-        .select('project_id, user_id, user:profiles!project_members_user_id_fkey(name)')
+        .select('project_id, user_id, user:profiles!project_members_user_id_fkey(name, avatar_url)')
         .order('created_at', { ascending: true }),
       supabase
         .from('project_messages')
-        .select('id, project_id, user_id, content, created_at, user:profiles!project_messages_user_id_fkey(name)')
+        .select('id, project_id, user_id, content, created_at, user:profiles!project_messages_user_id_fkey(name, avatar_url)')
         .order('created_at', { ascending: true }),
       supabase
         .from('project_message_reads')
-        .select('message_id, user_id, read_at, user:profiles!project_message_reads_user_id_fkey(name)')
+        .select('message_id, user_id, read_at, user:profiles!project_message_reads_user_id_fkey(name, avatar_url)')
         .order('read_at', { ascending: true }),
       supabase
         .from('push_preferences')
@@ -1070,17 +1085,17 @@ function App() {
           assignee_id,
           client_id,
           project_id,
-          creator:profiles!tasks_creator_id_fkey(name),
-          assignee:profiles!tasks_assignee_id_fkey(name),
+          creator:profiles!tasks_creator_id_fkey(name, avatar_url),
+          assignee:profiles!tasks_assignee_id_fkey(name, avatar_url),
           client:clients(name),
           project:projects(name),
-          task_watchers(user_id, user:profiles(name)),
+          task_watchers(user_id, user:profiles(name, avatar_url)),
           task_files(id, file_name, file_path, file_size, mime_type)
         `)
         .order('created_at', { ascending: false }),
       supabase
         .from('task_comments')
-        .select('id, task_id, parent_comment_id, user_id, content, created_at, user:profiles!task_comments_user_id_fkey(name)')
+        .select('id, task_id, parent_comment_id, user_id, content, created_at, user:profiles!task_comments_user_id_fkey(name, avatar_url)')
         .order('created_at', { ascending: true }),
     ]);
 
@@ -1109,6 +1124,7 @@ function App() {
         parentId: comment.parent_comment_id,
         userId: comment.user_id,
         author: comment.user?.name || '알 수 없음',
+        avatarUrl: comment.user?.avatar_url || null,
         content: comment.content,
         createdAt: comment.created_at,
       };
@@ -1154,6 +1170,8 @@ function App() {
           mimeType: file.mime_type,
         })),
         comments: commentsByTask[task.id] || [],
+        creatorAvatarUrl: task.creator?.avatar_url || null,
+        assigneeAvatarUrl: task.assignee?.avatar_url || null,
       };
     });
 
@@ -1172,6 +1190,7 @@ function App() {
       jobType: profile.job_types?.name || '미지정',
       role: roleFromDb[profile.role] || '사용자',
       load: loadByUser.get(profile.id) || 0,
+      avatarUrl: profile.avatar_url || null,
     }));
 
     const currentProfile = nextEmployees.find((employee) => employee.id === currentUser.id);
@@ -1185,6 +1204,7 @@ function App() {
               role: currentProfile.jobType,
               accountRole: currentProfile.role === '관리자' ? 'admin' : 'staff',
               email: currentProfile.email,
+              avatarUrl: currentProfile.avatarUrl || null,
             }
           : user,
       );
@@ -1235,6 +1255,7 @@ function App() {
       projectId: message.project_id,
       userId: message.user_id,
       author: message.user?.name || '알 수 없음',
+      avatarUrl: message.user?.avatar_url || null,
       content: message.content,
       createdAt: message.created_at,
       readByIds: messageReadsByMessage[message.id]?.ids || [],
@@ -1509,6 +1530,7 @@ function App() {
       email: 'prototype@plander.co.kr',
       role: '일본 마케팅',
       accountRole: 'admin',
+      avatarUrl: null,
       isPrototype: true,
     });
   };
@@ -2029,6 +2051,7 @@ function App() {
       projectId,
       userId: currentUser?.id || 'prototype',
       author: currentUser?.name || '나',
+      avatarUrl: currentUser?.avatarUrl || null,
       content: nextContent,
       createdAt: new Date().toISOString(),
       readByIds: [],
@@ -2154,6 +2177,7 @@ function App() {
           phone: employee.phone,
           jobType: employee.jobType,
           role: roleToDb[employee.role],
+          avatarUrl: employee.avatarUrl || null,
         },
       });
 
@@ -2183,6 +2207,7 @@ function App() {
           jobType: updates.jobType,
           role: roleToDb[updates.role],
           password: updates.password,
+          avatarUrl: updates.avatarUrl || null,
         },
       });
 
@@ -2225,6 +2250,7 @@ function App() {
           name: updates.name,
           phone: updates.phone,
           job_type_id: jobTypeData.id,
+          avatar_url: updates.avatarUrl || null,
         })
         .eq('id', currentUser.id);
 
@@ -2237,7 +2263,7 @@ function App() {
     setEmployees((current) =>
       current.map((employee) =>
         employee.id === currentUser.id
-          ? { ...employee, name: updates.name, phone: updates.phone, jobType: updates.jobType }
+          ? { ...employee, name: updates.name, phone: updates.phone, jobType: updates.jobType, avatarUrl: updates.avatarUrl || null }
           : employee,
       ),
     );
@@ -2515,6 +2541,7 @@ function App() {
       parentId: parentCommentId,
       userId: currentUser?.id,
       author: currentUser?.name || '나',
+      avatarUrl: currentUser?.avatarUrl || null,
       content: nextContent,
       createdAt: new Date().toISOString(),
     };
@@ -3342,7 +3369,7 @@ function Sidebar({
 
         <div className="profile-card">
           <button className="profile-card-main" onClick={() => setAdminOpen((open) => !open)} type="button">
-            <CircleUserRound size={34} />
+            <Avatar name={currentUser.name} src={currentUser.avatarUrl} size="lg" />
             <div>
               <strong>{currentUser.name}</strong>
               <span>{currentUser.role}</span>
@@ -3651,9 +3678,12 @@ function TaskDetailModal({
   const renderComment = (item: TaskComment, isReply = false) => (
     <article className="comment-item" data-own={item.userId === currentUser.id} data-reply={isReply} key={item.id}>
       <div className="comment-head">
-        <div>
-          <strong>{item.author}</strong>
-          <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+        <div className="comment-author">
+          <Avatar name={item.author} src={item.avatarUrl} size="sm" />
+          <div>
+            <strong>{item.author}</strong>
+            <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+          </div>
         </div>
         <div className="comment-actions">
           {!isReply ? (
@@ -3711,8 +3741,12 @@ function TaskDetailModal({
           </div>
         </div>
         <div className="task-detail-meta">
-          <span>보낸 사람: {task.from}</span>
           <span>
+            <Avatar name={task.from} src={task.creatorAvatarUrl} size="xs" />
+            보낸 사람: {task.from}
+          </span>
+          <span>
+            <Avatar name={task.to} src={task.assigneeAvatarUrl} size="xs" />
             받는 사람: {task.to}
             <strong className="read-badge" data-read={getTaskReadLabel(task)}>{getTaskReadLabel(task)}</strong>
           </span>
@@ -4254,9 +4288,12 @@ function ProjectPage({
               {messages.length ? (
                 messages.map((item) => (
                   <article className="project-message" data-own={item.userId === currentUser.id} key={item.id}>
-                    <div>
-                      <strong>{item.author}</strong>
-                      <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+                    <div className="project-message-head">
+                      <Avatar name={item.author} src={item.avatarUrl} size="sm" />
+                      <div>
+                        <strong>{item.author}</strong>
+                        <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+                      </div>
                     </div>
                     <p>{item.content}</p>
                     {item.readBy.filter((name) => name !== item.author).length ? (
@@ -4944,6 +4981,7 @@ function EmployeesPage({
     password: '',
     passwordConfirm: '',
     phone: '',
+    avatarUrl: '',
     jobType: jobTypes[0] || '',
     role: '사용자' as Employee['role'],
   });
@@ -4953,6 +4991,7 @@ function EmployeesPage({
     phone: '',
     jobType: jobTypes[0] || '',
     role: '사용자' as Employee['role'],
+    avatarUrl: '',
     password: '',
     passwordConfirm: '',
   });
@@ -4966,6 +5005,7 @@ function EmployeesPage({
     setEditForm({
       name: employee.name,
       phone: formatMobilePhone(employee.phone),
+      avatarUrl: employee.avatarUrl || '',
       jobType: employee.jobType,
       role: employee.role,
       password: '',
@@ -4994,13 +5034,14 @@ function EmployeesPage({
       email: form.email,
       password: form.password,
       phone: form.phone,
+      avatarUrl: form.avatarUrl || null,
       jobType: form.jobType,
       role: form.role,
     });
     setLoading(false);
     showActionPopup(message);
     if (!message.includes('실패')) {
-      setForm({ name: '', email: '', password: '', passwordConfirm: '', phone: '', jobType: jobTypes[0] || '', role: '사용자' });
+      setForm({ name: '', email: '', password: '', passwordConfirm: '', phone: '', avatarUrl: '', jobType: jobTypes[0] || '', role: '사용자' });
     }
   };
 
@@ -5024,6 +5065,7 @@ function EmployeesPage({
     const message = await onUpdateEmployee(editingEmployee.id, {
       name: editForm.name,
       phone: editForm.phone,
+      avatarUrl: editForm.avatarUrl || null,
       jobType: editForm.jobType,
       role: editForm.role,
       password: editForm.password || undefined,
@@ -5047,9 +5089,12 @@ function EmployeesPage({
           <div className="table-list">
             {employees.map((employee) => (
               <div className="table-row employee-row" key={employee.id}>
-                <div>
-                  <strong>{employee.name}</strong>
-                  <span>{employee.email}</span>
+                <div className="employee-identity">
+                  <Avatar name={employee.name} src={employee.avatarUrl} size="sm" />
+                  <div>
+                    <strong>{employee.name}</strong>
+                    <span>{employee.email}</span>
+                  </div>
                 </div>
                 <span>{employee.jobType}</span>
                 <span>{employee.role}</span>
@@ -5072,6 +5117,10 @@ function EmployeesPage({
           <label>
             이름
             <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+          </label>
+          <label>
+            프로필 이미지 URL
+            <input value={form.avatarUrl} onChange={(event) => setForm({ ...form, avatarUrl: event.target.value })} placeholder="https://..." />
           </label>
           <label>
             이메일
@@ -5140,6 +5189,10 @@ function EmployeesPage({
                 value={editForm.phone}
                 onChange={(event) => setEditForm({ ...editForm, phone: formatMobilePhone(event.target.value) })}
               />
+            </label>
+            <label>
+              프로필 이미지 URL
+              <input value={editForm.avatarUrl} onChange={(event) => setEditForm({ ...editForm, avatarUrl: event.target.value })} placeholder="https://..." />
             </label>
             <label>
               새 비밀번호
@@ -5278,6 +5331,7 @@ function ProfileModal({
   const [profileForm, setProfileForm] = useState({
     name: currentEmployee?.name || currentUser.name,
     phone: formatMobilePhone(currentEmployee?.phone || ''),
+    avatarUrl: currentEmployee?.avatarUrl || currentUser.avatarUrl || '',
     jobType: currentEmployee?.jobType || currentUser.role,
     password: '',
     passwordConfirm: '',
@@ -5289,11 +5343,12 @@ function ProfileModal({
     setProfileForm({
       name: currentEmployee?.name || currentUser.name,
       phone: formatMobilePhone(currentEmployee?.phone || ''),
+      avatarUrl: currentEmployee?.avatarUrl || currentUser.avatarUrl || '',
       jobType: currentEmployee?.jobType || currentUser.role,
       password: '',
       passwordConfirm: '',
     });
-  }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.jobType, currentUser.name, currentUser.role]);
+  }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.avatarUrl, currentEmployee?.jobType, currentUser.name, currentUser.avatarUrl, currentUser.role]);
 
   const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -5310,6 +5365,7 @@ function ProfileModal({
     const message = await onUpdateOwnProfile({
       name: profileForm.name,
       phone: profileForm.phone,
+      avatarUrl: profileForm.avatarUrl || null,
       jobType: profileForm.jobType,
       password: profileForm.password || undefined,
     });
@@ -5343,6 +5399,10 @@ function ProfileModal({
             value={profileForm.phone}
             onChange={(event) => setProfileForm({ ...profileForm, phone: formatMobilePhone(event.target.value) })}
           />
+        </label>
+        <label>
+          프로필 이미지 URL
+          <input value={profileForm.avatarUrl} onChange={(event) => setProfileForm({ ...profileForm, avatarUrl: event.target.value })} placeholder="https://..." />
         </label>
         <label>
           담당업무
@@ -5806,6 +5866,7 @@ function SettingsPage({
   const [profileForm, setProfileForm] = useState({
     name: currentEmployee?.name || currentUser.name,
     phone: formatMobilePhone(currentEmployee?.phone || ''),
+    avatarUrl: currentEmployee?.avatarUrl || currentUser.avatarUrl || '',
     jobType: currentEmployee?.jobType || currentUser.role,
     password: '',
     passwordConfirm: '',
@@ -5824,11 +5885,12 @@ function SettingsPage({
     setProfileForm({
       name: currentEmployee?.name || currentUser.name,
       phone: formatMobilePhone(currentEmployee?.phone || ''),
+      avatarUrl: currentEmployee?.avatarUrl || currentUser.avatarUrl || '',
       jobType: currentEmployee?.jobType || currentUser.role,
       password: '',
       passwordConfirm: '',
     });
-  }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.jobType, currentUser.name, currentUser.role]);
+  }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.avatarUrl, currentEmployee?.jobType, currentUser.name, currentUser.avatarUrl, currentUser.role]);
 
   useEffect(() => {
     setGoogleForm(googleCalendarSettings);
@@ -5849,6 +5911,7 @@ function SettingsPage({
     const message = await onUpdateOwnProfile({
         name: profileForm.name,
         phone: profileForm.phone,
+        avatarUrl: profileForm.avatarUrl || null,
         jobType: profileForm.jobType,
         password: profileForm.password || undefined,
       });
@@ -5980,6 +6043,10 @@ function SettingsPage({
                 value={profileForm.phone}
                 onChange={(event) => setProfileForm({ ...profileForm, phone: formatMobilePhone(event.target.value) })}
               />
+            </label>
+            <label>
+              프로필 이미지 URL
+              <input value={profileForm.avatarUrl} onChange={(event) => setProfileForm({ ...profileForm, avatarUrl: event.target.value })} placeholder="https://..." />
             </label>
             <label>
               담당업무
@@ -6892,7 +6959,10 @@ function TaskCard({
         </button>
         <p title={task.summary}>{task.summary ? truncateText(task.summary) : '내용이 없습니다.'}</p>
         <div className="task-meta">
-          <span>{task.from} → {task.to}</span>
+          <span className="task-people-meta">
+            <Avatar name={task.from} src={task.creatorAvatarUrl} size="xs" />
+            {task.from} → {task.to}
+          </span>
           <span>{task.client}</span>
           <span>프로젝트: {task.projectName || '미지정'}</span>
           <span>
@@ -6946,6 +7016,7 @@ function TeamLoad({ employees }: { employees: Employee[] }) {
       <div className="people-list">
         {employees.map((person) => (
           <div className="person-row" key={person.id}>
+            <Avatar name={person.name} src={person.avatarUrl} size="sm" />
             <div>
               <strong>{person.name}</strong>
               <span>{person.jobType}</span>
@@ -6955,6 +7026,14 @@ function TeamLoad({ employees }: { employees: Employee[] }) {
         ))}
       </div>
     </section>
+  );
+}
+
+function Avatar({ name, src, size = 'md' }: { name: string; src?: string | null; size?: 'xs' | 'sm' | 'md' | 'lg' }) {
+  return (
+    <span className="avatar" data-size={size} title={name}>
+      {src ? <img src={src} alt="" loading="lazy" /> : <span>{getAvatarInitials(name)}</span>}
+    </span>
   );
 }
 

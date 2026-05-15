@@ -35,6 +35,7 @@ create table if not exists public.profiles (
   email text not null unique,
   name text not null,
   phone text,
+  avatar_url text,
   role public.user_role not null default 'staff',
   job_type_id uuid references public.job_types(id),
   created_at timestamptz not null default now(),
