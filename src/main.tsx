@@ -607,6 +607,12 @@ const hasValidMobilePhoneLength = (value: string) => {
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const isActiveView = (value: unknown): value is ActiveView => typeof value === 'string' && appViews.includes(value as ActiveView);
 const urlPattern = /((?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi;
+const taskCardSummaryLimit = 90;
+
+function truncateText(value: string, limit = taskCardSummaryLimit) {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length > limit ? `${normalized.slice(0, limit).trimEnd()}...` : normalized;
+}
 
 function renderLinkedText(text: string) {
   if (!text) return null;
@@ -6884,7 +6890,7 @@ function TaskCard({
         <button className="task-title-button" onClick={() => onOpenTask?.(task)} type="button">
           {task.title}
         </button>
-        <p>{renderLinkedText(task.summary)}</p>
+        <p title={task.summary}>{task.summary ? truncateText(task.summary) : '내용이 없습니다.'}</p>
         <div className="task-meta">
           <span>{task.from} → {task.to}</span>
           <span>{task.client}</span>
