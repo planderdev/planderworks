@@ -2099,7 +2099,11 @@ function App() {
     if (!client) return '연결할 업체를 선택해주세요.';
     if (!memberIds.length) return '참여 직원을 선택해주세요.';
 
-    if (!supabase || !currentUser || currentUser.isPrototype || !isUuid(client.id)) {
+    if (supabase && currentUser && !currentUser.isPrototype && !isUuid(client.id)) {
+      return '프로젝트 생성 실패: 업체 정보가 서버에 저장되지 않았습니다. 업체를 먼저 저장한 뒤 다시 시도해주세요.';
+    }
+
+    if (!supabase || !currentUser || currentUser.isPrototype) {
       const nextProject: Project = {
         id: String(Date.now()),
         name,
@@ -2183,7 +2187,11 @@ function App() {
     if (!client) return '연결할 업체를 선택해주세요.';
     if (!memberIds.length) return '참여 직원을 선택해주세요.';
 
-    if (!supabase || !currentUser || currentUser.isPrototype || !isUuid(projectId) || !isUuid(client.id)) {
+    if (supabase && currentUser && !currentUser.isPrototype && (!isUuid(projectId) || !isUuid(client.id))) {
+      return '프로젝트 수정 실패: 서버에 저장된 프로젝트/업체 정보가 아닙니다. 새로고침 후 다시 시도해주세요.';
+    }
+
+    if (!supabase || !currentUser || currentUser.isPrototype) {
       const nextProject: Project = {
         ...existingProject,
         name,
@@ -3221,7 +3229,7 @@ function App() {
         ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} projects={projects} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
-          <ReportsPage tasks={reportTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <ReportsPage tasks={reportTasks} employees={employees} currentUser={currentUser} onMenuClick={() => setSidebarOpen(true)} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'allTasks' ? (
           <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
@@ -3236,14 +3244,18 @@ function App() {
             projects={projects}
             taskTypes={taskTypes}
             tasks={selectedProjectTasks}
+            onAddComment={addTaskComment}
             onAddMessage={addProjectMessage}
             onCreateProject={() => setProjectCreateOpen(true)}
             onCreateTask={createProjectTask}
             onDeleteTask={deleteTask}
+            onDeleteComment={deleteTaskComment}
+            onDownloadFile={openTaskFile}
             onEditProject={(projectId) => setEditingProjectId(projectId)}
+            onEditTask={(task) => setEditingTaskId(task.id)}
+            onMenuClick={() => setSidebarOpen(true)}
             onMarkMessagesRead={markProjectMessagesRead}
             onOpenProject={openProject}
-            onOpenTask={(task) => setSelectedTaskId(task.id)}
             onTrashProject={(project) => updateProjectStatus(project, 'deleted')}
             onUpdateTaskStatus={updateTaskStatus}
           />
@@ -4679,14 +4691,18 @@ function ProjectPage({
   projects,
   taskTypes,
   tasks,
+  onAddComment,
   onAddMessage,
   onCreateProject,
   onCreateTask,
   onDeleteTask,
+  onDeleteComment,
+  onDownloadFile,
   onEditProject,
+  onEditTask,
+  onMenuClick,
   onMarkMessagesRead,
   onOpenProject,
-  onOpenTask,
   onTrashProject,
   onUpdateTaskStatus,
 }: {
@@ -4698,14 +4714,18 @@ function ProjectPage({
   projects: Project[];
   taskTypes: string[];
   tasks: Task[];
+  onAddComment: TaskCommentSubmitHandler;
   onAddMessage: (projectId: string, content: string) => Promise<string>;
   onCreateProject: () => void;
   onCreateTask: TaskSubmitHandler;
   onDeleteTask: TaskDeleteHandler;
+  onDeleteComment: TaskCommentDeleteHandler;
+  onDownloadFile: (file: TaskFile) => void;
   onEditProject: (projectId: string) => void;
+  onEditTask: (task: Task) => void;
+  onMenuClick: () => void;
   onMarkMessagesRead: (messageIds: string[]) => Promise<void>;
   onOpenProject: (projectId: string) => void;
-  onOpenTask: (task: Task) => void;
   onTrashProject: ProjectStatusHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
@@ -4815,6 +4835,9 @@ function ProjectPage({
 
       <div className="project-mode-canvas">
         <div className="project-mode-tools">
+          <button className="project-tool-button project-menu-button" aria-label="메뉴 열기" onClick={onMenuClick} type="button">
+            <Menu size={20} />
+          </button>
           <label className="project-search-pill">
             <Search size={17} />
             <input aria-label="프로젝트 검색" placeholder="업무, 프로젝트, 담당자 검색" readOnly />
@@ -4949,7 +4972,10 @@ function ProjectPage({
                       currentUser={currentUser}
                       employees={employees}
                       key={task.id}
-                      onOpenTask={onOpenTask}
+                      onAddComment={onAddComment}
+                      onDeleteComment={onDeleteComment}
+                      onDownloadFile={onDownloadFile}
+                      onEditTask={onEditTask}
                       onSelect={toggleFocusedTask}
                       selected={focusedTaskId === task.id}
                       task={task}
@@ -5019,14 +5045,20 @@ function ProjectPage({
 function ProjectTaskRow({
   currentUser,
   employees,
-  onOpenTask,
+  onAddComment,
+  onDeleteComment,
+  onDownloadFile,
+  onEditTask,
   onSelect,
   selected,
   task,
 }: {
   currentUser: AppUser;
   employees: Employee[];
-  onOpenTask: (task: Task) => void;
+  onAddComment: TaskCommentSubmitHandler;
+  onDeleteComment: TaskCommentDeleteHandler;
+  onDownloadFile: (file: TaskFile) => void;
+  onEditTask: (task: Task) => void;
   onSelect: (taskId: string) => void;
   selected: boolean;
   task: Task;
@@ -5063,14 +5095,43 @@ function ProjectTaskRow({
       </button>
       <div className="project-task-expanded" aria-hidden={!selected} data-open={selected}>
         <div className="project-task-expanded-inner">
-          <ProjectTaskInspector currentUser={currentUser} onOpenTask={onOpenTask} task={task} />
+          <ProjectTaskInspector
+            currentUser={currentUser}
+            onAddComment={onAddComment}
+            onDeleteComment={onDeleteComment}
+            onDownloadFile={onDownloadFile}
+            onEditTask={onEditTask}
+            task={task}
+          />
         </div>
       </div>
     </article>
   );
 }
 
-function ProjectTaskInspector({ currentUser, onOpenTask, task }: { currentUser: AppUser; onOpenTask: (task: Task) => void; task: Task | null }) {
+function ProjectTaskInspector({
+  currentUser,
+  onAddComment,
+  onDeleteComment,
+  onDownloadFile,
+  onEditTask,
+  task,
+}: {
+  currentUser: AppUser;
+  onAddComment: TaskCommentSubmitHandler;
+  onDeleteComment: TaskCommentDeleteHandler;
+  onDownloadFile: (file: TaskFile) => void;
+  onEditTask: (task: Task) => void;
+  task: Task | null;
+}) {
+  const [comment, setComment] = useState('');
+  const [commentStatus, setCommentStatus] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+
   if (!task) {
     return (
       <div className="project-inspector-card">
@@ -5083,6 +5144,95 @@ function ProjectTaskInspector({ currentUser, onOpenTask, task }: { currentUser: 
   const recipientNames = (task.watchers.length ? task.watchers : task.to.split(', ')).map((name) => name.trim()).filter(Boolean);
   const totalRecipients = Math.max(1, getTaskRecipientIds(task).length || recipientNames.length);
   const readCount = task.readAt ? totalRecipients : 0;
+  const rootComments = task.comments.filter((item) => !item.parentId);
+  const getReplies = (commentId: string) => task.comments.filter((item) => item.parentId === commentId);
+  const canEdit =
+    currentUser.accountRole === 'admin' ||
+    task.creatorId === currentUser.id ||
+    (currentUser.isPrototype && task.from === currentUser.name);
+
+  const submitComment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (commentLoading) return;
+    setCommentLoading(true);
+    setCommentStatus('등록중입니다.');
+    const message = await onAddComment(task, comment);
+    setCommentLoading(false);
+    setCommentStatus(message);
+    if (!message.includes('실패') && !message.includes('입력')) {
+      setComment('');
+      showActionPopup(message);
+    }
+  };
+
+  const submitReply = async (event: React.FormEvent<HTMLFormElement>, parentCommentId: string) => {
+    event.preventDefault();
+    if (replyLoading) return;
+    setReplyLoading(true);
+    setCommentStatus('답글 등록중입니다.');
+    const message = await onAddComment(task, replyText, parentCommentId);
+    setReplyLoading(false);
+    setCommentStatus(message);
+    if (!message.includes('실패') && !message.includes('입력')) {
+      setReplyText('');
+      setReplyTargetId(null);
+      showActionPopup(message);
+    }
+  };
+
+  const removeComment = async (item: TaskComment) => {
+    if (deleteLoadingId) return;
+    setDeleteLoadingId(item.id);
+    const message = await onDeleteComment(task, item);
+    setDeleteLoadingId(null);
+    setCommentStatus(message);
+    if (!message.includes('실패') && !message.includes('취소')) showActionPopup(message);
+  };
+
+  const renderProjectComment = (item: TaskComment, isReply = false) => (
+    <article className="comment-item" data-own={item.userId === currentUser.id} data-reply={isReply} key={item.id}>
+      <div className="comment-head">
+        <div className="comment-author">
+          <Avatar name={item.author} src={item.avatarUrl} size="sm" />
+          <div>
+            <strong>{item.author}</strong>
+            <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+          </div>
+        </div>
+        <div className="comment-actions">
+          {!isReply ? (
+            <button className="icon-button" aria-label="답글" onClick={() => setReplyTargetId(replyTargetId === item.id ? null : item.id)} type="button">
+              <Reply size={15} />
+            </button>
+          ) : null}
+          {item.userId === currentUser.id ? (
+            <button className="icon-button danger-icon" aria-label="삭제" disabled={deleteLoadingId === item.id} onClick={() => removeComment(item)} type="button">
+              <Trash2 size={15} />
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <p>{item.content}</p>
+      {!isReply && replyTargetId === item.id ? (
+        <form className="comment-form reply-form" onSubmit={(event) => submitReply(event, item.id)}>
+          <textarea
+            value={replyText}
+            onChange={(event) => setReplyText(event.target.value)}
+            placeholder={`${item.author}에게 답글`}
+            rows={2}
+          />
+          <div className="comment-form-actions">
+            <button className="secondary-action" disabled={replyLoading} onClick={() => setReplyTargetId(null)} type="button">
+              취소
+            </button>
+            <button className="primary-action" disabled={replyLoading} type="submit">
+              {replyLoading ? '진행중...' : '답글 등록'}
+            </button>
+          </div>
+        </form>
+      ) : null}
+    </article>
+  );
 
   return (
     <div className="project-inspector-card" data-status-tone={getTaskStatusTone(task.status)}>
@@ -5096,10 +5246,12 @@ function ProjectTaskInspector({ currentUser, onOpenTask, task }: { currentUser: 
           <h2>{task.title}</h2>
           <p>{task.from} → 담당자 {recipientNames.length || 1}명</p>
         </div>
-        <button className="secondary-action" onClick={() => onOpenTask(task)} type="button">
-          <Pencil size={15} />
-          수정
-        </button>
+        {canEdit ? (
+          <button className="secondary-action" onClick={() => onEditTask(task)} type="button">
+            <Pencil size={15} />
+            수정
+          </button>
+        ) : null}
       </div>
 
       <div className="project-inspector-people">
@@ -5144,12 +5296,12 @@ function ProjectTaskInspector({ currentUser, onOpenTask, task }: { currentUser: 
         </div>
         {task.files.length ? (
           <div className="project-file-grid">
-            {task.files.slice(0, 2).map((file) => (
-              <span key={file.id}>
+            {task.files.map((file) => (
+              <button key={file.id} onClick={() => onDownloadFile(file)} type="button">
                 <FileText size={17} />
                 <strong>{file.name}</strong>
                 <small>{file.size ? `${Math.ceil(file.size / 1024)}KB` : '파일'}</small>
-              </span>
+              </button>
             ))}
           </div>
         ) : (
@@ -5159,17 +5311,37 @@ function ProjectTaskInspector({ currentUser, onOpenTask, task }: { currentUser: 
 
       <div className="project-inspector-comments">
         <strong>댓글 <span>{task.comments.length}</span></strong>
-        {task.comments.slice(0, 2).map((comment) => (
-          <article key={comment.id}>
-            <Avatar name={comment.author} src={comment.avatarUrl} size="sm" />
-            <p>
-              <b>{comment.author}</b>
-              <small>{new Date(comment.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
-              {comment.content}
-            </p>
-          </article>
-        ))}
-        {!task.comments.length ? <p className="mini-empty">아직 댓글이 없습니다.</p> : null}
+        <div className="comment-list">
+          {rootComments.length ? (
+            rootComments.map((item) => (
+              <div className="comment-thread" key={item.id}>
+                {renderProjectComment(item)}
+                {getReplies(item.id).length ? (
+                  <div className="reply-list">
+                    {getReplies(item.id).map((reply) => renderProjectComment(reply, true))}
+                  </div>
+                ) : null}
+              </div>
+            ))
+          ) : (
+            <p className="mini-empty">아직 댓글이 없습니다.</p>
+          )}
+        </div>
+        <form className="comment-form" onSubmit={submitComment}>
+          <div className="comment-input-row">
+            <textarea
+              value={comment}
+              onChange={(event) => setComment(event.target.value)}
+              placeholder="댓글을 입력하세요"
+              rows={2}
+            />
+            <button className="primary-action comment-submit-button" disabled={commentLoading} type="submit">
+              <MessageSquareText size={16} />
+              {commentLoading ? '진행중...' : '등록'}
+            </button>
+          </div>
+          {commentStatus ? <p className="admin-note">{commentStatus}</p> : null}
+        </form>
         {needsTaskAttention(task, currentUser) ? <small className="project-attention-note">확인이 필요한 업무입니다.</small> : null}
       </div>
     </div>
@@ -5208,6 +5380,7 @@ function ReportsPage({
   tasks,
   employees,
   currentUser,
+  onMenuClick,
   onOpenTask,
   onCreateTask,
   onDeleteTask,
@@ -5216,12 +5389,14 @@ function ReportsPage({
   tasks: Task[];
   employees: Employee[];
   currentUser: AppUser;
+  onMenuClick: () => void;
   onOpenTask: (task: Task) => void;
   onCreateTask: TaskSubmitHandler;
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안');
+  const [composeOpen, setComposeOpen] = useState(false);
 
   return (
     <section className="page-shell project-mode-shell reports-mode-shell">
@@ -5235,6 +5410,9 @@ function ReportsPage({
 
       <div className="project-mode-canvas reports-mode-canvas">
         <div className="project-mode-tools">
+          <button className="project-tool-button project-menu-button" aria-label="메뉴 열기" onClick={onMenuClick} type="button">
+            <Menu size={20} />
+          </button>
           <label className="project-search-pill">
             <Search size={17} />
             <input aria-label="보고 제안 검색" placeholder="보고, 제안, 담당자 검색" readOnly />
@@ -5258,6 +5436,10 @@ function ReportsPage({
             </div>
             <p>대표에게 전달한 보고와 직원 간 제안을 한 곳에서 확인합니다. · 전체 {reportTasks.length}건</p>
           </div>
+          <button className="primary-action" onClick={() => setComposeOpen(true)} type="button">
+            <Plus size={17} />
+            대표에게 보고
+          </button>
         </div>
 
         <div className="split-layout reports-layout reports-mode-layout">
@@ -5278,11 +5460,24 @@ function ReportsPage({
               <EmptyState text="표시할 보고·제안이 없습니다." />
             )}
           </div>
-          <div className="page-card report-compose-card">
-            <ReportForm employees={employees} onCreateTask={onCreateTask} />
-          </div>
         </div>
       </div>
+      {composeOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setComposeOpen(false)}>
+          <article className="modal-card report-compose-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">New Report</p>
+                <h2>대표에게 보고</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setComposeOpen(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <ReportForm employees={employees} onCreateTask={onCreateTask} onSuccess={() => setComposeOpen(false)} />
+          </article>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -7596,9 +7791,11 @@ function TaskForm({
 function ReportForm({
   employees,
   onCreateTask,
+  onSuccess,
 }: {
   employees: Employee[];
   onCreateTask: TaskSubmitHandler;
+  onSuccess?: () => void;
 }) {
   const [title, setTitle] = useState('');
   const [summary, setSummary] = useState('');
@@ -7662,6 +7859,7 @@ function ReportForm({
       setTitle('');
       setSummary('');
       setProposalRecipientIds([]);
+      onSuccess?.();
     }
   };
 

@@ -2753,6 +2753,8 @@ h1 {
 }
 
 .inline-link {
+  overflow-wrap: anywhere;
+  word-break: break-word;
   color: #5ea2ff;
   font-weight: 800;
   text-decoration: underline;
@@ -3757,6 +3759,10 @@ h1 {
   background: transparent;
 }
 
+.project-menu-button {
+  display: none;
+}
+
 .project-mode-head {
   min-height: auto;
   align-items: flex-start;
@@ -4000,20 +4006,22 @@ h1 {
 }
 
 .project-task-expanded {
-  max-height: 0;
-  overflow: hidden;
+  display: grid;
+  grid-template-rows: 0fr;
   opacity: 0;
   transform: translateY(-8px);
-  transition: max-height 260ms ease, opacity 200ms ease, transform 260ms ease;
+  transition: grid-template-rows 260ms ease, opacity 200ms ease, transform 260ms ease;
 }
 
 .project-task-expanded[data-open='true'] {
-  max-height: 900px;
+  grid-template-rows: 1fr;
   opacity: 1;
   transform: translateY(0);
 }
 
 .project-task-expanded-inner {
+  min-height: 0;
+  overflow: hidden;
   padding: 0 18px 18px;
 }
 
@@ -4155,9 +4163,14 @@ h1 {
 
 .project-inspector-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.project-inspector-head > div {
+  min-width: 0;
 }
 
 .project-inspector-badges {
@@ -4267,6 +4280,7 @@ h1 {
   color: rgba(8, 8, 8, 0.78);
   line-height: 1.68;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .project-inspector-files {
@@ -4286,7 +4300,7 @@ h1 {
   gap: 10px;
 }
 
-.project-file-grid span {
+.project-file-grid button {
   min-width: 0;
   display: grid;
   grid-template-columns: auto 1fr;
@@ -4294,6 +4308,13 @@ h1 {
   border: 1px solid rgba(8, 8, 8, 0.12);
   border-radius: 8px;
   padding: 12px;
+  color: var(--project-ink);
+  background: rgba(255, 255, 255, 0.35);
+  text-align: left;
+}
+
+.project-file-grid button:hover {
+  background: rgba(255, 255, 255, 0.7);
 }
 
 .project-file-grid svg {
@@ -4324,16 +4345,7 @@ h1 {
   background: rgba(8, 8, 8, 0.08);
 }
 
-.project-inspector-comments article {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  align-items: start;
-}
-
-.project-inspector-comments p {
-  display: grid;
-  gap: 3px;
+.project-inspector-comments > p {
   color: rgba(8, 8, 8, 0.78);
   line-height: 1.45;
 }
@@ -4450,6 +4462,10 @@ h1 {
   .project-chat-panel {
     order: -1;
     position: static;
+  }
+
+  .project-menu-button {
+    display: grid;
   }
 
   .content-grid {
