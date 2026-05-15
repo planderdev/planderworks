@@ -281,7 +281,7 @@ type MessageHandler = (message: string) => void;
 type ClientSubmitHandler = (client: Omit<Client, 'id'>) => Promise<string>;
 type ClientUpdateHandler = (clientId: string, client: Omit<Client, 'id'>) => Promise<string>;
 type ClientDeleteHandler = (client: Client) => Promise<string>;
-type ProjectDraft = { name: string; clientId: string; memberIds: string[] };
+type ProjectDraft = { name: string; clientId: string; memberIds: string[]; status?: string };
 type ProjectSubmitHandler = (project: ProjectDraft) => Promise<string>;
 type ProjectUpdateHandler = (projectId: string, project: ProjectDraft) => Promise<string>;
 type WorkScheduleSubmitHandler = (schedule: WorkScheduleDraft) => Promise<string>;
@@ -2166,6 +2166,7 @@ function App() {
     const existingProject = projects.find((item) => item.id === projectId);
     const memberIds = Array.from(new Set([...(project.memberIds || []), currentUser?.id].filter((id): id is string => Boolean(id))));
     const memberNames = memberIds.map((id) => employees.find((employee) => employee.id === id)?.name).filter((item): item is string => Boolean(item));
+    const nextStatus = project.status || existingProject?.status || 'active';
 
     if (!existingProject) return '수정할 프로젝트를 찾을 수 없습니다.';
     if (!name) return '프로젝트명을 입력해주세요.';
@@ -2178,6 +2179,7 @@ function App() {
         name,
         clientId: client.id,
         client: client.name,
+        status: nextStatus,
         memberIds,
         memberNames,
       };
@@ -2190,6 +2192,7 @@ function App() {
       .update({
         name,
         client_id: client.id,
+        status: nextStatus,
       })
       .eq('id', projectId);
 
@@ -3387,7 +3390,9 @@ function ProjectCreateModal({
     memberIds: project?.memberIds?.length ? project.memberIds : [currentUser.id],
   });
   const [loading, setLoading] = useState(false);
+  const [completeLoading, setCompleteLoading] = useState(false);
   const isEdit = Boolean(project);
+  const isCompleted = project?.status === 'completed';
 
   useEffect(() => {
     if (!form.clientId && clients[0]?.id) {
@@ -3433,6 +3438,17 @@ function ProjectCreateModal({
     setLoading(true);
     const message = isEdit && project && onUpdateProject ? await onUpdateProject(project.id, form) : await onCreateProject(form);
     setLoading(false);
+    showActionPopup(message);
+    if (!message.includes('실패') && !message.includes('선택') && !message.includes('입력')) onClose();
+  };
+
+  const completeProject = async () => {
+    if (!project || !onUpdateProject || loading || completeLoading) return;
+    if (!(await requestActionConfirm('프로젝트를 완료 처리할까요? 완료된 프로젝트 메뉴로 이동됩니다.'))) return;
+
+    setCompleteLoading(true);
+    const message = await onUpdateProject(project.id, { ...form, status: 'completed' });
+    setCompleteLoading(false);
     showActionPopup(message);
     if (!message.includes('실패') && !message.includes('선택') && !message.includes('입력')) onClose();
   };
@@ -3492,6 +3508,12 @@ function ProjectCreateModal({
           <FolderKanban size={17} />
           {loading ? '진행중...' : isEdit ? '프로젝트 저장' : '프로젝트 생성'}
         </button>
+        {isEdit && !isCompleted ? (
+          <button className="secondary-action wide" disabled={loading || completeLoading || !clients.length} onClick={completeProject} type="button">
+            <CheckCircle2 size={17} />
+            {completeLoading ? '진행중...' : '프로젝트 완료'}
+          </button>
+        ) : null}
       </form>
     </div>
   );
@@ -3534,7 +3556,29 @@ function Sidebar({
 }) {
   const [adminOpen, setAdminOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(true);
-  const totalProjectUnread = Object.values(projectUnreadCounts).reduce((sum, count) => sum + count, 0);
+  const [completedProjectsOpen, setCompletedProjectsOpen] = useState(false);
+  const activeProjects = projects.filter((project) => project.status !== 'completed');
+  const completedProjects = projects.filter((project) => project.status === 'completed');
+  const activeProjectUnread = activeProjects.reduce((sum, project) => sum + (projectUnreadCounts[project.id] || 0), 0);
+  const completedProjectUnread = completedProjects.reduce((sum, project) => sum + (projectUnreadCounts[project.id] || 0), 0);
+
+  const renderProjectButton = (project: Project) => {
+    const unreadCount = projectUnreadCounts[project.id] || 0;
+    return (
+      <button
+        className="project-nav-button"
+        data-active={activeProjectId === project.id}
+        data-unread={unreadCount > 0}
+        key={project.id}
+        onClick={() => onOpenProject(project.id)}
+        type="button"
+      >
+        <FolderKanban size={18} />
+        <span>{project.name}</span>
+        {unreadCount > 0 ? <strong className="project-unread-badge">{unreadCount}</strong> : null}
+      </button>
+    );
+  };
 
   return (
     <aside className="sidebar" data-open={open}>
@@ -3568,7 +3612,7 @@ function Sidebar({
           <div className="sidebar-project-head">
             <button className="sidebar-project-title" data-active={activeView === 'project'} onClick={() => setProjectsOpen((open) => !open)} type="button">
               <span>프로젝트</span>
-              {totalProjectUnread > 0 ? <small className="nav-unread-badge">{totalProjectUnread}</small> : null}
+              {activeProjectUnread > 0 ? <small className="nav-unread-badge">{activeProjectUnread}</small> : null}
               <ChevronDown size={15} data-open={projectsOpen} />
             </button>
             <button className="sidebar-project-add" aria-label="프로젝트 추가" onClick={onCreateProject} type="button">
@@ -3577,26 +3621,28 @@ function Sidebar({
           </div>
           {projectsOpen ? (
             <div className="project-nav-list">
-              {projects.length ? (
-                projects.map((project) => {
-                  const unreadCount = projectUnreadCounts[project.id] || 0;
-                  return (
-                    <button
-                      className="project-nav-button"
-                      data-active={activeProjectId === project.id}
-                      data-unread={unreadCount > 0}
-                      key={project.id}
-                      onClick={() => onOpenProject(project.id)}
-                      type="button"
-                    >
-                      <FolderKanban size={18} />
-                      <span>{project.name}</span>
-                      {unreadCount > 0 ? <strong className="project-unread-badge">{unreadCount}</strong> : null}
-                    </button>
-                  );
-                })
+              {activeProjects.length ? (
+                activeProjects.map(renderProjectButton)
               ) : (
                 <p className="project-nav-empty">등록된 프로젝트가 없습니다.</p>
+              )}
+            </div>
+          ) : null}
+        </div>
+        <div className="sidebar-projects sidebar-projects-secondary">
+          <div className="sidebar-project-head single">
+            <button className="sidebar-project-title" data-active={activeView === 'project'} onClick={() => setCompletedProjectsOpen((open) => !open)} type="button">
+              <span>완료된 프로젝트</span>
+              {completedProjectUnread > 0 ? <small className="nav-unread-badge">{completedProjectUnread}</small> : null}
+              <ChevronDown size={15} data-open={completedProjectsOpen} />
+            </button>
+          </div>
+          {completedProjectsOpen ? (
+            <div className="project-nav-list">
+              {completedProjects.length ? (
+                completedProjects.map(renderProjectButton)
+              ) : (
+                <p className="project-nav-empty">완료된 프로젝트가 없습니다.</p>
               )}
             </div>
           ) : null}
@@ -4498,9 +4544,10 @@ function ProjectPage({
   const projectEmployees = project?.memberIds.length
     ? employees.filter((employee) => project.memberIds.includes(employee.id))
     : employees;
+  const activeProjects = projects.filter((item) => item.status !== 'completed');
   const visibleProjects = project
-    ? [project, ...projects.filter((item) => item.id !== project.id)].slice(0, 3)
-    : projects.slice(0, 3);
+    ? [project, ...activeProjects.filter((item) => item.id !== project.id)].slice(0, 3)
+    : activeProjects.slice(0, 3);
 
   useEffect(() => {
     setFocusedTaskId(null);
@@ -4596,14 +4643,13 @@ function ProjectPage({
         <div className="page-head project-page-head project-mode-head">
           <div>
             <div className="project-title-row">
-              <h1>Project Mode</h1>
+              <h1 className="project-current-name">{project?.name || '프로젝트'}</h1>
               {project && canEditProject ? (
                 <button className="icon-button project-edit-button" aria-label="프로젝트 수정" onClick={() => onEditProject(project.id)} type="button">
                   <Pencil size={16} />
                 </button>
               ) : null}
             </div>
-            <h2 className="project-current-name">{project?.name || '프로젝트'}</h2>
             {project ? (
               <p>
                 {project.client} · 진행 업무 {activeTasks.length}건 · 전체 업무 {tasks.length}건
