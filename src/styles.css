@@ -27,15 +27,15 @@
 }
 
 :root[data-theme='dark'] {
-  --bg: #111316;
-  --panel: #14171c;
-  --panel-2: #20252e;
-  --card-bg: #14171c;
-  --card-line: #2d3541;
+  --bg: #080808;
+  --panel: #111111;
+  --panel-2: #1d1d1d;
+  --card-bg: #111111;
+  --card-line: #303030;
   --text: #f4f6f9;
-  --muted: #a7adb8;
-  --soft: #292e37;
-  --line: #252a31;
+  --muted: #b1b1b1;
+  --soft: #242424;
+  --line: #2a2a2a;
   --shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
 }
 
@@ -2249,6 +2249,23 @@ h1 {
   font-size: 0.58rem;
 }
 
+:root[data-theme='dark'] .calendar-panel,
+:root[data-theme='dark'] .month-cell {
+  border-color: #303030;
+  background: #111111;
+}
+
+:root[data-theme='dark'] .month-cell {
+  background: #1a1a1a;
+}
+
+:root[data-theme='dark'] .calendar-task-pill,
+:root[data-theme='dark'] .calendar-range-pill,
+:root[data-theme='dark'] .month-cell button {
+  border-color: #303030;
+  background: #1d1d1d;
+}
+
 .week-range-grid {
   grid-auto-rows: 32px;
   padding-bottom: 12px;
@@ -2914,6 +2931,21 @@ h1 {
 .comment-submit-button {
   min-height: 58px;
   padding: 0 10px;
+}
+
+:root[data-theme='dark'] .comment-item {
+  border-color: #303030;
+  background: #111111;
+  box-shadow: inset 3px 0 0 #5b6472;
+}
+
+:root[data-theme='dark'] .comment-item[data-reply='true'] {
+  background: #1d1d1d;
+}
+
+:root[data-theme='dark'] .comment-form textarea {
+  border-color: #2a2a2a;
+  background: #1d1d1d;
 }
 
 .file-row {
@@ -4604,15 +4636,6 @@ h1 {
 :root[data-theme='dark'] .project-mode-shell .project-task-row:hover,
 :root[data-theme='dark'] .project-mode-shell .task-card:hover {
   background: rgba(255, 255, 255, 0.07) !important;
-}
-
-:root[data-theme='dark'] .project-mode-shell .project-task-row[data-status-tone='blue'] {
-  --status-line: #707070;
-}
-
-:root[data-theme='dark'] .project-mode-shell .status[data-status='진행중'] {
-  color: #ececec;
-  background: rgba(255, 255, 255, 0.14);
 }
 
 :root[data-theme='dark'] .project-search-pill,
