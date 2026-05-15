@@ -5041,3 +5041,158 @@ body,
   height: auto !important;
   align-self: start !important;
 }
+
+/* Composition correction: keep PlanderWorks menu structure while retaining the reference tone. */
+.sidebar {
+  width: 284px !important;
+  padding: 22px 16px !important;
+  gap: 18px !important;
+}
+
+.brand-row {
+  min-height: 58px !important;
+  align-items: flex-start !important;
+  flex-direction: column !important;
+  gap: 4px !important;
+  padding: 0 6px 18px !important;
+}
+
+.brand-logo {
+  width: 138px !important;
+  max-height: none !important;
+}
+
+.brand-subtitle {
+  display: block !important;
+  margin: 0 0 0 2px !important;
+  color: #d9dee7 !important;
+  font-size: 0.78rem !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+}
+
+.sidebar-nav {
+  gap: 8px !important;
+}
+
+.nav-button,
+.project-toggle {
+  min-height: 44px !important;
+  display: grid !important;
+  grid-template-columns: 22px minmax(0, 1fr) auto !important;
+  padding: 0 10px !important;
+}
+
+.nav-button span,
+.project-toggle span {
+  white-space: nowrap !important;
+}
+
+.sidebar-projects {
+  margin-top: 12px !important;
+  padding-top: 14px !important;
+}
+
+.project-toggle {
+  display: grid !important;
+}
+
+.project-toggle svg:first-child {
+  display: block !important;
+}
+
+.project-nav-list {
+  margin-left: 6px !important;
+  padding-left: 10px !important;
+  border-left: 1px solid #26303a !important;
+}
+
+.workspace {
+  padding: 20px 22px 28px !important;
+}
+
+.topbar {
+  min-height: 66px !important;
+  margin: -20px -22px 20px !important;
+  padding: 14px 22px !important;
+}
+
+.search-box {
+  margin: 0 auto !important;
+}
+
+.top-create-group {
+  min-height: 40px !important;
+  display: inline-grid !important;
+  grid-template-columns: minmax(110px, auto) 38px !important;
+  align-items: stretch !important;
+  overflow: hidden !important;
+  border: 1px solid #3a4655 !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+
+.top-create-main,
+.top-create-menu {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 40px !important;
+  color: #f4f7fb !important;
+  background: transparent !important;
+  font-weight: 850 !important;
+}
+
+.top-create-main {
+  padding: 0 16px !important;
+}
+
+.top-create-menu {
+  border-left: 1px solid #3a4655 !important;
+}
+
+.page-shell {
+  height: auto !important;
+  min-height: calc(100vh - 106px) !important;
+  gap: 16px !important;
+  padding: 0 !important;
+}
+
+.page-head {
+  padding: 0 6px !important;
+}
+
+.task-workspace {
+  min-height: calc(100vh - 178px) !important;
+  padding: 0 !important;
+  gap: 16px !important;
+}
+
+.task-workspace .task-board.list-surface,
+.task-preview-panel {
+  border-radius: 8px !important;
+}
+
+.task-preview-panel {
+  padding: 24px !important;
+}
+
+@media (max-width: 920px) {
+  .workspace {
+    padding: 14px !important;
+  }
+
+  .topbar {
+    margin: -14px -14px 18px !important;
+    padding: 12px 14px !important;
+  }
+
+  .top-create-group {
+    grid-template-columns: minmax(94px, auto) 34px !important;
+  }
+
+  .task-workspace {
+    min-height: 0 !important;
+  }
+}

@@ -2805,10 +2805,6 @@ function App() {
         currentUser={currentUser}
         open={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
-        onCreateProject={() => {
-          setProjectCreateOpen(true);
-          setSidebarOpen(false);
-        }}
         onInstallApp={handleInstallApp}
         onLogout={handleLogout}
         onOpenProfile={() => {
@@ -2869,6 +2865,7 @@ function App() {
           pushStatus={pushStatus}
           showSearch={true}
           themeMode={themeMode}
+          onCreateProject={() => setProjectCreateOpen(true)}
           onLogout={handleLogout}
           onNavigate={navigateTo}
           onOpenProfile={() => setProfileOpen(true)}
@@ -3259,7 +3256,6 @@ function Sidebar({
   currentUser,
   open,
   onClose,
-  onCreateProject,
   onInstallApp,
   onLogout,
   onNavigate,
@@ -3275,7 +3271,6 @@ function Sidebar({
   currentUser: AppUser;
   open: boolean;
   onClose: () => void;
-  onCreateProject: () => void;
   onInstallApp: () => void;
   onLogout: () => void;
   onNavigate: (view: ActiveView) => void;
@@ -3299,16 +3294,6 @@ function Sidebar({
       </div>
 
       <nav className="sidebar-nav" aria-label="주 메뉴">
-        <div className="sidebar-create-split">
-          <button className="create-split-button" onClick={onCreateProject} type="button">
-            <FolderKanban size={16} />
-            <span>프로젝트 생성</span>
-          </button>
-          <button className="create-split-button" data-active={activeView === 'create'} onClick={() => onNavigate('create')} type="button">
-            <Plus size={16} />
-            <span>업무 생성</span>
-          </button>
-        </div>
         {primaryNavItems
           .filter((item) => (showAdmin ? true : item.id !== 'operations'))
           .map((item) => {
@@ -3433,6 +3418,7 @@ function Topbar({
   showSearch,
   themeMode,
   onLogout,
+  onCreateProject,
   onNavigate,
   onOpenProfile,
   onRegisterPush,
@@ -3446,6 +3432,7 @@ function Topbar({
   showSearch: boolean;
   themeMode: ThemeMode;
   onLogout: () => void;
+  onCreateProject: () => void;
   onNavigate: (view: ActiveView) => void;
   onOpenProfile: () => void;
   onRegisterPush: () => void;
@@ -3484,6 +3471,14 @@ function Topbar({
       ) : null}
 
       <div className="top-actions">
+        <div className="top-create-group">
+          <button className="top-create-main" onClick={() => onNavigate('create')} type="button">
+            업무 생성
+          </button>
+          <button className="top-create-menu" aria-label="프로젝트 생성" onClick={onCreateProject} type="button">
+            <ChevronDown size={16} />
+          </button>
+        </div>
         <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
         <button
           className="icon-button"
