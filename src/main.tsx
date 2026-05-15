@@ -2867,7 +2867,7 @@ function App() {
           pushEnabled={pushEnabled}
           pushLoading={pushLoading}
           pushStatus={pushStatus}
-          showSearch={activeView === 'dashboard'}
+          showSearch={true}
           themeMode={themeMode}
           onLogout={handleLogout}
           onNavigate={navigateTo}
@@ -3337,8 +3337,12 @@ function Sidebar({
                     {projects.length ? (
                       projects.map((project) => (
                         <button className="project-nav-button" data-active={activeProjectId === project.id} key={project.id} onClick={() => onOpenProject(project.id)} type="button">
-                          <span>{project.name}</span>
-                          <small>{project.client}</small>
+                          <span className="project-code">{project.name.slice(0, 2).toUpperCase()}</span>
+                          <span className="project-nav-copy">
+                            <span>{project.name}</span>
+                            <small>{project.client}</small>
+                          </span>
+                          <i aria-hidden="true" />
                         </button>
                       ))
                     ) : (
@@ -3397,7 +3401,10 @@ function Sidebar({
 
         <button className="sidebar-install-button" onClick={onInstallApp} type="button">
           <Download size={17} />
-          <span>앱 다운로드</span>
+          <span>
+            앱 다운로드
+            <small>언제 어디서나 Plander Works</small>
+          </span>
         </button>
 
         <div className="profile-card">
@@ -4140,11 +4147,13 @@ function TaskListPage({
 }) {
   const [status, setStatus] = useState<TaskListFilter>(initialStatus);
   const [employeeId, setEmployeeId] = useState('전체');
+  const [previewTaskId, setPreviewTaskId] = useState<string | null>(null);
   const statusFilteredTasks = status === '전체' ? tasks : tasks.filter((task) => task.status === status);
   const filteredTasks =
     !employees.length || employeeId === '전체'
       ? statusFilteredTasks
       : statusFilteredTasks.filter((task) => task.creatorId === employeeId || getTaskRecipientIds(task).includes(employeeId));
+  const previewTask = filteredTasks.find((task) => task.id === previewTaskId) || filteredTasks[0] || null;
 
   useEffect(() => {
     setStatus(initialStatus);
@@ -4153,6 +4162,17 @@ function TaskListPage({
   useEffect(() => {
     if (!employees.length) setEmployeeId('전체');
   }, [employees.length]);
+
+  useEffect(() => {
+    if (!filteredTasks.length) {
+      setPreviewTaskId(null);
+      return;
+    }
+
+    if (!previewTaskId || !filteredTasks.some((task) => task.id === previewTaskId)) {
+      setPreviewTaskId(filteredTasks[0].id);
+    }
+  }, [filteredTasks, previewTaskId]);
 
   return (
     <section className="page-shell">
@@ -4180,18 +4200,124 @@ function TaskListPage({
         </div>
       </div>
 
-      <div className="task-board list-surface">
-        <div className="task-list">
-          {filteredTasks.length ? (
-            filteredTasks.map((task) => (
-              <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
-            ))
-          ) : (
-            <EmptyState text="조건에 맞는 업무가 없습니다." />
-          )}
+      <div className="task-workspace">
+        <div className="task-board list-surface">
+          <div className="task-list">
+            {filteredTasks.length ? (
+              filteredTasks.map((task) => (
+                <TaskCard
+                  currentUser={currentUser}
+                  isSelected={previewTask?.id === task.id}
+                  key={task.id}
+                  onDeleteTask={onDeleteTask}
+                  onOpenTask={() => setPreviewTaskId(task.id)}
+                  onUpdateStatus={onUpdateTaskStatus}
+                  task={task}
+                />
+              ))
+            ) : (
+              <EmptyState text="조건에 맞는 업무가 없습니다." />
+            )}
+          </div>
         </div>
+        <TaskPreviewPanel currentUser={currentUser} task={previewTask} onOpenTask={onOpenTask} />
       </div>
     </section>
+  );
+}
+
+function TaskPreviewPanel({ currentUser, task, onOpenTask }: { currentUser: AppUser; task: Task | null; onOpenTask: (task: Task) => void }) {
+  if (!task) {
+    return (
+      <aside className="task-preview-panel">
+        <EmptyState text="왼쪽에서 업무를 선택해주세요." />
+      </aside>
+    );
+  }
+
+  const recipients = task.to.split(', ').filter(Boolean);
+  const latestComments = task.comments.slice(-3);
+
+  return (
+    <aside className="task-preview-panel">
+      <div className="task-preview-head">
+        <div>
+          <p className="eyebrow">업무 상세</p>
+          <div className="task-preview-badges">
+            <span className="status" data-status={task.status}>{task.status}</span>
+            <span className="task-type">{formatTaskTypeLabel(task.type)}</span>
+          </div>
+          <h2>{task.title}</h2>
+          <p>{task.from} → 담당자 {recipients.length || 1}명</p>
+        </div>
+        <button className="secondary-action compact-action" onClick={() => onOpenTask(task)} type="button">
+          <Pencil size={15} />
+          자세히
+        </button>
+      </div>
+
+      <div className="task-preview-people">
+        <div>
+          <Avatar name={task.from} src={task.creatorAvatarUrl} size="sm" />
+          <span>{task.from}</span>
+        </div>
+        <ChevronRight size={16} />
+        <div className="task-preview-recipient-stack">
+          {recipients.slice(0, 4).map((name) => (
+            <span key={name}>{name}</span>
+          ))}
+          {recipients.length > 4 ? <span>+{recipients.length - 4}</span> : null}
+        </div>
+      </div>
+
+      <div className="task-preview-meta">
+        <span>
+          <CalendarClock size={15} />
+          마감일<br />
+          <strong>{task.due}</strong>
+        </span>
+        <span>
+          <ShieldCheck size={15} />
+          우선순위<br />
+          <strong>{task.priority}</strong>
+        </span>
+        <span>
+          <Paperclip size={15} />
+          첨부파일<br />
+          <strong>{task.files.length}개</strong>
+        </span>
+      </div>
+
+      <div className="task-preview-body">
+        <p>{renderLinkedText(task.summary || '내용이 없습니다.')}</p>
+      </div>
+
+      <div className="task-preview-comments">
+        <div className="section-head tight">
+          <div>
+            <p className="eyebrow">Comments</p>
+            <h2>댓글 {task.comments.length}</h2>
+          </div>
+          <MessageSquareText size={18} />
+        </div>
+        {latestComments.length ? (
+          latestComments.map((comment) => (
+            <div className="preview-comment" key={comment.id}>
+              <Avatar name={comment.author} src={comment.avatarUrl} size="xs" />
+              <div>
+                <strong>{comment.author}</strong>
+                <p>{comment.content}</p>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="mini-empty">아직 댓글이 없습니다.</p>
+        )}
+        <button className="primary-action compact-action" onClick={() => onOpenTask(task)} type="button">
+          댓글/수정 열기
+        </button>
+      </div>
+    </aside>
   );
 }
 
@@ -6926,6 +7052,7 @@ function TaskCard({
   task,
   currentUser,
   direction,
+  isSelected = false,
   onOpenTask,
   onDeleteTask,
   onUpdateStatus,
@@ -6933,6 +7060,7 @@ function TaskCard({
   task: Task;
   currentUser: AppUser;
   direction?: 'sent' | 'received';
+  isSelected?: boolean;
   onOpenTask?: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateStatus: (taskId: string, status: TaskStatus) => Promise<string>;
@@ -6970,7 +7098,7 @@ function TaskCard({
   };
 
   return (
-    <article className="task-card" data-attention={needsTaskAttention(task, currentUser)} data-status-tone={getTaskStatusTone(task.status)}>
+    <article className="task-card" data-attention={needsTaskAttention(task, currentUser)} data-selected={isSelected} data-status-tone={getTaskStatusTone(task.status)}>
       <div className="task-main">
         <div className="task-title-row">
           <span className="task-type">{formatTaskTypeLabel(task.type)}</span>
