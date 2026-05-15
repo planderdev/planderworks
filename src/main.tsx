@@ -66,6 +66,9 @@ const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 's
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 const MAX_TASK_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_FILE_SIZE_LABEL = '10MB';
+const MAX_AVATAR_FILE_SIZE = 1024 * 1024;
+const MAX_AVATAR_FILE_SIZE_LABEL = '1MB';
+const AVATAR_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const defaultPushPreferences: PushPreferences = {
   task: true,
   report: true,
@@ -714,6 +717,37 @@ function getTaskFileSizeError(files: File[]) {
   const oversizedFiles = getOversizedTaskFiles(files);
   if (!oversizedFiles.length) return '';
   return `파일은 1개당 ${MAX_TASK_FILE_SIZE_LABEL}까지만 첨부할 수 있습니다. (${oversizedFiles.map((file) => file.name).join(', ')})`;
+}
+
+function getAvatarFileError(file: File | null) {
+  if (!file) return '';
+  if (!AVATAR_FILE_TYPES.includes(file.type)) return '프로필 사진은 JPG, PNG, WEBP만 업로드할 수 있습니다.';
+  if (file.size > MAX_AVATAR_FILE_SIZE) return `프로필 사진은 ${MAX_AVATAR_FILE_SIZE_LABEL} 이하만 업로드할 수 있습니다.`;
+  return '';
+}
+
+async function uploadAvatarImage(ownerId: string, file: File | null) {
+  if (!file) return { url: null as string | null, error: '' };
+
+  const fileError = getAvatarFileError(file);
+  if (fileError) return { url: null, error: fileError };
+
+  if (!supabase || ownerId === 'prototype') {
+    return { url: URL.createObjectURL(file), error: '' };
+  }
+
+  const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const filePath = `${ownerId}/${Date.now()}.${extension}`;
+  const { error } = await supabase.storage.from('avatars').upload(filePath, file, {
+    cacheControl: '3600',
+    contentType: file.type,
+    upsert: true,
+  });
+
+  if (error) return { url: null, error: `프로필 사진 업로드 실패: ${error.message}` };
+
+  const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+  return { url: data.publicUrl, error: '' };
 }
 
 function toDateTimeLocalValue(date: Date) {
@@ -2901,9 +2935,9 @@ function App() {
         {activeView === 'clients' ? <ClientsPage clients={clients} employees={employees} onAddClient={addClient} onDeleteClient={deleteClient} onUpdateClient={updateClient} /> : null}
         {activeView === 'employees' && isAdmin ? (
           <EmployeesPage
+            currentUser={currentUser}
             employees={employees}
             jobTypes={jobTypes}
-            taskTypes={taskTypes}
             onAddEmployee={addEmployee}
             onUpdateEmployee={updateEmployee}
           />
@@ -4964,12 +4998,51 @@ function RegionEditor({
   );
 }
 
+function AvatarFileField({
+  currentUrl,
+  file,
+  label = '프로필 사진',
+  onChange,
+}: {
+  currentUrl?: string | null;
+  file: File | null;
+  label?: string;
+  onChange: (file: File | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!file && inputRef.current) inputRef.current.value = '';
+  }, [file]);
+
+  return (
+    <label className="avatar-upload-field">
+      {label}
+      <input
+        accept={AVATAR_FILE_TYPES.join(',')}
+        ref={inputRef}
+        type="file"
+        onChange={(event) => onChange(event.target.files?.[0] || null)}
+      />
+      <small>
+        {file
+          ? file.name
+          : currentUrl
+            ? `기존 사진 유지 · JPG/PNG/WebP, ${MAX_AVATAR_FILE_SIZE_LABEL} 이하`
+            : `선택된 사진 없음 · JPG/PNG/WebP, ${MAX_AVATAR_FILE_SIZE_LABEL} 이하`}
+      </small>
+    </label>
+  );
+}
+
 function EmployeesPage({
+  currentUser,
   employees,
   jobTypes,
   onAddEmployee,
   onUpdateEmployee,
 }: {
+  currentUser: AppUser;
   employees: Employee[];
   jobTypes: string[];
   onAddEmployee: EmployeeSubmitHandler;
@@ -4985,6 +5058,7 @@ function EmployeesPage({
     jobType: jobTypes[0] || '',
     role: '사용자' as Employee['role'],
   });
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [editForm, setEditForm] = useState({
     name: '',
@@ -4995,6 +5069,7 @@ function EmployeesPage({
     password: '',
     passwordConfirm: '',
   });
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
@@ -5002,6 +5077,7 @@ function EmployeesPage({
   const openEdit = (employee: Employee) => {
     setError('');
     setEditingEmployee(employee);
+    setEditAvatarFile(null);
     setEditForm({
       name: employee.name,
       phone: formatMobilePhone(employee.phone),
@@ -5029,12 +5105,22 @@ function EmployeesPage({
     }
 
     setLoading(true);
+    let avatarUrl = form.avatarUrl || null;
+    if (avatarFile) {
+      const uploadedAvatar = await uploadAvatarImage(currentUser.id, avatarFile);
+      if (uploadedAvatar.error) {
+        setLoading(false);
+        setError(uploadedAvatar.error);
+        return;
+      }
+      avatarUrl = uploadedAvatar.url;
+    }
     const message = await onAddEmployee({
       name: form.name || form.email.split('@')[0],
       email: form.email,
       password: form.password,
       phone: form.phone,
-      avatarUrl: form.avatarUrl || null,
+      avatarUrl,
       jobType: form.jobType,
       role: form.role,
     });
@@ -5042,6 +5128,7 @@ function EmployeesPage({
     showActionPopup(message);
     if (!message.includes('실패')) {
       setForm({ name: '', email: '', password: '', passwordConfirm: '', phone: '', avatarUrl: '', jobType: jobTypes[0] || '', role: '사용자' });
+      setAvatarFile(null);
     }
   };
 
@@ -5062,17 +5149,30 @@ function EmployeesPage({
     }
 
     setEditLoading(true);
+    let avatarUrl = editForm.avatarUrl || null;
+    if (editAvatarFile) {
+      const uploadedAvatar = await uploadAvatarImage(currentUser.id, editAvatarFile);
+      if (uploadedAvatar.error) {
+        setEditLoading(false);
+        setError(uploadedAvatar.error);
+        return;
+      }
+      avatarUrl = uploadedAvatar.url;
+    }
     const message = await onUpdateEmployee(editingEmployee.id, {
       name: editForm.name,
       phone: editForm.phone,
-      avatarUrl: editForm.avatarUrl || null,
+      avatarUrl,
       jobType: editForm.jobType,
       role: editForm.role,
       password: editForm.password || undefined,
     });
     setEditLoading(false);
     showActionPopup(message);
-    if (!message.includes('실패')) setEditingEmployee(null);
+    if (!message.includes('실패')) {
+      setEditingEmployee(null);
+      setEditAvatarFile(null);
+    }
   };
 
   return (
@@ -5118,10 +5218,7 @@ function EmployeesPage({
             이름
             <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
           </label>
-          <label>
-            프로필 이미지 URL
-            <input value={form.avatarUrl} onChange={(event) => setForm({ ...form, avatarUrl: event.target.value })} placeholder="https://..." />
-          </label>
+          <AvatarFileField currentUrl={form.avatarUrl} file={avatarFile} onChange={setAvatarFile} />
           <label>
             이메일
             <input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
@@ -5190,10 +5287,7 @@ function EmployeesPage({
                 onChange={(event) => setEditForm({ ...editForm, phone: formatMobilePhone(event.target.value) })}
               />
             </label>
-            <label>
-              프로필 이미지 URL
-              <input value={editForm.avatarUrl} onChange={(event) => setEditForm({ ...editForm, avatarUrl: event.target.value })} placeholder="https://..." />
-            </label>
+            <AvatarFileField currentUrl={editForm.avatarUrl} file={editAvatarFile} onChange={setEditAvatarFile} />
             <label>
               새 비밀번호
               <input
@@ -5336,6 +5430,7 @@ function ProfileModal({
     password: '',
     passwordConfirm: '',
   });
+  const [profileAvatarFile, setProfileAvatarFile] = useState<File | null>(null);
   const [profileStatus, setProfileStatus] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
 
@@ -5348,6 +5443,7 @@ function ProfileModal({
       password: '',
       passwordConfirm: '',
     });
+    setProfileAvatarFile(null);
   }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.avatarUrl, currentEmployee?.jobType, currentUser.name, currentUser.avatarUrl, currentUser.role]);
 
   const submitProfile = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -5362,10 +5458,20 @@ function ProfileModal({
       return;
     }
     setProfileLoading(true);
+    let avatarUrl = profileForm.avatarUrl || null;
+    if (profileAvatarFile) {
+      const uploadedAvatar = await uploadAvatarImage(currentUser.id, profileAvatarFile);
+      if (uploadedAvatar.error) {
+        setProfileLoading(false);
+        setProfileStatus(uploadedAvatar.error);
+        return;
+      }
+      avatarUrl = uploadedAvatar.url;
+    }
     const message = await onUpdateOwnProfile({
       name: profileForm.name,
       phone: profileForm.phone,
-      avatarUrl: profileForm.avatarUrl || null,
+      avatarUrl,
       jobType: profileForm.jobType,
       password: profileForm.password || undefined,
     });
@@ -5373,6 +5479,7 @@ function ProfileModal({
     setProfileStatus(message);
     showActionPopup(message);
     setProfileForm((current) => ({ ...current, password: '', passwordConfirm: '' }));
+    if (!message.includes('실패')) setProfileAvatarFile(null);
   };
 
   return (
@@ -5400,10 +5507,7 @@ function ProfileModal({
             onChange={(event) => setProfileForm({ ...profileForm, phone: formatMobilePhone(event.target.value) })}
           />
         </label>
-        <label>
-          프로필 이미지 URL
-          <input value={profileForm.avatarUrl} onChange={(event) => setProfileForm({ ...profileForm, avatarUrl: event.target.value })} placeholder="https://..." />
-        </label>
+        <AvatarFileField currentUrl={profileForm.avatarUrl} file={profileAvatarFile} onChange={setProfileAvatarFile} />
         <label>
           담당업무
           <select value={profileForm.jobType} onChange={(event) => setProfileForm({ ...profileForm, jobType: event.target.value })}>
@@ -5871,6 +5975,7 @@ function SettingsPage({
     password: '',
     passwordConfirm: '',
   });
+  const [profileAvatarFile, setProfileAvatarFile] = useState<File | null>(null);
   const [profileStatus, setProfileStatus] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -5890,6 +5995,7 @@ function SettingsPage({
       password: '',
       passwordConfirm: '',
     });
+    setProfileAvatarFile(null);
   }, [currentEmployee?.id, currentEmployee?.name, currentEmployee?.phone, currentEmployee?.avatarUrl, currentEmployee?.jobType, currentUser.name, currentUser.avatarUrl, currentUser.role]);
 
   useEffect(() => {
@@ -5908,10 +6014,20 @@ function SettingsPage({
       return;
     }
     setProfileLoading(true);
+    let avatarUrl = profileForm.avatarUrl || null;
+    if (profileAvatarFile) {
+      const uploadedAvatar = await uploadAvatarImage(currentUser.id, profileAvatarFile);
+      if (uploadedAvatar.error) {
+        setProfileLoading(false);
+        setProfileStatus(uploadedAvatar.error);
+        return;
+      }
+      avatarUrl = uploadedAvatar.url;
+    }
     const message = await onUpdateOwnProfile({
         name: profileForm.name,
         phone: profileForm.phone,
-        avatarUrl: profileForm.avatarUrl || null,
+        avatarUrl,
         jobType: profileForm.jobType,
         password: profileForm.password || undefined,
       });
@@ -5919,6 +6035,7 @@ function SettingsPage({
     setProfileStatus(message);
     showActionPopup(message);
     setProfileForm((current) => ({ ...current, password: '', passwordConfirm: '' }));
+    if (!message.includes('실패')) setProfileAvatarFile(null);
   };
   const submitGoogleCalendarSettings = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -6044,10 +6161,7 @@ function SettingsPage({
                 onChange={(event) => setProfileForm({ ...profileForm, phone: formatMobilePhone(event.target.value) })}
               />
             </label>
-            <label>
-              프로필 이미지 URL
-              <input value={profileForm.avatarUrl} onChange={(event) => setProfileForm({ ...profileForm, avatarUrl: event.target.value })} placeholder="https://..." />
-            </label>
+            <AvatarFileField currentUrl={profileForm.avatarUrl} file={profileAvatarFile} onChange={setProfileAvatarFile} />
             <label>
               담당업무
               <select value={profileForm.jobType} onChange={(event) => setProfileForm({ ...profileForm, jobType: event.target.value })}>
