@@ -3229,7 +3229,25 @@ function App() {
         ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} projects={projects} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
-          <ReportsPage tasks={reportTasks} employees={employees} currentUser={currentUser} onMenuClick={() => setSidebarOpen(true)} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <ReportsPage
+            tasks={reportTasks}
+            employees={employees}
+            currentUser={currentUser}
+            pushEnabled={pushEnabled}
+            pushLoading={pushLoading}
+            pushStatus={pushStatus}
+            themeMode={themeMode}
+            onLogout={handleLogout}
+            onMenuClick={() => setSidebarOpen(true)}
+            onNavigate={navigateTo}
+            onOpenProfile={() => setProfileOpen(true)}
+            onRegisterPush={handleRegisterPush}
+            onThemeChange={setThemeMode}
+            onOpenTask={(task) => setSelectedTaskId(task.id)}
+            onCreateTask={createTask}
+            onDeleteTask={deleteTask}
+            onUpdateTaskStatus={updateTaskStatus}
+          />
         ) : null}
         {activeView === 'allTasks' ? (
           <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
@@ -3242,8 +3260,12 @@ function App() {
             messages={selectedProjectMessages}
             project={selectedProject}
             projects={projects}
+            pushEnabled={pushEnabled}
+            pushLoading={pushLoading}
+            pushStatus={pushStatus}
             taskTypes={taskTypes}
             tasks={selectedProjectTasks}
+            themeMode={themeMode}
             onAddComment={addTaskComment}
             onAddMessage={addProjectMessage}
             onCreateProject={() => setProjectCreateOpen(true)}
@@ -3253,9 +3275,14 @@ function App() {
             onDownloadFile={openTaskFile}
             onEditProject={(projectId) => setEditingProjectId(projectId)}
             onEditTask={(task) => setEditingTaskId(task.id)}
+            onLogout={handleLogout}
             onMenuClick={() => setSidebarOpen(true)}
             onMarkMessagesRead={markProjectMessagesRead}
+            onNavigate={navigateTo}
+            onOpenProfile={() => setProfileOpen(true)}
             onOpenProject={openProject}
+            onRegisterPush={handleRegisterPush}
+            onThemeChange={setThemeMode}
             onTrashProject={(project) => updateProjectStatus(project, 'deleted')}
             onUpdateTaskStatus={updateTaskStatus}
           />
@@ -4025,6 +4052,101 @@ function ThemeSwitcher({ value, onChange }: { value: ThemeMode; onChange: (mode:
   );
 }
 
+function ImmersiveTopControls({
+  currentUser,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
+  searchLabel,
+  searchPlaceholder,
+  themeMode,
+  onLogout,
+  onMenuClick,
+  onNavigate,
+  onOpenProfile,
+  onRegisterPush,
+  onThemeChange,
+}: {
+  currentUser: AppUser;
+  pushEnabled: boolean;
+  pushLoading: boolean;
+  pushStatus: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  themeMode: ThemeMode;
+  onLogout: () => void;
+  onMenuClick: () => void;
+  onNavigate: (view: ActiveView) => void;
+  onOpenProfile: () => void;
+  onRegisterPush: () => void;
+  onThemeChange: (mode: ThemeMode) => void;
+}) {
+  const PushIcon = pushEnabled ? Bell : BellOff;
+  const [accountOpen, setAccountOpen] = useState(false);
+
+  const openProfile = () => {
+    onOpenProfile();
+    setAccountOpen(false);
+  };
+
+  const goSettings = () => {
+    onNavigate('settings');
+    setAccountOpen(false);
+  };
+
+  const logout = () => {
+    onLogout();
+    setAccountOpen(false);
+  };
+
+  return (
+    <div className="project-mode-tools">
+      <button className="icon-button menu-button immersive-menu-button" aria-label="메뉴 열기" onClick={onMenuClick} type="button">
+        <Menu size={21} />
+      </button>
+      <label className="project-search-pill">
+        <Search size={17} />
+        <input aria-label={searchLabel} placeholder={searchPlaceholder} readOnly />
+        <span>⌘ K</span>
+      </label>
+      <div className="top-actions immersive-top-actions">
+        <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
+        <button
+          className="icon-button"
+          aria-label={pushEnabled ? '푸시알림 끄기' : '푸시알림 켜기'}
+          data-active={pushEnabled}
+          disabled={pushLoading}
+          onClick={onRegisterPush}
+          title={pushStatus}
+          type="button"
+        >
+          <PushIcon size={19} />
+        </button>
+        <div className="account-menu">
+          <button className="account-button" onClick={() => setAccountOpen((open) => !open)} type="button">
+            <CircleUserRound size={20} />
+            <span>{currentUser.name}</span>
+            <ChevronDown size={16} />
+          </button>
+          {accountOpen ? (
+            <div className="account-popover">
+              <button onClick={openProfile} type="button">
+                내 정보 수정
+              </button>
+              <button onClick={goSettings} type="button">
+                설정
+              </button>
+              <button onClick={logout} type="button">
+                로그아웃
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CompletionPopup({ message, onClose }: { message: string; onClose: () => void }) {
   useEffect(() => {
     if (!message) return;
@@ -4689,8 +4811,12 @@ function ProjectPage({
   messages,
   project,
   projects,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
   taskTypes,
   tasks,
+  themeMode,
   onAddComment,
   onAddMessage,
   onCreateProject,
@@ -4700,9 +4826,14 @@ function ProjectPage({
   onDownloadFile,
   onEditProject,
   onEditTask,
+  onLogout,
   onMenuClick,
   onMarkMessagesRead,
+  onNavigate,
+  onOpenProfile,
   onOpenProject,
+  onRegisterPush,
+  onThemeChange,
   onTrashProject,
   onUpdateTaskStatus,
 }: {
@@ -4712,8 +4843,12 @@ function ProjectPage({
   messages: ProjectMessage[];
   project: Project | null;
   projects: Project[];
+  pushEnabled: boolean;
+  pushLoading: boolean;
+  pushStatus: string;
   taskTypes: string[];
   tasks: Task[];
+  themeMode: ThemeMode;
   onAddComment: TaskCommentSubmitHandler;
   onAddMessage: (projectId: string, content: string) => Promise<string>;
   onCreateProject: () => void;
@@ -4723,9 +4858,14 @@ function ProjectPage({
   onDownloadFile: (file: TaskFile) => void;
   onEditProject: (projectId: string) => void;
   onEditTask: (task: Task) => void;
+  onLogout: () => void;
   onMenuClick: () => void;
   onMarkMessagesRead: (messageIds: string[]) => Promise<void>;
+  onNavigate: (view: ActiveView) => void;
+  onOpenProfile: () => void;
   onOpenProject: (projectId: string) => void;
+  onRegisterPush: () => void;
+  onThemeChange: (mode: ThemeMode) => void;
   onTrashProject: ProjectStatusHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
@@ -4834,25 +4974,21 @@ function ProjectPage({
       </div>
 
       <div className="project-mode-canvas">
-        <div className="project-mode-tools">
-          <button className="project-tool-button project-menu-button" aria-label="메뉴 열기" onClick={onMenuClick} type="button">
-            <Menu size={20} />
-          </button>
-          <label className="project-search-pill">
-            <Search size={17} />
-            <input aria-label="프로젝트 검색" placeholder="업무, 프로젝트, 담당자 검색" readOnly />
-            <span>⌘ K</span>
-          </label>
-          <button className="project-tool-button" aria-label="알림" type="button">
-            <Bell size={20} />
-          </button>
-          <button className="project-tool-button" aria-label="메시지" type="button">
-            <MessageSquareText size={20} />
-          </button>
-          <button className="project-tool-button" aria-label="캘린더" type="button">
-            <CalendarClock size={20} />
-          </button>
-        </div>
+        <ImmersiveTopControls
+          currentUser={currentUser}
+          pushEnabled={pushEnabled}
+          pushLoading={pushLoading}
+          pushStatus={pushStatus}
+          searchLabel="프로젝트 검색"
+          searchPlaceholder="업무, 프로젝트, 담당자 검색"
+          themeMode={themeMode}
+          onLogout={onLogout}
+          onMenuClick={onMenuClick}
+          onNavigate={onNavigate}
+          onOpenProfile={onOpenProfile}
+          onRegisterPush={onRegisterPush}
+          onThemeChange={onThemeChange}
+        />
 
         <div className="page-head project-page-head project-mode-head">
           <div>
@@ -5380,7 +5516,16 @@ function ReportsPage({
   tasks,
   employees,
   currentUser,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
+  themeMode,
+  onLogout,
   onMenuClick,
+  onNavigate,
+  onOpenProfile,
+  onRegisterPush,
+  onThemeChange,
   onOpenTask,
   onCreateTask,
   onDeleteTask,
@@ -5389,7 +5534,16 @@ function ReportsPage({
   tasks: Task[];
   employees: Employee[];
   currentUser: AppUser;
+  pushEnabled: boolean;
+  pushLoading: boolean;
+  pushStatus: string;
+  themeMode: ThemeMode;
+  onLogout: () => void;
   onMenuClick: () => void;
+  onNavigate: (view: ActiveView) => void;
+  onOpenProfile: () => void;
+  onRegisterPush: () => void;
+  onThemeChange: (mode: ThemeMode) => void;
   onOpenTask: (task: Task) => void;
   onCreateTask: TaskSubmitHandler;
   onDeleteTask: TaskDeleteHandler;
@@ -5409,25 +5563,21 @@ function ReportsPage({
       </div>
 
       <div className="project-mode-canvas reports-mode-canvas">
-        <div className="project-mode-tools">
-          <button className="project-tool-button project-menu-button" aria-label="메뉴 열기" onClick={onMenuClick} type="button">
-            <Menu size={20} />
-          </button>
-          <label className="project-search-pill">
-            <Search size={17} />
-            <input aria-label="보고 제안 검색" placeholder="보고, 제안, 담당자 검색" readOnly />
-            <span>⌘ K</span>
-          </label>
-          <button className="project-tool-button" aria-label="알림" type="button">
-            <Bell size={20} />
-          </button>
-          <button className="project-tool-button" aria-label="메시지" type="button">
-            <MessageSquareText size={20} />
-          </button>
-          <button className="project-tool-button" aria-label="캘린더" type="button">
-            <CalendarClock size={20} />
-          </button>
-        </div>
+        <ImmersiveTopControls
+          currentUser={currentUser}
+          pushEnabled={pushEnabled}
+          pushLoading={pushLoading}
+          pushStatus={pushStatus}
+          searchLabel="보고 제안 검색"
+          searchPlaceholder="보고, 제안, 담당자 검색"
+          themeMode={themeMode}
+          onLogout={onLogout}
+          onMenuClick={onMenuClick}
+          onNavigate={onNavigate}
+          onOpenProfile={onOpenProfile}
+          onRegisterPush={onRegisterPush}
+          onThemeChange={onThemeChange}
+        />
 
         <div className="page-head project-page-head project-mode-head">
           <div>

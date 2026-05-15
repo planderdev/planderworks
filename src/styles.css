@@ -1803,6 +1803,12 @@ h1 {
   background: var(--project-panel);
 }
 
+.project-mode-shell .icon-button[data-active='true'] {
+  border-color: var(--project-ink);
+  color: #fff;
+  background: var(--project-ink);
+}
+
 .project-folder-tabs {
   display: flex;
   align-items: flex-end;
@@ -3745,11 +3751,14 @@ h1 {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 18px;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .project-search-pill {
   width: min(360px, 100%);
+  flex: 1 1 320px;
+  max-width: 520px;
   min-height: 46px;
   display: flex;
   align-items: center;
@@ -3793,6 +3802,28 @@ h1 {
 
 .project-menu-button {
   display: none;
+}
+
+.immersive-top-actions {
+  margin-left: 0;
+  flex: 0 0 auto;
+}
+
+.project-mode-shell .theme-switcher,
+.project-mode-shell .account-button,
+.project-mode-shell .account-popover {
+  border-color: var(--project-line);
+  color: var(--project-ink);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.project-mode-shell .theme-switcher button,
+.project-mode-shell .account-popover button {
+  color: var(--project-ink);
+}
+
+.project-mode-shell .theme-switcher button[data-active='true'] {
+  background: rgba(8, 8, 8, 0.08);
 }
 
 .project-mode-head {
@@ -4794,13 +4825,20 @@ h1 {
   }
 
   .project-search-pill {
+    order: 2;
     width: 100%;
+    flex-basis: 100%;
     min-height: 42px;
   }
 
   .project-tool-button {
     width: 34px;
     height: 34px;
+  }
+
+  .immersive-top-actions {
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
   .project-page-head {
