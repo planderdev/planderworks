@@ -3262,6 +3262,7 @@ function App() {
             onDeleteTask={deleteTask}
             onDownloadFile={openTaskFile}
             onEditTask={(task) => setEditingTaskId(task.id)}
+            onMarkTaskRead={markTaskRead}
             onUpdateTaskStatus={updateTaskStatus}
           />
         ) : null}
@@ -3276,6 +3277,7 @@ function App() {
             onDeleteComment={deleteTaskComment}
             onDownloadFile={openTaskFile}
             onEditTask={(task) => setEditingTaskId(task.id)}
+            onMarkTaskRead={markTaskRead}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
             onDeleteTask={deleteTask}
             onUpdateTaskStatus={updateTaskStatus}
@@ -3305,6 +3307,7 @@ function App() {
             onEditProject={(projectId) => setEditingProjectId(projectId)}
             onEditTask={(task) => setEditingTaskId(task.id)}
             onLogout={handleLogout}
+            onMarkTaskRead={markTaskRead}
             onMenuClick={() => setSidebarOpen(true)}
             onMarkMessagesRead={markProjectMessagesRead}
             onNavigate={navigateTo}
@@ -4851,6 +4854,7 @@ function TaskListPage({
   onDeleteComment,
   onDownloadFile,
   onEditTask,
+  onMarkTaskRead,
   onOpenTask,
   onDeleteTask,
   onUpdateTaskStatus,
@@ -4863,6 +4867,7 @@ function TaskListPage({
   onDeleteComment?: TaskCommentDeleteHandler;
   onDownloadFile?: (file: TaskFile) => void;
   onEditTask?: (task: Task) => void;
+  onMarkTaskRead?: (task: Task) => void;
   onOpenTask: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
@@ -4876,8 +4881,8 @@ function TaskListPage({
       ? statusFilteredTasks
       : statusFilteredTasks.filter((task) => task.creatorId === employeeId || getTaskRecipientIds(task).includes(employeeId));
   const useInlineDetail = Boolean(onAddComment && onDeleteComment && onDownloadFile && onEditTask);
-  const toggleFocusedTask = (taskId: string) => {
-    setFocusedTaskId((current) => (current === taskId ? null : taskId));
+  const toggleFocusedTask = (task: Task) => {
+    setFocusedTaskId((current) => (current === task.id ? null : task.id));
   };
 
   useEffect(() => {
@@ -4957,7 +4962,9 @@ function TaskListPage({
                   onDeleteComment={onDeleteComment}
                   onDownloadFile={onDownloadFile}
                   onEditTask={onEditTask}
+                  onMarkRead={onMarkTaskRead}
                   onSelect={toggleFocusedTask}
+                  onUpdateStatus={onUpdateTaskStatus}
                   selected={focusedTaskId === task.id}
                   task={task}
                 />
@@ -4997,6 +5004,7 @@ function ProjectPage({
   onEditProject,
   onEditTask,
   onLogout,
+  onMarkTaskRead,
   onMenuClick,
   onMarkMessagesRead,
   onNavigate,
@@ -5029,6 +5037,7 @@ function ProjectPage({
   onEditProject: (projectId: string) => void;
   onEditTask: (task: Task) => void;
   onLogout: () => void;
+  onMarkTaskRead: (task: Task) => void;
   onMenuClick: () => void;
   onMarkMessagesRead: (messageIds: string[]) => Promise<void>;
   onNavigate: (view: ActiveView) => void;
@@ -5102,8 +5111,8 @@ function ProjectPage({
     await sendMessage();
   };
 
-  const toggleFocusedTask = (taskId: string) => {
-    setFocusedTaskId((current) => (current === taskId ? null : taskId));
+  const toggleFocusedTask = (task: Task) => {
+    setFocusedTaskId((current) => (current === task.id ? null : task.id));
   };
 
   const trashProject = async (targetProject: Project) => {
@@ -5280,7 +5289,9 @@ function ProjectPage({
                       onDeleteComment={onDeleteComment}
                       onDownloadFile={onDownloadFile}
                       onEditTask={onEditTask}
+                      onMarkRead={onMarkTaskRead}
                       onSelect={toggleFocusedTask}
+                      onUpdateStatus={onUpdateTaskStatus}
                       selected={focusedTaskId === task.id}
                       task={task}
                     />
@@ -5353,7 +5364,9 @@ function ProjectTaskRow({
   onDeleteComment,
   onDownloadFile,
   onEditTask,
+  onMarkRead,
   onSelect,
+  onUpdateStatus,
   selected,
   task,
 }: {
@@ -5363,7 +5376,9 @@ function ProjectTaskRow({
   onDeleteComment: TaskCommentDeleteHandler;
   onDownloadFile: (file: TaskFile) => void;
   onEditTask: (task: Task) => void;
-  onSelect: (taskId: string) => void;
+  onMarkRead?: (task: Task) => void;
+  onSelect: (task: Task) => void;
+  onUpdateStatus: (taskId: string, status: TaskStatus) => Promise<string>;
   selected: boolean;
   task: Task;
 }) {
@@ -5378,7 +5393,10 @@ function ProjectTaskRow({
         data-attention={needsTaskAttention(task, currentUser)}
         data-selected={selected}
         data-status-tone={getTaskStatusTone(task.status)}
-        onClick={() => onSelect(task.id)}
+        onClick={() => {
+          if (!selected) onMarkRead?.(task);
+          onSelect(task);
+        }}
         type="button"
       >
         <span className="project-task-row-title">
@@ -5405,6 +5423,7 @@ function ProjectTaskRow({
             onDeleteComment={onDeleteComment}
             onDownloadFile={onDownloadFile}
             onEditTask={onEditTask}
+            onUpdateStatus={onUpdateStatus}
             task={task}
           />
         </div>
@@ -5419,6 +5438,7 @@ function ProjectTaskInspector({
   onDeleteComment,
   onDownloadFile,
   onEditTask,
+  onUpdateStatus,
   task,
 }: {
   currentUser: AppUser;
@@ -5426,6 +5446,7 @@ function ProjectTaskInspector({
   onDeleteComment: TaskCommentDeleteHandler;
   onDownloadFile: (file: TaskFile) => void;
   onEditTask: (task: Task) => void;
+  onUpdateStatus: (taskId: string, status: TaskStatus) => Promise<string>;
   task: Task | null;
 }) {
   const [comment, setComment] = useState('');
@@ -5435,6 +5456,9 @@ function ProjectTaskInspector({
   const [replyText, setReplyText] = useState('');
   const [replyLoading, setReplyLoading] = useState(false);
   const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [loadingStatus, setLoadingStatus] = useState<TaskStatus | null>(null);
+  const statusActions: TaskStatus[] = ['진행중', '완료 요청', '보류', '완료'];
 
   if (!task) {
     return (
@@ -5454,6 +5478,19 @@ function ProjectTaskInspector({
     currentUser.accountRole === 'admin' ||
     task.creatorId === currentUser.id ||
     (currentUser.isPrototype && task.from === currentUser.name);
+  const canManage =
+    canEdit ||
+    getTaskRecipientIds(task).includes(currentUser.id) ||
+    (currentUser.isPrototype && task.to.split(', ').includes(currentUser.name));
+
+  const updateStatus = async (status: TaskStatus) => {
+    if (loadingStatus) return;
+    setLoadingStatus(status);
+    const message = await onUpdateStatus(task.id, status);
+    setLoadingStatus(null);
+    setMenuOpen(false);
+    showActionPopup(message);
+  };
 
   const submitComment = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -5550,12 +5587,33 @@ function ProjectTaskInspector({
           <h2>{task.title}</h2>
           <p>{task.from} → 담당자 {recipientNames.length || 1}명</p>
         </div>
-        {canEdit ? (
-          <button className="secondary-action" onClick={() => onEditTask(task)} type="button">
-            <Pencil size={15} />
-            수정
-          </button>
-        ) : null}
+        <div className="project-inspector-actions">
+          {canEdit ? (
+            <button className="secondary-action" onClick={() => onEditTask(task)} type="button">
+              <Pencil size={15} />
+              수정
+            </button>
+          ) : null}
+          {canManage ? (
+            <div className="task-menu project-inspector-menu">
+              <button className="icon-button" aria-label="상태 변경" onClick={() => setMenuOpen((open) => !open)} type="button">
+                <MoreHorizontal size={18} />
+              </button>
+              {menuOpen ? (
+                <>
+                  <button className="menu-scrim" aria-label="상태 변경 메뉴 닫기" onClick={() => setMenuOpen(false)} type="button" />
+                  <div className="task-menu-popover">
+                    {statusActions.map((status) => (
+                      <button disabled={task.status === status || Boolean(loadingStatus)} key={status} onClick={() => updateStatus(status)} type="button">
+                        {loadingStatus === status ? '진행중...' : status}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
       </div>
 
       <div className="project-inspector-people">
@@ -5701,6 +5759,7 @@ function ReportsPage({
   onDownloadFile,
   onEditTask,
   onUpdateTaskStatus,
+  onMarkTaskRead,
 }: ImmersiveChromeProps & {
   tasks: Task[];
   employees: Employee[];
@@ -5711,12 +5770,13 @@ function ReportsPage({
   onDownloadFile: (file: TaskFile) => void;
   onEditTask: (task: Task) => void;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
+  onMarkTaskRead: (task: Task) => void;
 }) {
   const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안');
   const [composeOpen, setComposeOpen] = useState(false);
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
-  const toggleFocusedTask = (taskId: string) => {
-    setFocusedTaskId((current) => (current === taskId ? null : taskId));
+  const toggleFocusedTask = (task: Task) => {
+    setFocusedTaskId((current) => (current === task.id ? null : task.id));
   };
 
   return (
@@ -5771,7 +5831,9 @@ function ReportsPage({
                 onDeleteComment={onDeleteComment}
                 onDownloadFile={onDownloadFile}
                 onEditTask={onEditTask}
+                onMarkRead={onMarkTaskRead}
                 onSelect={toggleFocusedTask}
+                onUpdateStatus={onUpdateTaskStatus}
                 selected={focusedTaskId === task.id}
                   task={task}
                 />
