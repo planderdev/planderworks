@@ -3157,6 +3157,7 @@ function App() {
             onDeleteTask={deleteTask}
             onEditProject={(projectId) => setEditingProjectId(projectId)}
             onMarkMessagesRead={markProjectMessagesRead}
+            onOpenProject={openProject}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
             onUpdateTaskStatus={updateTaskStatus}
           />
@@ -4468,6 +4469,7 @@ function ProjectPage({
   onDeleteTask,
   onEditProject,
   onMarkMessagesRead,
+  onOpenProject,
   onOpenTask,
   onUpdateTaskStatus,
 }: {
@@ -4484,6 +4486,7 @@ function ProjectPage({
   onDeleteTask: TaskDeleteHandler;
   onEditProject: (projectId: string) => void;
   onMarkMessagesRead: (messageIds: string[]) => Promise<void>;
+  onOpenProject: (projectId: string) => void;
   onOpenTask: (task: Task) => void;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
@@ -4544,10 +4547,10 @@ function ProjectPage({
   };
 
   return (
-    <section className="page-shell">
-      <div className="page-head project-page-head">
+    <section className="page-shell project-mode-shell">
+      <div className="page-head project-page-head project-mode-head">
         <div>
-          <p className="eyebrow">Project</p>
+          <p className="eyebrow">Project Mode</p>
           <div className="project-title-row">
             <h1>{project?.name || '프로젝트'}</h1>
             {project && canEditProject ? (
@@ -4570,6 +4573,24 @@ function ProjectPage({
           </button>
         ) : null}
       </div>
+
+      {projects.length ? (
+        <div className="project-folder-tabs" role="tablist" aria-label="프로젝트 선택">
+          {projects.slice(0, 6).map((item) => (
+            <button
+              aria-selected={project?.id === item.id}
+              data-active={project?.id === item.id}
+              key={item.id}
+              onClick={() => onOpenProject(item.id)}
+              role="tab"
+              type="button"
+            >
+              <span>{item.name}</span>
+              <small>{item.client}</small>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {project && taskCreateOpen ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setTaskCreateOpen(false)}>
@@ -4597,8 +4618,24 @@ function ProjectPage({
       ) : null}
 
       <div className="project-detail-grid">
-        <div className="task-board list-surface">
-          <div className="task-list">
+        <div className="task-board list-surface project-task-board">
+          <div className="project-board-toolbar">
+            <div>
+              <p className="eyebrow">Task Table</p>
+              <h2>업무 목록</h2>
+            </div>
+            <div className="project-board-filters">
+              <span>전체 상태</span>
+              <span>담당자</span>
+              <span>마감일</span>
+            </div>
+          </div>
+          <div className="project-task-columns" aria-hidden="true">
+            <span>업무</span>
+            <span>담당/프로젝트</span>
+            <span>상태</span>
+          </div>
+          <div className="task-list project-task-list">
             {project ? (
               tasks.length ? (
                 tasks.map((task) => (

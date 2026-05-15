@@ -1533,6 +1533,34 @@ h1 {
   align-items: flex-start;
 }
 
+.project-mode-shell {
+  min-height: calc(100vh - 64px);
+  border: 1px solid rgba(16, 17, 18, 0.18);
+  border-radius: 18px;
+  padding: 18px;
+  color: #101112;
+  background:
+    linear-gradient(90deg, rgba(16, 17, 18, 0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(16, 17, 18, 0.06) 1px, transparent 1px),
+    #f2f0e8;
+  background-size: 42px 42px;
+  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.18);
+}
+
+.project-mode-shell .eyebrow,
+.project-mode-shell .mini-empty {
+  color: rgba(16, 17, 18, 0.58);
+}
+
+.project-mode-head {
+  min-height: 116px;
+  align-items: flex-start;
+  border: 1px solid rgba(16, 17, 18, 0.16);
+  border-radius: 14px 14px 8px 8px;
+  padding: 18px 20px;
+  background: rgba(250, 248, 239, 0.92);
+}
+
 .project-page-head > .primary-action {
   margin-left: auto;
 }
@@ -1548,9 +1576,72 @@ h1 {
   line-height: 1.15;
 }
 
+.project-mode-head h1 {
+  color: #101112;
+  font-size: clamp(2.4rem, 6vw, 5.4rem);
+  font-weight: 950;
+  letter-spacing: 0;
+  line-height: 0.95;
+}
+
 .project-page-head p:not(.eyebrow) {
   margin-top: 10px;
   line-height: 1.65;
+}
+
+.project-mode-head p:not(.eyebrow) {
+  max-width: 820px;
+  color: rgba(16, 17, 18, 0.68);
+}
+
+.project-mode-shell .primary-action,
+.project-mode-shell .icon-button {
+  border-color: rgba(16, 17, 18, 0.18);
+}
+
+.project-folder-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  margin: -1px 0 18px;
+  overflow-x: auto;
+}
+
+.project-folder-tabs button {
+  min-width: 170px;
+  display: grid;
+  gap: 2px;
+  border: 1px solid rgba(16, 17, 18, 0.16);
+  border-bottom-color: rgba(16, 17, 18, 0.28);
+  border-radius: 0 0 14px 14px;
+  padding: 12px 16px 13px;
+  color: rgba(16, 17, 18, 0.68);
+  background: rgba(224, 221, 211, 0.82);
+  text-align: left;
+  transform: translateY(-1px);
+}
+
+.project-folder-tabs button[data-active='true'] {
+  color: #f6f4ec;
+  background: #101112;
+}
+
+.project-folder-tabs span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.project-folder-tabs small {
+  overflow: hidden;
+  color: currentColor;
+  opacity: 0.66;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  font-weight: 800;
 }
 
 .project-edit-button {
@@ -3036,24 +3127,138 @@ h1 {
 
 .project-detail-grid {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.65fr);
   gap: 18px;
   align-items: start;
   min-width: 0;
 }
 
+.project-task-board {
+  display: grid;
+  gap: 0;
+  border: 1px solid rgba(16, 17, 18, 0.18) !important;
+  border-radius: 12px !important;
+  background: rgba(250, 248, 239, 0.88) !important;
+}
+
+.project-board-toolbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid rgba(16, 17, 18, 0.14);
+}
+
+.project-board-toolbar h2 {
+  margin: 0;
+  color: #101112;
+  font-size: 1.15rem;
+}
+
+.project-board-filters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.project-board-filters span {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(16, 17, 18, 0.16);
+  border-radius: 999px;
+  padding: 0 11px;
+  color: rgba(16, 17, 18, 0.66);
+  background: rgba(255, 255, 255, 0.48);
+  font-size: 0.72rem;
+  font-weight: 850;
+}
+
+.project-task-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 230px 110px;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(16, 17, 18, 0.14);
+  color: rgba(16, 17, 18, 0.55);
+  font-size: 0.68rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.project-mode-shell .task-board.list-surface .task-list,
+.project-mode-shell .task-board.list-surface .project-task-list {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.project-mode-shell .task-card {
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 14px;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(16, 17, 18, 0.12) !important;
+  border-radius: 0 !important;
+  padding: 14px 16px;
+  color: #101112;
+  background: transparent !important;
+  box-shadow: inset 4px 0 0 var(--status-line) !important;
+}
+
+.project-mode-shell .task-card:last-child {
+  border-bottom: 0 !important;
+}
+
+.project-mode-shell .task-card:hover {
+  background: rgba(16, 17, 18, 0.045) !important;
+}
+
+.project-mode-shell .task-title-button {
+  color: #101112;
+  font-size: 1.02rem;
+  font-weight: 950;
+}
+
+.project-mode-shell .task-card p,
+.project-mode-shell .task-meta,
+.project-mode-shell .task-meta span {
+  color: rgba(16, 17, 18, 0.6);
+}
+
+.project-mode-shell .task-type,
+.project-mode-shell .priority,
+.project-mode-shell .task-direction-badge,
+.project-mode-shell .read-badge {
+  color: #101112;
+  background: rgba(16, 17, 18, 0.09);
+}
+
+.project-mode-shell .status {
+  color: #f6f4ec;
+  background: #101112;
+}
+
+.project-mode-shell .task-menu .icon-button {
+  background: rgba(16, 17, 18, 0.06);
+}
+
 .project-chat-panel {
-  order: -1;
   position: sticky;
   top: 18px;
   min-width: 0;
   width: 100%;
   display: grid;
   gap: 14px;
-  border: 1px solid var(--card-line);
-  border-radius: 8px;
+  border: 1px solid rgba(16, 17, 18, 0.18);
+  border-radius: 12px;
   padding: 16px;
-  background: var(--card-bg);
+  color: #101112;
+  background: rgba(250, 248, 239, 0.88);
+}
+
+.project-chat-panel .section-head h2 {
+  color: #101112;
 }
 
 .project-message-list {
@@ -3070,15 +3275,16 @@ h1 {
   align-self: flex-start;
   display: grid;
   gap: 6px;
-  border: 1px solid var(--card-line);
+  border: 1px solid rgba(16, 17, 18, 0.13);
   border-radius: 8px;
   padding: 10px;
-  background: var(--panel);
+  background: rgba(255, 255, 255, 0.45);
 }
 
 .project-message[data-own='true'] {
   align-self: flex-end;
-  background: var(--panel-2);
+  color: #f6f4ec;
+  background: #101112;
 }
 
 .project-message div {
@@ -3099,20 +3305,25 @@ h1 {
 }
 
 .project-message small {
-  color: var(--muted);
+  color: rgba(16, 17, 18, 0.58);
   font-size: 0.72rem;
+}
+
+.project-message[data-own='true'] small,
+.project-message[data-own='true'] .project-message-readers {
+  color: rgba(246, 244, 236, 0.62);
 }
 
 .project-message-readers {
   display: block;
-  color: var(--muted);
+  color: rgba(16, 17, 18, 0.58);
   font-size: 0.7rem;
   font-weight: 800;
   line-height: 1.35;
 }
 
 .project-message p {
-  color: var(--text);
+  color: currentColor;
   line-height: 1.45;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -3130,6 +3341,9 @@ h1 {
   width: 100%;
   min-height: 40px;
   max-height: 150px;
+  border-color: rgba(16, 17, 18, 0.16);
+  color: #101112;
+  background: rgba(255, 255, 255, 0.56);
   resize: none;
   overflow-y: auto;
   line-height: 1.45;
