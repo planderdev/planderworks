@@ -4899,14 +4899,6 @@ function ProjectPage({
               <option>마감 임박순</option>
             </select>
           </label>
-          <div className="project-view-toggle">
-            <button data-active="true" aria-label="리스트 보기" type="button">
-              <Menu size={18} />
-            </button>
-            <button aria-label="그리드 보기" type="button">
-              <LayoutDashboard size={17} />
-            </button>
-          </div>
         </div>
 
       {project && taskCreateOpen ? (

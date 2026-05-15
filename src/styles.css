@@ -3859,7 +3859,7 @@ h1 {
 
 .project-filter-strip {
   display: grid;
-  grid-template-columns: minmax(130px, 0.9fr) minmax(140px, 0.9fr) minmax(130px, 0.72fr) auto;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
   gap: 16px;
   align-items: end;
 }
@@ -3885,26 +3885,6 @@ h1 {
   color: rgba(8, 8, 8, 0.78);
   background: rgba(255, 255, 255, 0.52);
   font-weight: 800;
-}
-
-.project-view-toggle {
-  display: flex;
-  gap: 6px;
-}
-
-.project-view-toggle button {
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--project-line);
-  color: var(--project-ink);
-  background: rgba(255, 255, 255, 0.45);
-}
-
-.project-view-toggle button[data-active='true'] {
-  color: #fff;
-  background: #050505;
 }
 
 .project-detail-grid {
@@ -4739,11 +4719,6 @@ h1 {
 
   .project-filter-strip label {
     min-width: 0;
-  }
-
-  .project-view-toggle {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
   }
 
   .project-task-board,
