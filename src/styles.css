@@ -3648,15 +3648,47 @@ h1 {
 }
 
 .reports-mode-layout {
-  grid-template-columns: minmax(0, 1fr) 390px;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .reports-mode-shell .report-task-list {
   align-items: start;
+  grid-template-columns: repeat(2, minmax(360px, 1fr));
 }
 
 .reports-mode-shell .task-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 210px;
+  padding: 22px 24px;
   background: rgba(255, 255, 255, 0.74);
+}
+
+.reports-mode-shell .task-main,
+.reports-mode-shell .task-title-row,
+.reports-mode-shell .task-meta,
+.reports-mode-shell .task-meta > span {
+  min-width: 0;
+}
+
+.reports-mode-shell .task-title-row {
+  flex-wrap: wrap;
+}
+
+.reports-mode-shell .task-title-button {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.reports-mode-shell .task-card p {
+  white-space: normal;
+}
+
+.reports-mode-shell .task-people-meta {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .report-compose-card {
@@ -4487,7 +4519,7 @@ h1 {
   }
 
   .report-task-list {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .client-grid {
@@ -4594,6 +4626,12 @@ h1 {
   .operations-actions {
     justify-content: flex-start;
     margin-top: 2px;
+  }
+}
+
+@media (max-width: 980px) {
+  .reports-mode-shell .report-task-list {
+    grid-template-columns: 1fr;
   }
 }
 
