@@ -301,29 +301,14 @@ const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.Elemen
   { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
-  { id: 'calendar', label: '캘린더', icon: CalendarClock },
   { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
+  { id: 'calendar', label: '캘린더', icon: CalendarClock },
 ];
 
 const adminNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'employees', label: '직원 관리', icon: UserCog },
   { id: 'settings', label: '설정', icon: Settings },
 ];
-
-const viewTitles: Record<ActiveView, string> = {
-  dashboard: '대시보드',
-  calendar: '캘린더',
-  allTasks: '참여 업무',
-  inbox: '받은 업무',
-  sent: '보낸 업무',
-  project: '프로젝트',
-  create: '업무 생성',
-  reports: '보고·제안',
-  clients: '업체관리',
-  employees: '직원 관리',
-  operations: '구독/정산관리',
-  settings: '설정',
-};
 
 const seedTasks: Task[] = [
   {
@@ -937,42 +922,9 @@ function App() {
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
-    let refreshedForUpdate = false;
-    const handleControllerChange = () => {
-      if (refreshedForUpdate) return;
-      refreshedForUpdate = true;
-      window.location.reload();
-    };
-
-    navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-
-    navigator.serviceWorker
-      .register('/sw.js', { updateViaCache: 'none' })
-      .then((registration) => {
-        const activateWaitingWorker = () => {
-          registration.waiting?.postMessage({ type: 'SKIP_WAITING' });
-        };
-
-        activateWaitingWorker();
-        registration.update().catch(() => undefined);
-        registration.addEventListener('updatefound', () => {
-          const worker = registration.installing;
-          if (!worker) return;
-
-          worker.addEventListener('statechange', () => {
-            if (worker.state === 'installed' && navigator.serviceWorker.controller) {
-              worker.postMessage({ type: 'SKIP_WAITING' });
-            }
-          });
-        });
-      })
-      .catch(() => {
-        setInstallStatus('서비스 워커 등록에 실패했습니다. 브라우저 새로고침 후 다시 시도해주세요.');
-      });
-
-    return () => {
-      navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-    };
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      setInstallStatus('서비스 워커 등록에 실패했습니다. 브라우저 새로고침 후 다시 시도해주세요.');
+    });
   }, []);
 
   useEffect(() => {
@@ -2879,14 +2831,11 @@ function App() {
       >
         <Topbar
           currentUser={currentUser}
-          activeView={activeView}
-          badges={navBadges}
           pushEnabled={pushEnabled}
           pushLoading={pushLoading}
           pushStatus={pushStatus}
-          showSearch={true}
+          showSearch={activeView === 'dashboard'}
           themeMode={themeMode}
-          onCreateProject={() => setProjectCreateOpen(true)}
           onLogout={handleLogout}
           onNavigate={navigateTo}
           onOpenProfile={() => setProfileOpen(true)}
@@ -2913,17 +2862,17 @@ function App() {
           />
         ) : null}
         {activeView === 'inbox' ? (
-          <TaskListPage activeView={activeView} title="받은 업무" initialStatus={taskListFilters.inbox || '전체'} tasks={inboxTasks} tabCounts={{ inbox: inboxTasks.length, sent: sentTasks.length, allTasks: visibleTasks.length }} currentUser={currentUser} onNavigate={navigateTo} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage title="받은 업무" initialStatus={taskListFilters.inbox || '전체'} tasks={inboxTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'sent' ? (
-          <TaskListPage activeView={activeView} title="보낸 업무" initialStatus={taskListFilters.sent || '전체'} tasks={sentTasks} tabCounts={{ inbox: inboxTasks.length, sent: sentTasks.length, allTasks: visibleTasks.length }} currentUser={currentUser} onNavigate={navigateTo} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage title="보낸 업무" initialStatus={taskListFilters.sent || '전체'} tasks={sentTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} projects={projects} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
           <ReportsPage tasks={reportTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onCreateTask={createTask} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'allTasks' ? (
-          <TaskListPage activeView={activeView} title="참여 업무" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} employees={employees} tabCounts={{ inbox: inboxTasks.length, sent: sentTasks.length, allTasks: visibleTasks.length }} currentUser={currentUser} onNavigate={navigateTo} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'project' ? (
           <ProjectPage
@@ -3317,6 +3266,16 @@ function Sidebar({
       </div>
 
       <nav className="sidebar-nav" aria-label="주 메뉴">
+        <div className="sidebar-create-split">
+          <button className="create-split-button" onClick={onCreateProject} type="button">
+            <FolderKanban size={16} />
+            <span>프로젝트 생성</span>
+          </button>
+          <button className="create-split-button" data-active={activeView === 'create'} onClick={() => onNavigate('create')} type="button">
+            <Plus size={16} />
+            <span>업무 생성</span>
+          </button>
+        </div>
         {primaryNavItems
           .filter((item) => (showAdmin ? true : item.id !== 'operations'))
           .map((item) => {
@@ -3333,39 +3292,32 @@ function Sidebar({
                 {badge > 0 ? <small>{badge}</small> : null}
               </span>
             </button>
+            {item.id === 'clients' ? (
+              <div className="sidebar-projects">
+                <button className="nav-button project-toggle" data-active={activeView === 'project'} onClick={() => setProjectsOpen((open) => !open)} type="button">
+                  <FolderKanban size={18} />
+                  <span>프로젝트</span>
+                  <ChevronDown size={16} data-open={projectsOpen} />
+                </button>
+                {projectsOpen ? (
+                  <div className="project-nav-list">
+                    {projects.length ? (
+                      projects.map((project) => (
+                        <button className="project-nav-button" data-active={activeProjectId === project.id} key={project.id} onClick={() => onOpenProject(project.id)} type="button">
+                          <span>{project.name}</span>
+                          <small>{project.client}</small>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="project-nav-empty">등록된 프로젝트가 없습니다.</p>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             </React.Fragment>
           );
         })}
-
-        <div className="sidebar-projects">
-          <div className="project-section-head">
-            <button className="project-section-title" data-active={activeView === 'project'} onClick={() => setProjectsOpen((open) => !open)} type="button">
-              <span>프로젝트</span>
-              <ChevronDown size={15} data-open={projectsOpen} />
-            </button>
-            <button className="project-add-button" aria-label="프로젝트 생성" onClick={onCreateProject} type="button">
-              <Plus size={16} />
-            </button>
-          </div>
-          {projectsOpen ? (
-            <div className="project-nav-list">
-              {projects.length ? (
-                projects.map((project) => (
-                  <button className="project-nav-button" data-active={activeProjectId === project.id} key={project.id} onClick={() => onOpenProject(project.id)} type="button">
-                    <span className="project-code">{project.name.slice(0, 2).toUpperCase()}</span>
-                    <span className="project-nav-copy">
-                      <span>{project.name}</span>
-                      <small>{project.client}</small>
-                    </span>
-                    <i aria-hidden="true" />
-                  </button>
-                ))
-              ) : (
-                <p className="project-nav-empty">등록된 프로젝트가 없습니다.</p>
-              )}
-            </div>
-          ) : null}
-        </div>
       </nav>
 
       <div className="sidebar-bottom-layer">
@@ -3412,16 +3364,7 @@ function Sidebar({
 
         <button className="sidebar-install-button" onClick={onInstallApp} type="button">
           <Download size={17} />
-          <span>
-            앱 다운로드
-            <small>언제 어디서나 Plander Works</small>
-          </span>
-          <span className="install-platforms" aria-hidden="true">
-            <b>mac</b>
-            <b>win</b>
-            <b>iOS</b>
-            <b>and</b>
-          </span>
+          <span>앱 다운로드</span>
         </button>
 
         <div className="profile-card">
@@ -3442,8 +3385,6 @@ function Sidebar({
 }
 
 function Topbar({
-  activeView,
-  badges,
   currentUser,
   pushEnabled,
   pushLoading,
@@ -3452,15 +3393,12 @@ function Topbar({
   showSearch,
   themeMode,
   onLogout,
-  onCreateProject,
   onNavigate,
   onOpenProfile,
   onRegisterPush,
   onThemeChange,
   onMenuClick,
 }: {
-  activeView: ActiveView;
-  badges: Partial<Record<ActiveView, number>>;
   currentUser: AppUser;
   pushEnabled: boolean;
   pushLoading: boolean;
@@ -3468,7 +3406,6 @@ function Topbar({
   showSearch: boolean;
   themeMode: ThemeMode;
   onLogout: () => void;
-  onCreateProject: () => void;
   onNavigate: (view: ActiveView) => void;
   onOpenProfile: () => void;
   onRegisterPush: () => void;
@@ -3477,8 +3414,6 @@ function Topbar({
 }) {
   const PushIcon = pushEnabled ? Bell : BellOff;
   const [accountOpen, setAccountOpen] = useState(false);
-  const activeTitle = viewTitles[activeView] || 'Plander Works';
-  const activeCount = badges[activeView] || 0;
 
   const goSettings = () => {
     onNavigate('settings');
@@ -3501,11 +3436,6 @@ function Topbar({
         <Menu size={21} />
       </button>
 
-      <div className="topbar-title">
-        <strong>{activeTitle}</strong>
-        {activeCount > 0 ? <small>{activeCount}</small> : null}
-      </div>
-
       {showSearch ? (
         <label className="search-box">
           <Search size={18} />
@@ -3514,14 +3444,6 @@ function Topbar({
       ) : null}
 
       <div className="top-actions">
-        <div className="top-create-group">
-          <button className="top-create-main" onClick={() => onNavigate('create')} type="button">
-            업무 생성
-          </button>
-          <button className="top-create-menu" aria-label="프로젝트 생성" onClick={onCreateProject} type="button">
-            <ChevronDown size={16} />
-          </button>
-        </div>
         <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
         <button
           className="icon-button"
@@ -4165,39 +4087,31 @@ function DashboardClientSection({ clients, onNavigate }: { clients: Client[]; on
 }
 
 function TaskListPage({
-  activeView,
   title,
   initialStatus,
   tasks,
-  tabCounts,
   employees = [],
   currentUser,
-  onNavigate,
   onOpenTask,
   onDeleteTask,
   onUpdateTaskStatus,
 }: {
-  activeView: ActiveView;
   title: string;
   initialStatus: TaskListFilter;
   tasks: Task[];
-  tabCounts: { inbox: number; sent: number; allTasks: number };
   employees?: Employee[];
   currentUser: AppUser;
-  onNavigate: (view: ActiveView) => void;
   onOpenTask: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const [status, setStatus] = useState<TaskListFilter>(initialStatus);
   const [employeeId, setEmployeeId] = useState('전체');
-  const [previewTaskId, setPreviewTaskId] = useState<string | null>(null);
   const statusFilteredTasks = status === '전체' ? tasks : tasks.filter((task) => task.status === status);
   const filteredTasks =
     !employees.length || employeeId === '전체'
       ? statusFilteredTasks
       : statusFilteredTasks.filter((task) => task.creatorId === employeeId || getTaskRecipientIds(task).includes(employeeId));
-  const previewTask = filteredTasks.find((task) => task.id === previewTaskId) || filteredTasks[0] || null;
 
   useEffect(() => {
     setStatus(initialStatus);
@@ -4206,17 +4120,6 @@ function TaskListPage({
   useEffect(() => {
     if (!employees.length) setEmployeeId('전체');
   }, [employees.length]);
-
-  useEffect(() => {
-    if (!filteredTasks.length) {
-      setPreviewTaskId(null);
-      return;
-    }
-
-    if (!previewTaskId || !filteredTasks.some((task) => task.id === previewTaskId)) {
-      setPreviewTaskId(filteredTasks[0].id);
-    }
-  }, [filteredTasks, previewTaskId]);
 
   return (
     <section className="page-shell">
@@ -4244,137 +4147,18 @@ function TaskListPage({
         </div>
       </div>
 
-      <div className="task-tabs">
-        {[
-          { id: 'inbox' as ActiveView, label: '받은 업무', count: tabCounts.inbox },
-          { id: 'sent' as ActiveView, label: '보낸 업무', count: tabCounts.sent },
-          { id: 'allTasks' as ActiveView, label: '참여 업무', count: tabCounts.allTasks },
-        ].map((tab) => (
-          <button data-active={activeView === tab.id} key={tab.id} onClick={() => onNavigate(tab.id)} type="button">
-            <span>{tab.label}</span>
-            <small>{tab.count}</small>
-          </button>
-        ))}
-      </div>
-
-      <div className="task-workspace">
-        <div className="task-board list-surface">
-          <div className="task-list">
-            {filteredTasks.length ? (
-              filteredTasks.map((task) => (
-                <TaskCard
-                  currentUser={currentUser}
-                  isSelected={previewTask?.id === task.id}
-                  key={task.id}
-                  onDeleteTask={onDeleteTask}
-                  onOpenTask={() => setPreviewTaskId(task.id)}
-                  onUpdateStatus={onUpdateTaskStatus}
-                  task={task}
-                />
-              ))
-            ) : (
-              <EmptyState text="조건에 맞는 업무가 없습니다." />
-            )}
-          </div>
+      <div className="task-board list-surface">
+        <div className="task-list">
+          {filteredTasks.length ? (
+            filteredTasks.map((task) => (
+              <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
+            ))
+          ) : (
+            <EmptyState text="조건에 맞는 업무가 없습니다." />
+          )}
         </div>
-        <TaskPreviewPanel currentUser={currentUser} task={previewTask} onOpenTask={onOpenTask} />
       </div>
     </section>
-  );
-}
-
-function TaskPreviewPanel({ currentUser, task, onOpenTask }: { currentUser: AppUser; task: Task | null; onOpenTask: (task: Task) => void }) {
-  if (!task) {
-    return (
-      <aside className="task-preview-panel">
-        <EmptyState text="왼쪽에서 업무를 선택해주세요." />
-      </aside>
-    );
-  }
-
-  const recipients = task.to.split(', ').filter(Boolean);
-  const latestComments = task.comments.slice(-3);
-
-  return (
-    <aside className="task-preview-panel">
-      <div className="task-preview-head">
-        <div>
-          <p className="eyebrow">업무 상세</p>
-          <div className="task-preview-badges">
-            <span className="status" data-status={task.status}>{task.status}</span>
-            <span className="task-type">{formatTaskTypeLabel(task.type)}</span>
-          </div>
-          <h2>{task.title}</h2>
-          <p>{task.from} → 담당자 {recipients.length || 1}명</p>
-        </div>
-        <button className="secondary-action compact-action" onClick={() => onOpenTask(task)} type="button">
-          <Pencil size={15} />
-          자세히
-        </button>
-      </div>
-
-      <div className="task-preview-people">
-        <div>
-          <Avatar name={task.from} src={task.creatorAvatarUrl} size="sm" />
-          <span>{task.from}</span>
-        </div>
-        <ChevronRight size={16} />
-        <div className="task-preview-recipient-stack">
-          {recipients.slice(0, 4).map((name) => (
-            <span key={name}>{name}</span>
-          ))}
-          {recipients.length > 4 ? <span>+{recipients.length - 4}</span> : null}
-        </div>
-      </div>
-
-      <div className="task-preview-meta">
-        <span>
-          <CalendarClock size={15} />
-          마감일<br />
-          <strong>{task.due}</strong>
-        </span>
-        <span>
-          <ShieldCheck size={15} />
-          우선순위<br />
-          <strong>{task.priority}</strong>
-        </span>
-        <span>
-          <Paperclip size={15} />
-          첨부파일<br />
-          <strong>{task.files.length}개</strong>
-        </span>
-      </div>
-
-      <div className="task-preview-body">
-        <p>{renderLinkedText(task.summary || '내용이 없습니다.')}</p>
-      </div>
-
-      <div className="task-preview-comments">
-        <div className="section-head tight">
-          <div>
-            <p className="eyebrow">Comments</p>
-            <h2>댓글 {task.comments.length}</h2>
-          </div>
-          <MessageSquareText size={18} />
-        </div>
-        {latestComments.length ? (
-          latestComments.map((comment) => (
-            <div className="preview-comment" key={comment.id}>
-              <Avatar name={comment.author} src={comment.avatarUrl} size="xs" />
-              <div>
-                <strong>{comment.author}</strong>
-                <p>{comment.content}</p>
-              </div>
-            </div>
-          ))
-        ) : (
-          <p className="mini-empty">아직 댓글이 없습니다.</p>
-        )}
-        <button className="primary-action compact-action" onClick={() => onOpenTask(task)} type="button">
-          댓글/수정 열기
-        </button>
-      </div>
-    </aside>
   );
 }
 
@@ -7109,7 +6893,6 @@ function TaskCard({
   task,
   currentUser,
   direction,
-  isSelected = false,
   onOpenTask,
   onDeleteTask,
   onUpdateStatus,
@@ -7117,7 +6900,6 @@ function TaskCard({
   task: Task;
   currentUser: AppUser;
   direction?: 'sent' | 'received';
-  isSelected?: boolean;
   onOpenTask?: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateStatus: (taskId: string, status: TaskStatus) => Promise<string>;
@@ -7155,7 +6937,7 @@ function TaskCard({
   };
 
   return (
-    <article className="task-card" data-attention={needsTaskAttention(task, currentUser)} data-selected={isSelected} data-status-tone={getTaskStatusTone(task.status)}>
+    <article className="task-card" data-attention={needsTaskAttention(task, currentUser)} data-status-tone={getTaskStatusTone(task.status)}>
       <div className="task-main">
         <div className="task-title-row">
           <span className="task-type">{formatTaskTypeLabel(task.type)}</span>

@@ -1,22 +1,9 @@
-const SHELL_VERSION = 'planderworks-reference-ui-20260515-3';
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(self.skipWaiting());
+self.addEventListener('install', () => {
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
-  );
-});
-
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+  event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('fetch', (event) => {
