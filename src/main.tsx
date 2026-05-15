@@ -1673,6 +1673,17 @@ function App() {
     () => (selectedProject ? projectMessages.filter((message) => message.projectId === selectedProject.id) : []),
     [projectMessages, selectedProject],
   );
+  const projectUnreadCounts = useMemo(() => {
+    if (!currentUser) return {};
+
+    return projectMessages.reduce<Record<string, number>>((counts, message) => {
+      if (message.userId === currentUser.id || message.readByIds.includes(currentUser.id)) return counts;
+      return {
+        ...counts,
+        [message.projectId]: (counts[message.projectId] || 0) + 1,
+      };
+    }, {});
+  }, [currentUser, projectMessages]);
 
   const selectedTask = useMemo(
     () => visibleTasks.find((task) => task.id === selectedTaskId) || null,
@@ -3054,6 +3065,7 @@ function App() {
         }}
         badges={navBadges}
         projects={projects}
+        projectUnreadCounts={projectUnreadCounts}
         showAdmin={isAdmin}
       />
       <div className="mobile-overlay" data-open={sidebarOpen} onClick={() => setSidebarOpen(false)} />
@@ -3497,6 +3509,7 @@ function Sidebar({
   onOpenProject,
   onOpenProfile,
   projects,
+  projectUnreadCounts,
   showAdmin,
   unreadBadges,
 }: {
@@ -3513,11 +3526,13 @@ function Sidebar({
   onOpenProject: (projectId: string) => void;
   onOpenProfile: () => void;
   projects: Project[];
+  projectUnreadCounts: Record<string, number>;
   showAdmin: boolean;
   unreadBadges: Partial<Record<ActiveView, number>>;
 }) {
   const [adminOpen, setAdminOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(true);
+  const totalProjectUnread = Object.values(projectUnreadCounts).reduce((sum, count) => sum + count, 0);
 
   return (
     <aside className="sidebar" data-open={open}>
@@ -3557,17 +3572,31 @@ function Sidebar({
                 <button className="nav-button project-toggle" data-active={activeView === 'project'} onClick={() => setProjectsOpen((open) => !open)} type="button">
                   <FolderKanban size={18} />
                   <span>프로젝트</span>
+                  <span className="nav-badges project-toggle-badges">
+                    {totalProjectUnread > 0 ? <small className="nav-unread-badge">{totalProjectUnread}</small> : null}
+                  </span>
                   <ChevronDown size={16} data-open={projectsOpen} />
                 </button>
                 {projectsOpen ? (
                   <div className="project-nav-list">
                     {projects.length ? (
-                      projects.map((project) => (
-                        <button className="project-nav-button" data-active={activeProjectId === project.id} key={project.id} onClick={() => onOpenProject(project.id)} type="button">
-                          <span>{project.name}</span>
-                          <small>{project.client}</small>
-                        </button>
-                      ))
+                      projects.map((project) => {
+                        const unreadCount = projectUnreadCounts[project.id] || 0;
+                        return (
+                          <button
+                            className="project-nav-button"
+                            data-active={activeProjectId === project.id}
+                            data-unread={unreadCount > 0}
+                            key={project.id}
+                            onClick={() => onOpenProject(project.id)}
+                            type="button"
+                          >
+                            <span>{project.name}</span>
+                            <small>{project.client}</small>
+                            {unreadCount > 0 ? <strong className="project-unread-badge">{unreadCount}</strong> : null}
+                          </button>
+                        );
+                      })
                     ) : (
                       <p className="project-nav-empty">등록된 프로젝트가 없습니다.</p>
                     )}

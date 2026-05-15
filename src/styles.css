@@ -429,6 +429,10 @@ button:disabled {
   transform: rotate(180deg);
 }
 
+.project-toggle-badges {
+  margin-left: auto;
+}
+
 .project-nav-list {
   display: grid;
   gap: 5px;
@@ -440,6 +444,8 @@ button:disabled {
 .project-nav-button {
   min-width: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 2px;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -447,6 +453,11 @@ button:disabled {
   color: #d7dae0;
   background: transparent;
   text-align: left;
+}
+
+.project-nav-button[data-unread='true'] {
+  border-color: rgba(223, 63, 63, 0.32);
+  background: rgba(223, 63, 63, 0.1);
 }
 
 .project-nav-button:hover,
@@ -457,6 +468,7 @@ button:disabled {
 
 .project-nav-button span,
 .project-nav-button small {
+  grid-column: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -478,6 +490,22 @@ button:disabled {
 
 .project-nav-empty {
   margin: 4px 0 2px;
+}
+
+.project-unread-badge {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0 6px;
+  color: #fff;
+  background: #df3f3f;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .profile-card {
