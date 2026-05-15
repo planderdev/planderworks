@@ -2924,12 +2924,8 @@ function App() {
             reportTasks={reportTasks}
             clients={clients}
             employees={employees}
-            taskTypes={taskTypes}
             onNavigate={navigateTo}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
-            onCreateTask={createTask}
-            onDeleteTask={deleteTask}
-            onUpdateTaskStatus={updateTaskStatus}
             currentUser={currentUser}
           />
         ) : null}
@@ -4052,13 +4048,9 @@ function Dashboard({
   reportTasks,
   clients,
   employees,
-  taskTypes,
   currentUser,
   onNavigate,
   onOpenTask,
-  onCreateTask,
-  onDeleteTask,
-  onUpdateTaskStatus,
 }: {
   stats: Array<{ label: string; value: number; hint: string; tone: string; target: ActiveView; filter?: TaskListFilter }>;
   tasks: Task[];
@@ -4066,13 +4058,9 @@ function Dashboard({
   reportTasks: Task[];
   clients: Client[];
   employees: Employee[];
-  taskTypes: string[];
   currentUser: AppUser;
   onNavigate: (view: ActiveView, filter?: TaskListFilter) => void;
   onOpenTask: (task: Task) => void;
-  onCreateTask: TaskSubmitHandler;
-  onDeleteTask: TaskDeleteHandler;
-  onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   return (
     <>
@@ -4094,7 +4082,6 @@ function Dashboard({
           <DashboardClientSection clients={clients} onNavigate={() => onNavigate('clients')} />
         </div>
         <aside className="side-panel">
-          <TaskComposer employees={employees} taskTypes={taskTypes} onCreateTask={onCreateTask} />
           <TeamLoad employees={employees} />
         </aside>
       </section>
@@ -4788,6 +4775,7 @@ function ClientsPage({
   const [newRegion, setNewRegion] = useState('');
   const defaultManager = employees[0]?.name || '';
   const [form, setForm] = useState({ name: '', manager: defaultManager, phone: '', region: regions[0], memo: '' });
+  const [clientCreateOpen, setClientCreateOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [editForm, setEditForm] = useState<Omit<Client, 'id'>>({ name: '', manager: '', phone: '', region: regions[0], memo: '' });
   const [loading, setLoading] = useState(false);
@@ -4809,7 +4797,10 @@ function ClientsPage({
     const message = await onAddClient(form);
     setLoading(false);
     showActionPopup(message);
-    if (!message.includes('실패')) setForm({ name: '', manager: employees[0]?.name || '', phone: '', region: regions[0] || '', memo: '' });
+    if (!message.includes('실패')) {
+      setForm({ name: '', manager: employees[0]?.name || '', phone: '', region: regions[0] || '', memo: '' });
+      setClientCreateOpen(false);
+    }
   };
 
   const openEdit = (client: Client) => {
@@ -4870,78 +4861,89 @@ function ClientsPage({
           <p className="eyebrow">Clients</p>
           <h1>업체</h1>
         </div>
+        <button className="primary-action" onClick={() => setClientCreateOpen(true)} type="button">
+          <Plus size={17} />
+          업체 추가
+        </button>
       </div>
 
-      <div className="split-layout">
-        <div className="page-card">
-          <div className="client-grid">
-            {clients.map((client) => (
-              <article className="client-card" key={client.id}>
-                <strong>{client.name}</strong>
-                <span>담당: {client.manager}</span>
-                <span>{client.phone}</span>
-                <span>지역: {client.region || '미지정'}</span>
-                <p>{client.memo}</p>
-                <div className="client-actions">
-                  <button className="secondary-action" onClick={() => openEdit(client)} type="button">수정</button>
-                  <button className="secondary-action danger-action" disabled={actionLoading === client.id} onClick={() => removeClient(client)} type="button">
-                    {actionLoading === client.id ? '진행중...' : '삭제'}
-                  </button>
-                </div>
-              </article>
-            ))}
-          </div>
+      <div className="page-card">
+        <div className="client-grid">
+          {clients.map((client) => (
+            <article className="client-card" key={client.id}>
+              <strong>{client.name}</strong>
+              <span>담당: {client.manager}</span>
+              <span>{client.phone}</span>
+              <span>지역: {client.region || '미지정'}</span>
+              <p>{client.memo}</p>
+              <div className="client-actions">
+                <button className="secondary-action" onClick={() => openEdit(client)} type="button">수정</button>
+                <button className="secondary-action danger-action" disabled={actionLoading === client.id} onClick={() => removeClient(client)} type="button">
+                  {actionLoading === client.id ? '진행중...' : '삭제'}
+                </button>
+              </div>
+            </article>
+          ))}
         </div>
-        <form className="page-card form-stack" onSubmit={submit}>
-          <div>
-            <p className="eyebrow">New Client</p>
-            <h2>업체 추가</h2>
-          </div>
-          <label>
-            업체명
-            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-          </label>
-          <label>
-            담당자
-            <select value={form.manager} onChange={(event) => setForm({ ...form, manager: event.target.value })}>
-              {employees.length ? (
-                employees.map((employee) => <option key={employee.id} value={employee.name}>{employee.name}</option>)
-              ) : (
-                <option value="">직원 없음</option>
-              )}
-            </select>
-          </label>
-          <label>
-            전화번호
-            <input
-              inputMode="numeric"
-              maxLength={13}
-              value={form.phone}
-              onChange={(event) => setForm({ ...form, phone: formatMobilePhone(event.target.value) })}
-            />
-          </label>
-          <label>
-            지역
-            <RegionEditor
-              regions={regions}
-              selectedRegion={form.region}
-              newRegion={newRegion}
-              onAdd={addRegion}
-              onChangeNewRegion={setNewRegion}
-              onDelete={deleteRegion}
-              onSelect={(region) => setForm({ ...form, region })}
-            />
-          </label>
-          <label>
-            메모
-            <textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
-          </label>
-          <button className="primary-action wide" disabled={loading} type="submit">
-            <Plus size={17} />
-            {loading ? '진행중...' : '업체 추가'}
-          </button>
-        </form>
       </div>
+      {clientCreateOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setClientCreateOpen(false)}>
+          <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">New Client</p>
+                <h2>업체 추가</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setClientCreateOpen(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              업체명
+              <input autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+            </label>
+            <label>
+              담당자
+              <select value={form.manager} onChange={(event) => setForm({ ...form, manager: event.target.value })}>
+                {employees.length ? (
+                  employees.map((employee) => <option key={employee.id} value={employee.name}>{employee.name}</option>)
+                ) : (
+                  <option value="">직원 없음</option>
+                )}
+              </select>
+            </label>
+            <label>
+              전화번호
+              <input
+                inputMode="numeric"
+                maxLength={13}
+                value={form.phone}
+                onChange={(event) => setForm({ ...form, phone: formatMobilePhone(event.target.value) })}
+              />
+            </label>
+            <label>
+              지역
+              <RegionEditor
+                regions={regions}
+                selectedRegion={form.region}
+                newRegion={newRegion}
+                onAdd={addRegion}
+                onChangeNewRegion={setNewRegion}
+                onDelete={deleteRegion}
+                onSelect={(region) => setForm({ ...form, region })}
+              />
+            </label>
+            <label>
+              메모
+              <textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
+            </label>
+            <button className="primary-action wide" disabled={loading} type="submit">
+              <Plus size={17} />
+              {loading ? '진행중...' : '업체 추가'}
+            </button>
+          </form>
+        </div>
+      ) : null}
       {editingClient ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setEditingClient(null)}>
           <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={saveEdit}>
