@@ -38,6 +38,8 @@ create table if not exists public.profiles (
   avatar_url text,
   role public.user_role not null default 'staff',
   job_type_id uuid references public.job_types(id),
+  theme_mode text not null default 'system' check (theme_mode in ('system', 'light', 'dark')),
+  color_theme text not null default 'default' check (color_theme in ('default', 'metal-silver', 'british-green', 'navy', 'orange', 'pastel-pink')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );

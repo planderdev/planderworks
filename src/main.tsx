@@ -44,6 +44,7 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 type ThemeMode = 'system' | 'light' | 'dark';
+type ColorTheme = 'default' | 'metal-silver' | 'british-green' | 'navy' | 'orange' | 'pastel-pink';
 type ActiveView =
   | 'dashboard'
   | 'calendar'
@@ -69,6 +70,14 @@ const MAX_TASK_FILE_SIZE_LABEL = '10MB';
 const MAX_AVATAR_FILE_SIZE = 1024 * 1024;
 const MAX_AVATAR_FILE_SIZE_LABEL = '1MB';
 const AVATAR_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const colorThemeOptions: Array<{ value: ColorTheme; label: string; description: string; swatches: string[] }> = [
+  { value: 'default', label: '플랜더 기본', description: '블랙/모노화이트 기본 모드', swatches: ['#050506', '#f7f7f4', '#cfd3da'] },
+  { value: 'metal-silver', label: '메탈 실버', description: '은색 카드와 차콜 라인', swatches: ['#eef0f3', '#b9c0ca', '#32363d'] },
+  { value: 'british-green', label: '브리티쉬 그린', description: '딥 그린과 크림/골드 포인트', swatches: ['#013220', '#004225', '#d8bd78'] },
+  { value: 'navy', label: '네이비', description: '딥 네이비와 스틸 블루', swatches: ['#071426', '#102a48', '#4b8ef7'] },
+  { value: 'orange', label: '오렌지', description: '그레이 바탕과 코퍼 포인트', swatches: ['#171717', '#303030', '#d76f2d'] },
+  { value: 'pastel-pink', label: '파스텔 핑크', description: '연분홍 배경과 로즈 포인트', swatches: ['#ffe8ef', '#fff7f9', '#b94668'] },
+];
 const defaultPushPreferences: PushPreferences = {
   task: true,
   report: true,
@@ -578,9 +587,22 @@ function getInitialTheme(): ThemeMode {
   return 'system';
 }
 
-function applyTheme(mode: ThemeMode) {
+function normalizeThemeMode(value: unknown): ThemeMode {
+  return value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
+}
+
+function getInitialColorTheme(): ColorTheme {
+  return normalizeColorTheme(localStorage.getItem('plander-color-theme'));
+}
+
+function normalizeColorTheme(value: unknown): ColorTheme {
+  return colorThemeOptions.some((option) => option.value === value) ? value as ColorTheme : 'default';
+}
+
+function applyTheme(mode: ThemeMode, colorTheme: ColorTheme) {
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   document.documentElement.dataset.theme = mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode;
+  document.documentElement.dataset.colorTheme = colorTheme;
 }
 
 function getUserFromSession(session: Session | null): AppUser | null {
@@ -972,6 +994,7 @@ function urlBase64ToUint8Array(base64String: string) {
 
 function App() {
   const [themeMode, setThemeMode] = useState<ThemeMode>(getInitialTheme);
+  const [colorTheme, setColorTheme] = useState<ColorTheme>(getInitialColorTheme);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<AppUser | null>(null);
   const [authReady, setAuthReady] = useState(!hasSupabaseConfig);
@@ -1137,17 +1160,42 @@ function App() {
   }, []);
 
   useEffect(() => {
-    applyTheme(themeMode);
+    applyTheme(themeMode, colorTheme);
     localStorage.setItem('plander-theme', themeMode);
+    localStorage.setItem('plander-color-theme', colorTheme);
 
     const media = window.matchMedia('(prefers-color-scheme: dark)');
     const syncSystemTheme = () => {
-      if (themeMode === 'system') applyTheme('system');
+      if (themeMode === 'system') applyTheme('system', colorTheme);
     };
 
     media.addEventListener('change', syncSystemTheme);
     return () => media.removeEventListener('change', syncSystemTheme);
-  }, [themeMode]);
+  }, [colorTheme, themeMode]);
+
+  useEffect(() => {
+    if (!supabase || !currentUser || currentUser.isPrototype) return;
+    let cancelled = false;
+
+    const loadThemePreferences = async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('theme_mode, color_theme')
+        .eq('id', currentUser.id)
+        .maybeSingle();
+
+      if (cancelled || error || !data) return;
+
+      setThemeMode(normalizeThemeMode((data as any).theme_mode));
+      setColorTheme(normalizeColorTheme((data as any).color_theme));
+    };
+
+    void loadThemePreferences();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser?.id, currentUser?.isPrototype]);
 
   useEffect(() => {
     localStorage.setItem(operationStorageKey, JSON.stringify(operations));
@@ -3109,6 +3157,32 @@ function App() {
     setInstallStatus('앱 설치가 취소되었습니다.');
   };
 
+  const persistThemePreferences = async (nextThemeMode: ThemeMode, nextColorTheme: ColorTheme) => {
+    if (!currentUser || currentUser.isPrototype || !supabase) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        theme_mode: nextThemeMode,
+        color_theme: nextColorTheme,
+      })
+      .eq('id', currentUser.id);
+
+    if (error) {
+      setBackendStatus(`테마 설정은 이 기기에 저장됨: ${error.message}`);
+    }
+  };
+
+  const changeThemeMode = (mode: ThemeMode) => {
+    setThemeMode(mode);
+    void persistThemePreferences(mode, colorTheme);
+  };
+
+  const changeColorTheme = (nextColorTheme: ColorTheme) => {
+    setColorTheme(nextColorTheme);
+    void persistThemePreferences(themeMode, nextColorTheme);
+  };
+
   if (!authReady) {
     return (
       <div className="auth-shell">
@@ -3124,7 +3198,7 @@ function App() {
     return (
       <LoginScreen
         themeMode={themeMode}
-        onThemeChange={setThemeMode}
+        onThemeChange={changeThemeMode}
         onPrototypeLogin={handlePrototypeLogin}
       />
     );
@@ -3142,7 +3216,7 @@ function App() {
     onNavigate: navigateTo,
     onOpenProfile: () => setProfileOpen(true),
     onRegisterPush: handleRegisterPush,
-    onThemeChange: setThemeMode,
+    onThemeChange: changeThemeMode,
   };
   const isImmersiveView = ['project', 'reports', 'allTasks', 'inbox', 'sent', 'clients', 'operations', 'calendar'].includes(activeView);
 
@@ -3227,7 +3301,7 @@ function App() {
           onNavigate={navigateTo}
           onOpenProfile={() => setProfileOpen(true)}
           onRegisterPush={handleRegisterPush}
-          onThemeChange={setThemeMode}
+          onThemeChange={changeThemeMode}
           onMenuClick={() => setSidebarOpen(true)}
         />
 
@@ -3314,7 +3388,7 @@ function App() {
             onOpenProfile={() => setProfileOpen(true)}
             onOpenProject={openProject}
             onRegisterPush={handleRegisterPush}
-            onThemeChange={setThemeMode}
+            onThemeChange={changeThemeMode}
             onTrashProject={(project) => updateProjectStatus(project, 'deleted')}
             onUpdateTaskStatus={updateTaskStatus}
           />
@@ -3377,7 +3451,9 @@ function App() {
             onSaveGoogleCalendarSettings={saveGoogleCalendarSettings}
             onUpdatePushPreferences={updatePushPreferences}
             onUpdateOwnProfile={updateOwnProfile}
-            onThemeChange={setThemeMode}
+            colorTheme={colorTheme}
+            onColorThemeChange={changeColorTheme}
+            onThemeChange={changeThemeMode}
           />
         ) : null}
       </main>
@@ -4085,6 +4161,30 @@ function ThemeSwitcher({ value, onChange }: { value: ThemeMode; onChange: (mode:
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function ColorThemePicker({ value, onChange }: { value: ColorTheme; onChange: (theme: ColorTheme) => void }) {
+  return (
+    <div className="color-theme-picker" aria-label="컬러 테마">
+      {colorThemeOptions.map((option) => (
+        <button
+          className="color-theme-option"
+          data-active={value === option.value}
+          key={option.value}
+          onClick={() => onChange(option.value)}
+          type="button"
+        >
+          <span className="color-theme-swatches" aria-hidden="true">
+            {option.swatches.map((swatch) => (
+              <i key={swatch} style={{ backgroundColor: swatch }} />
+            ))}
+          </span>
+          <strong>{option.label}</strong>
+          <small>{option.description}</small>
+        </button>
+      ))}
     </div>
   );
 }
@@ -7597,6 +7697,7 @@ function SettingsPage({
   appInstalled,
   canPromptInstall,
   themeMode,
+  colorTheme,
   onRegisterPush,
   onInstallApp,
   onAddJobType,
@@ -7606,6 +7707,7 @@ function SettingsPage({
   onSaveGoogleCalendarSettings,
   onUpdatePushPreferences,
   onUpdateOwnProfile,
+  onColorThemeChange,
   onThemeChange,
 }: {
   backendStatus: string;
@@ -7622,6 +7724,7 @@ function SettingsPage({
   appInstalled: boolean;
   canPromptInstall: boolean;
   themeMode: ThemeMode;
+  colorTheme: ColorTheme;
   onRegisterPush: () => void;
   onInstallApp: () => void;
   onAddJobType: JobTypeSubmitHandler;
@@ -7631,6 +7734,7 @@ function SettingsPage({
   onSaveGoogleCalendarSettings: GoogleCalendarSettingsHandler;
   onUpdatePushPreferences: PushPreferencesUpdateHandler;
   onUpdateOwnProfile: (updates: OwnProfileUpdate) => Promise<string>;
+  onColorThemeChange: (theme: ColorTheme) => void;
   onThemeChange: (mode: ThemeMode) => void;
 }) {
   const currentEmployee = employees.find((employee) => employee.id === currentUser.id);
@@ -7734,8 +7838,9 @@ function SettingsPage({
         <div className="settings-side">
           <div className="page-card settings-card">
             <h2>테마</h2>
-            <p>업무 영역은 라이트/다크/시스템 설정을 따르고, 사이드바는 Plander 블랙을 유지합니다.</p>
+            <p>화면 모드와 컬러 테마를 사용자별로 저장합니다. 기본 테마의 다크가 플랜더 블랙, 라이트가 모노화이트입니다.</p>
             <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
+            <ColorThemePicker value={colorTheme} onChange={onColorThemeChange} />
           </div>
           <div className="page-card settings-card">
             <h2>앱 설치</h2>
