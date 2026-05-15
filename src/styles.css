@@ -381,7 +381,7 @@ button:disabled {
 
 .sidebar-create-split {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   margin-bottom: 4px;
 }
@@ -896,6 +896,12 @@ h1 {
   border-radius: 8px;
   background: var(--panel);
   box-shadow: var(--shadow);
+}
+
+.dashboard-stack {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
 }
 
 .dashboard-flow {
@@ -1442,6 +1448,10 @@ h1 {
   gap: 10px;
 }
 
+.team-panel .people-list {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .person-row {
   display: flex;
   align-items: center;
@@ -1493,6 +1503,10 @@ h1 {
 
 .project-page-head {
   align-items: flex-start;
+}
+
+.project-page-head > .primary-action {
+  margin-left: auto;
 }
 
 .project-title-row {
@@ -1836,6 +1850,11 @@ h1 {
 .calendar-task-pill[data-kind='구독/정산관리'],
 .calendar-range-pill[data-kind='구독/정산관리'] {
   box-shadow: inset 3px 0 0 #d69731;
+}
+
+.calendar-task-pill[data-kind='업무 스케줄'],
+.calendar-range-pill[data-kind='업무 스케줄'] {
+  box-shadow: inset 3px 0 0 #36a878;
 }
 
 .month-cell button span,
@@ -3119,6 +3138,10 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .team-panel .people-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .split-layout,
   .split-layout.wide-left,
   .settings-layout {
@@ -3342,6 +3365,10 @@ h1 {
   }
 
   .dashboard-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .team-panel .people-list {
     grid-template-columns: 1fr;
   }
 

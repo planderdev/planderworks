@@ -239,6 +239,21 @@ type OperationDraft = Omit<OperationItem, 'id' | 'lastCompletedAt'> & {
 type GoogleCalendarSettings = {
   calendarId: string;
 };
+type WorkSchedule = {
+  id: string;
+  title: string;
+  startAt: string;
+  endAt: string;
+  memo: string;
+  createdBy: string;
+  creatorName: string;
+};
+type WorkScheduleDraft = {
+  title: string;
+  startAt: string;
+  endAt: string;
+  memo: string;
+};
 type CalendarEventItem = {
   id: string;
   title: string;
@@ -269,6 +284,7 @@ type ClientDeleteHandler = (client: Client) => Promise<string>;
 type ProjectDraft = { name: string; clientId: string; memberIds: string[] };
 type ProjectSubmitHandler = (project: ProjectDraft) => Promise<string>;
 type ProjectUpdateHandler = (projectId: string, project: ProjectDraft) => Promise<string>;
+type WorkScheduleSubmitHandler = (schedule: WorkScheduleDraft) => Promise<string>;
 type JobTypeSubmitHandler = (name: string) => Promise<string>;
 type JobTypeDeleteHandler = (name: string) => Promise<string>;
 type TaskTypeSubmitHandler = (name: string) => Promise<string>;
@@ -942,6 +958,7 @@ function App() {
   const [clients, setClients] = useState<Client[]>(seedClients);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectMessages, setProjectMessages] = useState<ProjectMessage[]>([]);
+  const [workSchedules, setWorkSchedules] = useState<WorkSchedule[]>([]);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
   const [googleCalendarSettings, setGoogleCalendarSettings] = useState<GoogleCalendarSettings>(getInitialGoogleCalendarSettings);
@@ -1081,6 +1098,7 @@ function App() {
       projectMembersResult,
       projectMessagesResult,
       projectMessageReadsResult,
+      workSchedulesResult,
       pushPreferencesResult,
       tasksResult,
       commentsResult,
@@ -1119,6 +1137,10 @@ function App() {
         .from('project_message_reads')
         .select('message_id, user_id, read_at, user:profiles!project_message_reads_user_id_fkey(name, avatar_url)')
         .order('read_at', { ascending: true }),
+      supabase
+        .from('calendar_schedules')
+        .select('id, title, start_at, end_at, memo, created_by, creator:profiles!calendar_schedules_created_by_fkey(name)')
+        .order('start_at', { ascending: true }),
       supabase
         .from('push_preferences')
         .select('task_enabled, report_enabled, project_message_enabled')
@@ -1164,6 +1186,7 @@ function App() {
       projectMembersResult.error ||
       projectMessagesResult.error ||
       projectMessageReadsResult.error ||
+      workSchedulesResult.error ||
       pushPreferencesResult.error ||
       tasksResult.error ||
       commentsResult.error
@@ -1317,6 +1340,15 @@ function App() {
       readByIds: messageReadsByMessage[message.id]?.ids || [],
       readBy: messageReadsByMessage[message.id]?.names || [],
     }));
+    const nextWorkSchedules: WorkSchedule[] = ((workSchedulesResult.data || []) as any[]).map((schedule) => ({
+      id: schedule.id,
+      title: schedule.title,
+      startAt: schedule.start_at,
+      endAt: schedule.end_at,
+      memo: schedule.memo || '',
+      createdBy: schedule.created_by,
+      creatorName: schedule.creator?.name || '알 수 없음',
+    }));
     const nextPushPreferences = pushPreferencesResult.data
       ? {
           task: Boolean((pushPreferencesResult.data as any).task_enabled),
@@ -1333,6 +1365,7 @@ function App() {
     setClients(nextClients);
     setProjects(nextProjects);
     setProjectMessages(nextProjectMessages);
+    setWorkSchedules(nextWorkSchedules);
     setPushPreferences(nextPushPreferences);
     setJobTypes(nextJobTypes.length ? nextJobTypes : seedJobTypes);
     setTaskTypes(nextTaskTypes.length ? nextTaskTypes : fallbackTaskTypes);
@@ -1364,6 +1397,7 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_members' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_messages' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_message_reads' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_schedules' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'push_preferences' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, queueRefresh)
       .subscribe();
@@ -1847,6 +1881,15 @@ function App() {
     return `업무 1건을 ${prototypeAssignees.length}명에게 전송했습니다.`;
   };
 
+  const createProjectTask = async (task: TaskDraft): Promise<string> => {
+    const message = await createTask(task);
+    if (!message.includes('실패') && task.projectId) {
+      setSelectedProjectId(task.projectId);
+      setActiveView('project');
+    }
+    return message;
+  };
+
   const addClient = async (client: Omit<Client, 'id'>): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { error } = await supabase.from('clients').insert({
@@ -2115,6 +2158,49 @@ function App() {
     };
     setProjectMessages((current) => [...current, nextMessage]);
     return '메시지가 등록되었습니다.';
+  };
+
+  const addWorkSchedule: WorkScheduleSubmitHandler = async (schedule) => {
+    const title = schedule.title.trim();
+    const memo = schedule.memo.trim();
+    const startDate = parseDateTimeLocalValue(schedule.startAt);
+    const endDate = parseDateTimeLocalValue(schedule.endAt);
+
+    if (!title) return '스케줄 제목을 입력해주세요.';
+    if (!startDate || !endDate) return '시작일과 종료일을 선택해주세요.';
+    if (endDate.getTime() < startDate.getTime()) return '종료일은 시작일보다 늦게 선택해주세요.';
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('calendar_schedules').insert({
+        title,
+        start_at: startDate.toISOString(),
+        end_at: endDate.toISOString(),
+        memo,
+        created_by: currentUser.id,
+      });
+
+      if (error) {
+        const message = `스케줄 저장 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      setBackendStatus('스케줄이 추가되었습니다.');
+      return '스케줄이 추가되었습니다.';
+    }
+
+    const nextSchedule: WorkSchedule = {
+      id: `${Date.now()}`,
+      title,
+      startAt: startDate.toISOString(),
+      endAt: endDate.toISOString(),
+      memo,
+      createdBy: currentUser?.id || 'prototype',
+      creatorName: currentUser?.name || '나',
+    };
+    setWorkSchedules((current) => [...current, nextSchedule].sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()));
+    return '스케줄이 추가되었습니다.';
   };
 
   const markProjectMessagesRead = async (messageIds: string[]) => {
@@ -2944,11 +3030,16 @@ function App() {
         ) : null}
         {activeView === 'project' ? (
           <ProjectPage
+            clients={clients}
             currentUser={currentUser}
+            employees={employees}
             messages={selectedProjectMessages}
             project={selectedProject}
+            projects={projects}
+            taskTypes={taskTypes}
             tasks={selectedProjectTasks}
             onAddMessage={addProjectMessage}
+            onCreateTask={createProjectTask}
             onDeleteTask={deleteTask}
             onEditProject={(projectId) => setEditingProjectId(projectId)}
             onMarkMessagesRead={markProjectMessagesRead}
@@ -2961,6 +3052,8 @@ function App() {
             currentUser={currentUser}
             googleCalendarSettings={googleCalendarSettings}
             operations={isAdmin ? operations : []}
+            schedules={workSchedules}
+            onAddSchedule={addWorkSchedule}
             onOpenOperations={() => navigateTo('operations')}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
             tasks={tasks}
@@ -3339,10 +3432,6 @@ function Sidebar({
           <button className="create-split-button" onClick={onCreateProject} type="button">
             <FolderKanban size={16} />
             <span>프로젝트 생성</span>
-          </button>
-          <button className="create-split-button" data-active={activeView === 'create'} onClick={() => onNavigate('create')} type="button">
-            <Plus size={16} />
-            <span>업무 생성</span>
           </button>
         </div>
         {primaryNavItems
@@ -4074,16 +4163,14 @@ function Dashboard({
         ))}
       </section>
 
-      <section className="content-grid dashboard-content-grid">
+      <section className="dashboard-stack">
         <div className="dashboard-flow">
           <DashboardTaskSection title="받은 업무" eyebrow="Inbox" tone="blue" tasks={tasks} target="inbox" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
           <DashboardTaskSection title="보낸 업무" eyebrow="Sent" tasks={sentTasks} target="sent" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
           <DashboardTaskSection title="보고·제안" eyebrow="Reports" tone="amber" tasks={reportTasks} target="reports" onNavigate={onNavigate} onOpenTask={onOpenTask} currentUser={currentUser} />
           <DashboardClientSection clients={clients} onNavigate={() => onNavigate('clients')} />
         </div>
-        <aside className="side-panel">
-          <TeamLoad employees={employees} />
-        </aside>
+        <TeamLoad employees={employees} />
       </section>
     </>
   );
@@ -4237,22 +4324,32 @@ function TaskListPage({
 }
 
 function ProjectPage({
+  clients,
   currentUser,
+  employees,
   messages,
   project,
+  projects,
+  taskTypes,
   tasks,
   onAddMessage,
+  onCreateTask,
   onDeleteTask,
   onEditProject,
   onMarkMessagesRead,
   onOpenTask,
   onUpdateTaskStatus,
 }: {
+  clients: Client[];
   currentUser: AppUser;
+  employees: Employee[];
   messages: ProjectMessage[];
   project: Project | null;
+  projects: Project[];
+  taskTypes: string[];
   tasks: Task[];
   onAddMessage: (projectId: string, content: string) => Promise<string>;
+  onCreateTask: TaskSubmitHandler;
   onDeleteTask: TaskDeleteHandler;
   onEditProject: (projectId: string) => void;
   onMarkMessagesRead: (messageIds: string[]) => Promise<void>;
@@ -4263,10 +4360,14 @@ function ProjectPage({
   const [message, setMessage] = useState('');
   const [messageStatus, setMessageStatus] = useState('');
   const [messageLoading, setMessageLoading] = useState(false);
+  const [taskCreateOpen, setTaskCreateOpen] = useState(false);
   const messageListRef = useRef<HTMLDivElement>(null);
   const messageRows = Math.min(5, Math.max(1, message.split('\n').length));
   const latestMessageId = messages[messages.length - 1]?.id;
   const canEditProject = Boolean(project && (currentUser.accountRole === 'admin' || project.createdBy === currentUser.id || currentUser.isPrototype));
+  const projectEmployees = project?.memberIds.length
+    ? employees.filter((employee) => project.memberIds.includes(employee.id))
+    : employees;
 
   useEffect(() => {
     const list = messageListRef.current;
@@ -4331,7 +4432,38 @@ function ProjectPage({
             </p>
           ) : null}
         </div>
+        {project ? (
+          <button className="primary-action" onClick={() => setTaskCreateOpen(true)} type="button">
+            <Plus size={17} />
+            업무 생성
+          </button>
+        ) : null}
       </div>
+
+      {project && taskCreateOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setTaskCreateOpen(false)}>
+          <article className="modal-card task-create-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">New Task</p>
+                <h2>{project.name} 업무 생성</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setTaskCreateOpen(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <TaskForm
+              clients={clients}
+              employees={projectEmployees.length ? projectEmployees : employees}
+              fixedProjectId={project.id}
+              onSubmit={onCreateTask}
+              onSuccess={() => setTaskCreateOpen(false)}
+              projects={projects}
+              taskTypes={taskTypes}
+            />
+          </article>
+        </div>
+      ) : null}
 
       <div className="project-detail-grid">
         <div className="task-board list-surface">
@@ -4487,6 +4619,8 @@ function CalendarPage({
   googleCalendarSettings,
   tasks,
   operations,
+  schedules,
+  onAddSchedule,
   onOpenTask,
   onOpenOperations,
 }: {
@@ -4494,11 +4628,14 @@ function CalendarPage({
   googleCalendarSettings: GoogleCalendarSettings;
   tasks: Task[];
   operations: OperationItem[];
+  schedules: WorkSchedule[];
+  onAddSchedule: WorkScheduleSubmitHandler;
   onOpenTask: (task: Task) => void;
   onOpenOperations: () => void;
 }) {
   const [mode, setMode] = useState<'일' | '주' | '월'>('월');
   const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const [scheduleCreateOpen, setScheduleCreateOpen] = useState(false);
   const [googleSyncLoading, setGoogleSyncLoading] = useState(false);
   const [googleSyncStatus, setGoogleSyncStatus] = useState('');
   const calendarTasks = tasks.filter((task) =>
@@ -4527,6 +4664,27 @@ function CalendarPage({
         : null;
     })
     .filter((item): item is CalendarEventItem => Boolean(item));
+  const scheduleCalendarEvents = schedules
+    .map((schedule) => {
+      const startDate = parseTaskDate(schedule.startAt);
+      const endDate = parseTaskDate(schedule.endAt);
+      if (!startDate || !endDate) return null;
+      const rangeEnd = endDate.getTime() >= startDate.getTime() ? endDate : startDate;
+
+      return {
+        id: `schedule-${schedule.id}`,
+        title: schedule.title,
+        start: startDate,
+        end: rangeEnd,
+        days: Math.max(1, diffCalendarDays(startDate, rangeEnd) + 1),
+        kind: '업무 스케줄',
+        description: `${schedule.memo || '메모 없음'}\n작성: ${schedule.creatorName}`,
+        sourceUrl: `${window.location.origin}/#calendar`,
+        allDay: false,
+        onClick: () => showActionPopup(`${schedule.title}${schedule.memo ? ` · ${schedule.memo}` : ''}`),
+      };
+    })
+    .filter((item): item is CalendarEventItem => Boolean(item));
   const operationCalendarEvents = operations
     .filter((item) => item.active)
     .map((item) => {
@@ -4547,7 +4705,7 @@ function CalendarPage({
         : null;
     })
     .filter((item): item is CalendarEventItem => Boolean(item));
-  const calendarEvents = [...taskCalendarEvents, ...operationCalendarEvents]
+  const calendarEvents = [...taskCalendarEvents, ...scheduleCalendarEvents, ...operationCalendarEvents]
     .sort((a, b) => a.start.getTime() - b.start.getTime());
   const monthStart = new Date(anchorDate.getFullYear(), anchorDate.getMonth(), 1);
   const monthEnd = new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, 0);
@@ -4624,6 +4782,10 @@ function CalendarPage({
           <p className="calendar-current-date">{currentDateLabel}</p>
         </div>
         <div className="calendar-controls">
+          <button className="primary-action" onClick={() => setScheduleCreateOpen(true)} type="button">
+            <Plus size={16} />
+            스케줄 추가
+          </button>
           {currentUser.accountRole === 'admin' ? (
             <button className="primary-action calendar-sync-button" disabled={googleSyncLoading || !calendarEvents.length} onClick={syncGoogleCalendar} type="button">
               <SendHorizontal size={16} />
@@ -4646,6 +4808,12 @@ function CalendarPage({
         </div>
       </div>
       {googleSyncStatus ? <p className="calendar-sync-status">{googleSyncStatus}</p> : null}
+      {scheduleCreateOpen ? (
+        <ScheduleCreateModal
+          onAddSchedule={onAddSchedule}
+          onClose={() => setScheduleCreateOpen(false)}
+        />
+      ) : null}
 
       <div className="page-card calendar-panel" data-mode={mode}>
         {mode === '월' ? (
@@ -4755,6 +4923,83 @@ function CalendarPage({
         )}
       </div>
     </section>
+  );
+}
+
+function ScheduleCreateModal({
+  onAddSchedule,
+  onClose,
+}: {
+  onAddSchedule: WorkScheduleSubmitHandler;
+  onClose: () => void;
+}) {
+  const defaultStart = toDateTimeLocalValue(new Date());
+  const defaultEndDate = new Date();
+  defaultEndDate.setHours(defaultEndDate.getHours() + 1);
+  const [form, setForm] = useState({
+    title: '',
+    startAt: defaultStart,
+    endAt: toDateTimeLocalValue(defaultEndDate),
+    memo: '',
+  });
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (loading) return;
+    if (!form.title.trim() || !form.startAt || !form.endAt) {
+      setStatus('제목, 시작일, 종료일을 입력해주세요.');
+      return;
+    }
+    if (!(await requestActionConfirm('스케줄을 추가하시겠습니까?'))) return;
+
+    setLoading(true);
+    setStatus('저장중입니다.');
+    const message = await onAddSchedule(form);
+    setLoading(false);
+    setStatus(message);
+    showActionPopup(message);
+    if (!message.includes('실패') && !message.includes('입력') && !message.includes('선택')) {
+      onClose();
+    }
+  };
+
+  return (
+    <div className="modal-backdrop" role="presentation" onClick={onClose}>
+      <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
+        <div className="modal-head">
+          <div>
+            <p className="eyebrow">Schedule</p>
+            <h2>스케줄 추가</h2>
+          </div>
+          <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
+            <X size={18} />
+          </button>
+        </div>
+        <label>
+          제목
+          <input autoFocus required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
+        </label>
+        <label>
+          시작일
+          <DateTimeConfirmField value={form.startAt} onChange={(startAt) => setForm({ ...form, startAt })} />
+        </label>
+        <label>
+          종료일
+          <DateTimeConfirmField value={form.endAt} onChange={(endAt) => setForm({ ...form, endAt })} />
+        </label>
+        <label>
+          메모
+          <textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
+        </label>
+        {status ? <p className="admin-note">{status}</p> : null}
+        <button className="primary-action wide" disabled={loading} type="submit">
+          <Plus size={17} />
+          {loading ? '진행중...' : '스케줄 추가'}
+        </button>
+      </form>
+    </div>
   );
 }
 
@@ -6433,22 +6678,26 @@ function SimpleTypeModal({
 function TaskForm({
   clients,
   employees,
+  fixedProjectId,
   projects,
   taskTypes,
   onSubmit,
+  onSuccess,
 }: {
   clients: Client[];
   employees: Employee[];
+  fixedProjectId?: string;
   projects: Project[];
   taskTypes: string[];
   onSubmit: TaskSubmitHandler;
+  onSuccess?: () => void;
 }) {
   const typeOptions = taskTypes.length ? taskTypes : fallbackTaskTypes;
   const [form, setForm] = useState({
     type: typeOptions[0] as TaskType,
     title: '',
     toIds: employees[1]?.id ? [employees[1].id] : [],
-    projectId: projects[0]?.id || '',
+    projectId: fixedProjectId || projects[0]?.id || '',
     due: '',
     priority: '보통' as Priority,
     summary: '',
@@ -6468,10 +6717,11 @@ function TaskForm({
 
   useEffect(() => {
     setForm((current) => {
+      if (fixedProjectId) return { ...current, projectId: fixedProjectId };
       if (current.projectId && projects.some((project) => project.id === current.projectId)) return current;
       return { ...current, projectId: projects[0]?.id || '' };
     });
-  }, [projects]);
+  }, [fixedProjectId, projects]);
 
   useEffect(() => {
     setForm((current) => (typeOptions.includes(current.type) ? current : { ...current, type: typeOptions[0] || '업무 요청' }));
@@ -6548,6 +6798,7 @@ function TaskForm({
     if (!message.includes('실패')) {
       setForm({ ...form, title: '', summary: '' });
       setFiles([]);
+      onSuccess?.();
     }
   };
 
@@ -6575,17 +6826,19 @@ function TaskForm({
           ))}
         </div>
       </label>
-      <label>
-        프로젝트
-        <select required value={form.projectId} onChange={(event) => setForm({ ...form, projectId: event.target.value })}>
-          <option value="">프로젝트 선택</option>
-          {projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name} · {project.client}
-            </option>
-          ))}
-        </select>
-      </label>
+      {!fixedProjectId ? (
+        <label>
+          프로젝트
+          <select required value={form.projectId} onChange={(event) => setForm({ ...form, projectId: event.target.value })}>
+            <option value="">프로젝트 선택</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name} · {project.client}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
       <label>
         마감기한
         <DateTimeConfirmField value={form.due} onChange={(due) => setForm({ ...form, due })} />
