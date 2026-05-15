@@ -3031,6 +3031,7 @@ function App() {
       <TaskDetailModal
         task={selectedTask}
         currentUser={currentUser}
+        employees={employees}
         onAddComment={addTaskComment}
         onClose={() => setSelectedTaskId(null)}
         onDeleteComment={deleteTaskComment}
@@ -3656,6 +3657,7 @@ function ConfirmPopup({
 function TaskDetailModal({
   task,
   currentUser,
+  employees,
   onAddComment,
   onClose,
   onDeleteComment,
@@ -3665,6 +3667,7 @@ function TaskDetailModal({
 }: {
   task: Task | null;
   currentUser: AppUser;
+  employees: Employee[];
   onAddComment: TaskCommentSubmitHandler;
   onClose: () => void;
   onDeleteComment: TaskCommentDeleteHandler;
@@ -3704,6 +3707,10 @@ function TaskDetailModal({
 
   const rootComments = task.comments.filter((item) => !item.parentId);
   const getReplies = (commentId: string) => task.comments.filter((item) => item.parentId === commentId);
+  const recipients = (task.watchers.length ? task.watchers : task.to.split(', ')).map((name) => name.trim()).filter(Boolean);
+  const getRecipientAvatarUrl = (name: string) =>
+    employees.find((employee) => employee.name === name)?.avatarUrl ||
+    (recipients.length === 1 ? task.assigneeAvatarUrl : null);
   const canEdit =
     currentUser.accountRole === 'admin' ||
     task.creatorId === currentUser.id ||
@@ -3820,8 +3827,14 @@ function TaskDetailModal({
           </span>
           <span>
             받는 사람:
-            <Avatar name={task.to} src={task.assigneeAvatarUrl} size="xs" />
-            {task.to}
+            <span className="task-detail-recipient-list">
+              {recipients.map((recipient) => (
+                <span className="task-detail-person" key={recipient}>
+                  <Avatar name={recipient} src={getRecipientAvatarUrl(recipient)} size="xs" />
+                  {recipient}
+                </span>
+              ))}
+            </span>
             <strong className="read-badge" data-read={getTaskReadLabel(task)}>{getTaskReadLabel(task)}</strong>
           </span>
           <span>관련 업체: {task.client}</span>
