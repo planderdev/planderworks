@@ -3659,7 +3659,7 @@ h1 {
 
 .reports-mode-shell .report-task-list {
   align-items: start;
-  grid-template-columns: repeat(2, minmax(360px, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .reports-mode-shell .task-card {
@@ -3700,6 +3700,20 @@ h1 {
 .report-compose-card {
   border-color: var(--project-line);
   background: rgba(255, 255, 255, 0.72);
+}
+
+.all-tasks-task-board .project-task-list,
+.reports-task-board .project-task-list {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.project-mode-shell .page-card,
+.project-mode-shell .task-board.list-surface,
+.project-mode-shell .operations-urgent-panel,
+.project-mode-shell .calendar-panel {
+  border-color: var(--project-line);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
 }
 
 .project-folder-tabs button[data-active='true'] {
@@ -4550,7 +4564,7 @@ h1 {
   }
 
   .report-task-list {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .client-grid {

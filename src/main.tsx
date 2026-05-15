@@ -3130,6 +3130,20 @@ function App() {
   }
 
   const isAdmin = currentUser.accountRole === 'admin';
+  const immersiveChromeProps = {
+    currentUser,
+    pushEnabled,
+    pushLoading,
+    pushStatus,
+    themeMode,
+    onLogout: handleLogout,
+    onMenuClick: () => setSidebarOpen(true),
+    onNavigate: navigateTo,
+    onOpenProfile: () => setProfileOpen(true),
+    onRegisterPush: handleRegisterPush,
+    onThemeChange: setThemeMode,
+  };
+  const isImmersiveView = ['project', 'reports', 'allTasks', 'inbox', 'sent', 'clients', 'operations', 'calendar'].includes(activeView);
 
   return (
     <div className="app">
@@ -3194,7 +3208,7 @@ function App() {
 
       <main
         className="workspace"
-        data-immersive={activeView === 'project' || activeView === 'reports'}
+        data-immersive={isImmersiveView}
         data-swiping={swipeOffset !== 0}
         onTouchStart={handleWorkspaceTouchStart}
         onTouchMove={handleWorkspaceTouchMove}
@@ -3230,35 +3244,41 @@ function App() {
           />
         ) : null}
         {activeView === 'inbox' ? (
-          <TaskListPage title="받은 업무" initialStatus={taskListFilters.inbox || '전체'} tasks={inboxTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage {...immersiveChromeProps} title="받은 업무" initialStatus={taskListFilters.inbox || '전체'} tasks={inboxTasks} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'sent' ? (
-          <TaskListPage title="보낸 업무" initialStatus={taskListFilters.sent || '전체'} tasks={sentTasks} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage {...immersiveChromeProps} title="보낸 업무" initialStatus={taskListFilters.sent || '전체'} tasks={sentTasks} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} projects={projects} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
           <ReportsPage
+            {...immersiveChromeProps}
             tasks={reportTasks}
             employees={employees}
-            currentUser={currentUser}
-            pushEnabled={pushEnabled}
-            pushLoading={pushLoading}
-            pushStatus={pushStatus}
-            themeMode={themeMode}
-            onLogout={handleLogout}
-            onMenuClick={() => setSidebarOpen(true)}
-            onNavigate={navigateTo}
-            onOpenProfile={() => setProfileOpen(true)}
-            onRegisterPush={handleRegisterPush}
-            onThemeChange={setThemeMode}
-            onOpenTask={(task) => setSelectedTaskId(task.id)}
+            onAddComment={addTaskComment}
             onCreateTask={createTask}
+            onDeleteComment={deleteTaskComment}
             onDeleteTask={deleteTask}
+            onDownloadFile={openTaskFile}
+            onEditTask={(task) => setEditingTaskId(task.id)}
             onUpdateTaskStatus={updateTaskStatus}
           />
         ) : null}
         {activeView === 'allTasks' ? (
-          <TaskListPage title="전체 업무보기" initialStatus={taskListFilters.allTasks || '전체'} tasks={visibleTasks} employees={employees} currentUser={currentUser} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage
+            {...immersiveChromeProps}
+            title="전체 업무보기"
+            initialStatus={taskListFilters.allTasks || '전체'}
+            tasks={visibleTasks}
+            employees={employees}
+            onAddComment={addTaskComment}
+            onDeleteComment={deleteTaskComment}
+            onDownloadFile={openTaskFile}
+            onEditTask={(task) => setEditingTaskId(task.id)}
+            onOpenTask={(task) => setSelectedTaskId(task.id)}
+            onDeleteTask={deleteTask}
+            onUpdateTaskStatus={updateTaskStatus}
+          />
         ) : null}
         {activeView === 'project' ? (
           <ProjectPage
@@ -3297,7 +3317,7 @@ function App() {
         ) : null}
         {activeView === 'calendar' ? (
           <CalendarPage
-            currentUser={currentUser}
+            {...immersiveChromeProps}
             googleCalendarSettings={googleCalendarSettings}
             operations={isAdmin ? operations : []}
             schedules={workSchedules}
@@ -3307,7 +3327,7 @@ function App() {
             tasks={tasks}
           />
         ) : null}
-        {activeView === 'clients' ? <ClientsPage clients={clients} employees={employees} onAddClient={addClient} onDeleteClient={deleteClient} onUpdateClient={updateClient} /> : null}
+        {activeView === 'clients' ? <ClientsPage {...immersiveChromeProps} clients={clients} employees={employees} onAddClient={addClient} onDeleteClient={deleteClient} onUpdateClient={updateClient} /> : null}
         {activeView === 'employees' && isAdmin ? (
           <EmployeesPage
             currentUser={currentUser}
@@ -3319,6 +3339,7 @@ function App() {
         ) : null}
         {activeView === 'operations' && isAdmin ? (
           <OperationsPage
+            {...immersiveChromeProps}
             employees={employees}
             items={operations}
             onAddOperation={addOperation}
@@ -4159,6 +4180,75 @@ function ImmersiveTopControls({
   );
 }
 
+type ImmersiveChromeProps = {
+  currentUser: AppUser;
+  pushEnabled: boolean;
+  pushLoading: boolean;
+  pushStatus: string;
+  themeMode: ThemeMode;
+  onLogout: () => void;
+  onMenuClick: () => void;
+  onNavigate: (view: ActiveView) => void;
+  onOpenProfile: () => void;
+  onRegisterPush: () => void;
+  onThemeChange: (mode: ThemeMode) => void;
+};
+
+function ImmersivePageFrame({
+  action,
+  children,
+  className = '',
+  folderIcon: FolderIcon,
+  folderLabel,
+  heading,
+  searchLabel,
+  searchPlaceholder,
+  subheading,
+  ...chrome
+}: ImmersiveChromeProps & {
+  action?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+  folderIcon: React.ElementType;
+  folderLabel: string;
+  heading: string;
+  searchLabel: string;
+  searchPlaceholder: string;
+  subheading?: React.ReactNode;
+}) {
+  return (
+    <section className={`page-shell project-mode-shell ${className}`.trim()}>
+      <div className="project-folder-tabs" role="tablist" aria-label={folderLabel}>
+        <button aria-selected="true" data-active="true" role="tab" type="button">
+          <FolderIcon size={19} />
+          <span>{folderLabel}</span>
+          <X size={15} />
+        </button>
+      </div>
+
+      <div className="project-mode-canvas">
+        <ImmersiveTopControls
+          {...chrome}
+          searchLabel={searchLabel}
+          searchPlaceholder={searchPlaceholder}
+        />
+
+        <div className="page-head project-page-head project-mode-head">
+          <div>
+            <div className="project-title-row">
+              <h1 className="project-current-name">{heading}</h1>
+            </div>
+            {subheading ? <p>{subheading}</p> : null}
+          </div>
+          {action}
+        </div>
+
+        {children}
+      </div>
+    </section>
+  );
+}
+
 function CompletionPopup({ message, onClose }: { message: string; onClose: () => void }) {
   useEffect(() => {
     if (!message) return;
@@ -4741,31 +4831,53 @@ function DashboardClientSection({ clients, onNavigate }: { clients: Client[]; on
 }
 
 function TaskListPage({
+  currentUser,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
+  themeMode,
   title,
   initialStatus,
   tasks,
   employees = [],
-  currentUser,
+  onLogout,
+  onMenuClick,
+  onNavigate,
+  onOpenProfile,
+  onRegisterPush,
+  onThemeChange,
+  onAddComment,
+  onDeleteComment,
+  onDownloadFile,
+  onEditTask,
   onOpenTask,
   onDeleteTask,
   onUpdateTaskStatus,
-}: {
+}: ImmersiveChromeProps & {
   title: string;
   initialStatus: TaskListFilter;
   tasks: Task[];
   employees?: Employee[];
-  currentUser: AppUser;
+  onAddComment?: TaskCommentSubmitHandler;
+  onDeleteComment?: TaskCommentDeleteHandler;
+  onDownloadFile?: (file: TaskFile) => void;
+  onEditTask?: (task: Task) => void;
   onOpenTask: (task: Task) => void;
   onDeleteTask: TaskDeleteHandler;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const [status, setStatus] = useState<TaskListFilter>(initialStatus);
   const [employeeId, setEmployeeId] = useState('전체');
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   const statusFilteredTasks = status === '전체' ? tasks : tasks.filter((task) => task.status === status);
   const filteredTasks =
     !employees.length || employeeId === '전체'
       ? statusFilteredTasks
       : statusFilteredTasks.filter((task) => task.creatorId === employeeId || getTaskRecipientIds(task).includes(employeeId));
+  const useInlineDetail = Boolean(onAddComment && onDeleteComment && onDownloadFile && onEditTask);
+  const toggleFocusedTask = (taskId: string) => {
+    setFocusedTaskId((current) => (current === taskId ? null : taskId));
+  };
 
   useEffect(() => {
     setStatus(initialStatus);
@@ -4776,12 +4888,26 @@ function TaskListPage({
   }, [employees.length]);
 
   return (
-    <section className="page-shell">
-      <div className="page-head">
-        <div>
-          <p className="eyebrow">Tasks</p>
-          <h1>{title}</h1>
-        </div>
+    <ImmersivePageFrame
+      className="all-tasks-mode-shell"
+      currentUser={currentUser}
+      folderIcon={FileText}
+      folderLabel={title}
+      heading={title}
+      pushEnabled={pushEnabled}
+      pushLoading={pushLoading}
+      pushStatus={pushStatus}
+      searchLabel={`${title} 검색`}
+      searchPlaceholder="업무, 프로젝트, 담당자 검색"
+      subheading={`조건에 맞는 업무 ${filteredTasks.length}건 · 전체 ${tasks.length}건`}
+      themeMode={themeMode}
+      onLogout={onLogout}
+      onMenuClick={onMenuClick}
+      onNavigate={onNavigate}
+      onOpenProfile={onOpenProfile}
+      onRegisterPush={onRegisterPush}
+      onThemeChange={onThemeChange}
+    >
         <div className="filters">
           {employees.length ? (
             <select className="task-person-filter" value={employeeId} onChange={(event) => setEmployeeId(event.target.value)} aria-label="직원별 업무 필터">
@@ -4799,20 +4925,51 @@ function TaskListPage({
             </button>
           ))}
         </div>
-      </div>
 
-      <div className="task-board list-surface">
-        <div className="task-list">
+      <div className={`task-board list-surface ${useInlineDetail ? 'project-task-board all-tasks-task-board' : ''}`}>
+        {useInlineDetail ? (
+          <>
+            <div className="project-board-toolbar">
+              <div>
+                <h2>업무 목록</h2>
+                <span>{filteredTasks.length}</span>
+              </div>
+            </div>
+            <div className="project-task-columns" aria-hidden="true">
+              <span>업무명</span>
+              <span>상태</span>
+              <span>담당자</span>
+              <span>마감</span>
+              <span>읽음</span>
+            </div>
+          </>
+        ) : null}
+        <div className={useInlineDetail ? 'project-task-list' : 'task-list'}>
           {filteredTasks.length ? (
-            filteredTasks.map((task) => (
-              <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
-            ))
+            filteredTasks.map((task) =>
+              useInlineDetail && onAddComment && onDeleteComment && onDownloadFile && onEditTask ? (
+                <ProjectTaskRow
+                  currentUser={currentUser}
+                  employees={employees}
+                  key={task.id}
+                  onAddComment={onAddComment}
+                  onDeleteComment={onDeleteComment}
+                  onDownloadFile={onDownloadFile}
+                  onEditTask={onEditTask}
+                  onSelect={toggleFocusedTask}
+                  selected={focusedTaskId === task.id}
+                  task={task}
+                />
+              ) : (
+                <TaskCard key={task.id} task={task} currentUser={currentUser} onOpenTask={onOpenTask} onDeleteTask={onDeleteTask} onUpdateStatus={onUpdateTaskStatus} />
+              ),
+            )
           ) : (
             <EmptyState text="조건에 맞는 업무가 없습니다." />
           )}
         </div>
       </div>
-    </section>
+    </ImmersivePageFrame>
   );
 }
 
@@ -5538,90 +5695,91 @@ function ReportsPage({
   onOpenProfile,
   onRegisterPush,
   onThemeChange,
-  onOpenTask,
+  onAddComment,
   onCreateTask,
+  onDeleteComment,
   onDeleteTask,
+  onDownloadFile,
+  onEditTask,
   onUpdateTaskStatus,
-}: {
+}: ImmersiveChromeProps & {
   tasks: Task[];
   employees: Employee[];
-  currentUser: AppUser;
-  pushEnabled: boolean;
-  pushLoading: boolean;
-  pushStatus: string;
-  themeMode: ThemeMode;
-  onLogout: () => void;
-  onMenuClick: () => void;
-  onNavigate: (view: ActiveView) => void;
-  onOpenProfile: () => void;
-  onRegisterPush: () => void;
-  onThemeChange: (mode: ThemeMode) => void;
-  onOpenTask: (task: Task) => void;
+  onAddComment: TaskCommentSubmitHandler;
   onCreateTask: TaskSubmitHandler;
+  onDeleteComment: TaskCommentDeleteHandler;
   onDeleteTask: TaskDeleteHandler;
+  onDownloadFile: (file: TaskFile) => void;
+  onEditTask: (task: Task) => void;
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안');
   const [composeOpen, setComposeOpen] = useState(false);
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  const toggleFocusedTask = (taskId: string) => {
+    setFocusedTaskId((current) => (current === taskId ? null : taskId));
+  };
 
   return (
-    <section className="page-shell project-mode-shell reports-mode-shell">
-      <div className="project-folder-tabs reports-folder-tabs" role="tablist" aria-label="보고 제안">
-        <button aria-selected="true" data-active="true" role="tab" type="button">
-          <FileText size={19} />
-          <span>보고·제안</span>
-          <X size={15} />
-        </button>
-      </div>
-
-      <div className="project-mode-canvas reports-mode-canvas">
-        <ImmersiveTopControls
-          currentUser={currentUser}
-          pushEnabled={pushEnabled}
-          pushLoading={pushLoading}
-          pushStatus={pushStatus}
-          searchLabel="보고 제안 검색"
-          searchPlaceholder="보고, 제안, 담당자 검색"
-          themeMode={themeMode}
-          onLogout={onLogout}
-          onMenuClick={onMenuClick}
-          onNavigate={onNavigate}
-          onOpenProfile={onOpenProfile}
-          onRegisterPush={onRegisterPush}
-          onThemeChange={onThemeChange}
-        />
-
-        <div className="page-head project-page-head project-mode-head">
-          <div>
-            <div className="project-title-row">
-              <h1 className="project-current-name">보고·제안</h1>
-            </div>
-            <p>대표에게 전달한 보고와 직원 간 제안을 한 곳에서 확인합니다. · 전체 {reportTasks.length}건</p>
-          </div>
-          <button className="primary-action" onClick={() => setComposeOpen(true)} type="button">
+    <ImmersivePageFrame
+      action={(
+        <button className="primary-action" onClick={() => setComposeOpen(true)} type="button">
             <Plus size={17} />
             대표에게 보고
-          </button>
-        </div>
-
-        <div className="split-layout reports-layout reports-mode-layout">
-          <div className="task-list report-task-list">
-            {reportTasks.length ? (
-              reportTasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  task={task}
-                  currentUser={currentUser}
-                  direction={task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name) ? 'sent' : 'received'}
-                  onOpenTask={onOpenTask}
-                  onDeleteTask={onDeleteTask}
-                  onUpdateStatus={onUpdateTaskStatus}
-                />
-              ))
-            ) : (
-              <EmptyState text="표시할 보고·제안이 없습니다." />
-            )}
+        </button>
+      )}
+      className="reports-mode-shell"
+      currentUser={currentUser}
+      folderIcon={FileText}
+      folderLabel="보고·제안"
+      heading="보고·제안"
+      pushEnabled={pushEnabled}
+      pushLoading={pushLoading}
+      pushStatus={pushStatus}
+      searchLabel="보고 제안 검색"
+      searchPlaceholder="보고, 제안, 담당자 검색"
+      subheading={`대표에게 전달한 보고와 직원 간 제안을 한 곳에서 확인합니다. · 전체 ${reportTasks.length}건`}
+      themeMode={themeMode}
+      onLogout={onLogout}
+      onMenuClick={onMenuClick}
+      onNavigate={onNavigate}
+      onOpenProfile={onOpenProfile}
+      onRegisterPush={onRegisterPush}
+      onThemeChange={onThemeChange}
+    >
+      <div className="task-board list-surface project-task-board reports-task-board">
+        <div className="project-board-toolbar">
+          <div>
+            <h2>보고·제안 목록</h2>
+            <span>{reportTasks.length}</span>
           </div>
+        </div>
+        <div className="project-task-columns" aria-hidden="true">
+          <span>제목</span>
+          <span>상태</span>
+          <span>대상</span>
+          <span>마감</span>
+          <span>읽음</span>
+        </div>
+        <div className="project-task-list report-task-list">
+          {reportTasks.length ? (
+            reportTasks.map((task) => (
+              <ProjectTaskRow
+                currentUser={currentUser}
+                employees={employees}
+                  key={task.id}
+                onAddComment={onAddComment}
+                onDeleteComment={onDeleteComment}
+                onDownloadFile={onDownloadFile}
+                onEditTask={onEditTask}
+                onSelect={toggleFocusedTask}
+                selected={focusedTaskId === task.id}
+                  task={task}
+                />
+            ))
+          ) : (
+            <EmptyState text="표시할 보고·제안이 없습니다." />
+          )}
         </div>
       </div>
       {composeOpen ? (
@@ -5640,21 +5798,30 @@ function ReportsPage({
           </article>
         </div>
       ) : null}
-    </section>
+    </ImmersivePageFrame>
   );
 }
 
 function CalendarPage({
   currentUser,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
+  themeMode,
   googleCalendarSettings,
   tasks,
   operations,
   schedules,
+  onLogout,
+  onMenuClick,
+  onNavigate,
+  onOpenProfile,
+  onRegisterPush,
+  onThemeChange,
   onAddSchedule,
   onOpenTask,
   onOpenOperations,
-}: {
-  currentUser: AppUser;
+}: ImmersiveChromeProps & {
   googleCalendarSettings: GoogleCalendarSettings;
   tasks: Task[];
   operations: OperationItem[];
@@ -5805,13 +5972,8 @@ function CalendarPage({
   };
 
   return (
-    <section className="page-shell">
-      <div className="page-head">
-        <div>
-          <p className="eyebrow">Calendar</p>
-          <h1>캘린더</h1>
-          <p className="calendar-current-date">{currentDateLabel}</p>
-        </div>
+    <ImmersivePageFrame
+      action={(
         <div className="calendar-controls">
           <button className="primary-action" onClick={() => setScheduleCreateOpen(true)} type="button">
             <Plus size={16} />
@@ -5837,7 +5999,26 @@ function CalendarPage({
             <ChevronRight size={18} />
           </button>
         </div>
-      </div>
+      )}
+      className="calendar-mode-shell"
+      currentUser={currentUser}
+      folderIcon={CalendarClock}
+      folderLabel="캘린더"
+      heading="캘린더"
+      pushEnabled={pushEnabled}
+      pushLoading={pushLoading}
+      pushStatus={pushStatus}
+      searchLabel="캘린더 검색"
+      searchPlaceholder="업무, 스케줄, 정산 항목 검색"
+      subheading={currentDateLabel}
+      themeMode={themeMode}
+      onLogout={onLogout}
+      onMenuClick={onMenuClick}
+      onNavigate={onNavigate}
+      onOpenProfile={onOpenProfile}
+      onRegisterPush={onRegisterPush}
+      onThemeChange={onThemeChange}
+    >
       {googleSyncStatus ? <p className="calendar-sync-status">{googleSyncStatus}</p> : null}
       {scheduleCreateOpen ? (
         <ScheduleCreateModal
@@ -5959,7 +6140,7 @@ function CalendarPage({
           </div>
         )}
       </div>
-    </section>
+    </ImmersivePageFrame>
   );
 }
 
@@ -6077,12 +6258,23 @@ function ScheduleDetailModal({
 }
 
 function ClientsPage({
+  currentUser,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
+  themeMode,
   clients,
   employees,
+  onLogout,
+  onMenuClick,
+  onNavigate,
+  onOpenProfile,
+  onRegisterPush,
+  onThemeChange,
   onAddClient,
   onDeleteClient,
   onUpdateClient,
-}: {
+}: ImmersiveChromeProps & {
   clients: Client[];
   employees: Employee[];
   onAddClient: ClientSubmitHandler;
@@ -6173,17 +6365,32 @@ function ClientsPage({
   };
 
   return (
-    <section className="page-shell">
-      <div className="page-head">
-        <div>
-          <p className="eyebrow">Clients</p>
-          <h1>업체</h1>
-        </div>
+    <ImmersivePageFrame
+      action={(
         <button className="primary-action" onClick={() => setClientCreateOpen(true)} type="button">
           <Plus size={17} />
           업체 추가
         </button>
-      </div>
+      )}
+      className="clients-mode-shell"
+      currentUser={currentUser}
+      folderIcon={Building2}
+      folderLabel="업체관리"
+      heading="업체관리"
+      pushEnabled={pushEnabled}
+      pushLoading={pushLoading}
+      pushStatus={pushStatus}
+      searchLabel="업체 검색"
+      searchPlaceholder="업체, 담당자, 지역 검색"
+      subheading={`등록 업체 ${clients.length}곳`}
+      themeMode={themeMode}
+      onLogout={onLogout}
+      onMenuClick={onMenuClick}
+      onNavigate={onNavigate}
+      onOpenProfile={onOpenProfile}
+      onRegisterPush={onRegisterPush}
+      onThemeChange={onThemeChange}
+    >
 
       <div className="page-card">
         <div className="client-grid">
@@ -6320,7 +6527,7 @@ function ClientsPage({
           </form>
         </div>
       ) : null}
-    </section>
+    </ImmersivePageFrame>
   );
 }
 
@@ -6916,13 +7123,24 @@ function ProfileModal({
 }
 
 function OperationsPage({
+  currentUser,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
+  themeMode,
   items,
   employees,
+  onLogout,
+  onMenuClick,
+  onNavigate,
+  onOpenProfile,
+  onRegisterPush,
+  onThemeChange,
   onAddOperation,
   onUpdateOperation,
   onDeleteOperation,
   onCompleteOperation,
-}: {
+}: ImmersiveChromeProps & {
   items: OperationItem[];
   employees: Employee[];
   onAddOperation: (draft: OperationDraft) => Promise<string>;
@@ -7048,17 +7266,32 @@ function OperationsPage({
   };
 
   return (
-    <section className="page-shell">
-      <div className="page-head">
-        <div>
-          <p className="eyebrow">Operations</p>
-          <h1>구독/정산관리</h1>
-        </div>
+    <ImmersivePageFrame
+      action={(
         <button className="primary-action" onClick={openCreate} type="button">
           <Plus size={17} />
           항목 추가
         </button>
-      </div>
+      )}
+      className="operations-mode-shell"
+      currentUser={currentUser}
+      folderIcon={ShieldCheck}
+      folderLabel="구독/정산관리"
+      heading="구독/정산관리"
+      pushEnabled={pushEnabled}
+      pushLoading={pushLoading}
+      pushStatus={pushStatus}
+      searchLabel="구독 정산 검색"
+      searchPlaceholder="항목, 서비스, 담당자 검색"
+      subheading={`미완료 ${summary.pending}건 · 이번달 예정액 ${new Intl.NumberFormat('ko-KR').format(summary.monthAmount)}원`}
+      themeMode={themeMode}
+      onLogout={onLogout}
+      onMenuClick={onMenuClick}
+      onNavigate={onNavigate}
+      onOpenProfile={onOpenProfile}
+      onRegisterPush={onRegisterPush}
+      onThemeChange={onThemeChange}
+    >
 
       <section className="stats-grid" aria-label="구독/정산관리 요약">
         <button className="stat-card" data-tone="red" onClick={() => setFilter('오늘')} type="button">
@@ -7284,7 +7517,7 @@ function OperationsPage({
           </form>
         </div>
       ) : null}
-    </section>
+    </ImmersivePageFrame>
   );
 }
 
