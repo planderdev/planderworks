@@ -4510,16 +4510,17 @@ h1 {
 }
 
 :root[data-theme='dark'] .project-mode-shell {
-  --project-ink: #080808;
-  --project-paper: #ffffff;
-  --project-panel: #ffffff;
-  --project-soft: rgba(8, 8, 8, 0.07);
-  --project-line: rgba(8, 8, 8, 0.16);
-  --project-muted: rgba(8, 8, 8, 0.6);
-  color: #fff;
+  --project-ink: #f7f8fb;
+  --project-paper: #050506;
+  --project-panel: #111418;
+  --project-soft: rgba(255, 255, 255, 0.08);
+  --project-line: rgba(255, 255, 255, 0.16);
+  --project-muted: rgba(247, 248, 251, 0.64);
+  color: #080808;
   background:
-    radial-gradient(circle at 45% 8%, rgba(255, 255, 255, 0.12), transparent 34%),
-    linear-gradient(135deg, #101113, #050506 72%);
+    radial-gradient(circle at 45% 8%, rgba(8, 8, 8, 0.08), transparent 34%),
+    #f7f6f2;
+  border-color: rgba(255, 255, 255, 0.72);
 }
 
 :root[data-theme='dark'] .project-folder-tabs button,
@@ -4551,10 +4552,27 @@ h1 {
 :root[data-theme='dark'] .project-mode-canvas {
   color: var(--project-ink);
   background:
-    radial-gradient(circle at 12% 7%, rgba(255, 255, 255, 0.98), transparent 36%),
-    radial-gradient(circle at 86% 0%, rgba(245, 245, 245, 0.78), transparent 30%),
+    radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.09), transparent 30%),
+    radial-gradient(circle at 88% 0%, rgba(255, 255, 255, 0.07), transparent 28%),
     var(--project-paper);
   border-color: rgba(255, 255, 255, 0.78);
+}
+
+:root[data-theme='dark'] .project-mode-head {
+  border-bottom-color: rgba(255, 255, 255, 0.72);
+}
+
+:root[data-theme='dark'] .project-mode-canvas .filters button,
+:root[data-theme='dark'] .project-mode-canvas .filters select,
+:root[data-theme='dark'] .project-mode-canvas .task-person-filter {
+  color: rgba(247, 248, 251, 0.86);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+:root[data-theme='dark'] .project-mode-canvas .filters button[data-active='true'] {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
 }
 
 :root[data-theme='dark'] .project-mode-shell .page-card,
@@ -4565,22 +4583,22 @@ h1 {
 :root[data-theme='dark'] .project-mode-shell .project-chat-panel,
 :root[data-theme='dark'] .project-mode-shell .report-compose-card {
   color: var(--project-ink);
-  background: rgba(255, 255, 255, 0.92) !important;
+  background: rgba(17, 20, 24, 0.94) !important;
   border-color: var(--project-line);
 }
 
 :root[data-theme='dark'] .project-mode-shell .task-board.list-surface.project-task-board {
-  background: #fff !important;
+  background: rgba(17, 20, 24, 0.94) !important;
 }
 
 :root[data-theme='dark'] .project-mode-shell .project-task-list {
-  background: rgba(8, 8, 8, 0.025);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 :root[data-theme='dark'] .project-mode-shell .project-task-row[data-selected='true'],
 :root[data-theme='dark'] .project-mode-shell .project-task-row:hover,
 :root[data-theme='dark'] .project-mode-shell .task-card:hover {
-  background: rgba(8, 8, 8, 0.05) !important;
+  background: rgba(255, 255, 255, 0.07) !important;
 }
 
 :root[data-theme='dark'] .project-search-pill,
@@ -4591,24 +4609,33 @@ h1 {
 :root[data-theme='dark'] .project-mode-shell .project-edit-button,
 :root[data-theme='dark'] .project-inspector-head .secondary-action {
   border-color: var(--project-line);
-  color: var(--project-ink);
-  background: #fff;
+  color: #f7f8fb;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+:root[data-theme='dark'] .project-search-pill input::placeholder {
+  color: rgba(247, 248, 251, 0.52);
+}
+
+:root[data-theme='dark'] .project-search-pill span {
+  color: rgba(247, 248, 251, 0.62);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 :root[data-theme='dark'] .project-mode-shell .theme-switcher button,
 :root[data-theme='dark'] .project-mode-shell .account-popover button {
-  color: var(--project-ink);
+  color: #f7f8fb;
 }
 
 :root[data-theme='dark'] .project-mode-shell .theme-switcher button[data-active='true'] {
-  background: rgba(8, 8, 8, 0.08);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 :root[data-theme='dark'] .project-mode-shell .icon-button[data-active='true'],
 :root[data-theme='dark'] .project-page-head > .primary-action,
 :root[data-theme='dark'] .project-mode-shell .primary-action,
 :root[data-theme='dark'] .project-chat-send-button {
-  border-color: #050506;
+  border-color: rgba(255, 255, 255, 0.2);
   color: #fff;
   background: #050506;
 }
@@ -4631,7 +4658,14 @@ h1 {
 :root[data-theme='dark'] .project-mode-canvas .task-card p,
 :root[data-theme='dark'] .project-mode-canvas .task-meta,
 :root[data-theme='dark'] .project-mode-canvas .task-meta span {
-  color: rgba(8, 8, 8, 0.62);
+  color: rgba(247, 248, 251, 0.66);
+}
+
+:root[data-theme='dark'] .project-mode-canvas .project-task-columns,
+:root[data-theme='dark'] .project-mode-canvas .project-task-item,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-people,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-meta {
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 :root[data-theme='dark'] .project-mode-canvas .project-current-name,
@@ -4650,6 +4684,14 @@ h1 {
   color: var(--project-ink);
 }
 
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-summary,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-files,
+:root[data-theme='dark'] .project-mode-canvas .project-inspector-comments,
+:root[data-theme='dark'] .project-mode-canvas .project-file-grid button {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
 :root[data-theme='dark'] .project-mode-canvas .project-member-pill,
 :root[data-theme='dark'] .project-mode-canvas .project-member-avatars > strong,
 :root[data-theme='dark'] .project-mode-canvas .project-inspector-badges > span:not(.status),
@@ -4658,8 +4700,8 @@ h1 {
 :root[data-theme='dark'] .project-mode-canvas .task-direction-badge,
 :root[data-theme='dark'] .project-mode-canvas .read-badge,
 :root[data-theme='dark'] .project-mode-canvas .project-board-toolbar span {
-  color: rgba(8, 8, 8, 0.76);
-  background: rgba(8, 8, 8, 0.08);
+  color: rgba(247, 248, 251, 0.84);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 :root[data-theme='dark'] .project-mode-canvas select,
@@ -4667,13 +4709,13 @@ h1 {
 :root[data-theme='dark'] .project-mode-canvas textarea,
 :root[data-theme='dark'] .project-chat-form textarea {
   color: var(--project-ink);
-  background: #fff;
+  background: rgba(255, 255, 255, 0.08);
   border-color: var(--project-line);
 }
 
 :root[data-theme='dark'] .project-message {
   color: var(--project-ink);
-  background: rgba(8, 8, 8, 0.06);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 :root[data-theme='dark'] .project-message[data-own='true'] {

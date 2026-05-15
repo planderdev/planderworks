@@ -5054,8 +5054,8 @@ function ProjectPage({
     : employees;
   const activeProjects = projects.filter((item) => item.status !== 'completed' && item.status !== 'deleted');
   const visibleProjects = project
-    ? [project, ...activeProjects.filter((item) => item.id !== project.id)].filter((item) => item.status !== 'deleted').slice(0, 3)
-    : activeProjects.slice(0, 3);
+    ? [project, ...activeProjects.filter((item) => item.id !== project.id)].filter((item) => item.status !== 'deleted')
+    : activeProjects;
 
   useEffect(() => {
     setFocusedTaskId(null);
