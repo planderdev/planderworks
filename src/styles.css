@@ -4512,22 +4512,27 @@ h1 {
 :root[data-theme='dark'] .project-mode-shell {
   --project-ink: #f7f8fb;
   --project-paper: #050506;
-  --project-panel: #111418;
+  --project-panel: #111111;
   --project-soft: rgba(255, 255, 255, 0.08);
-  --project-line: rgba(255, 255, 255, 0.16);
+  --project-line: rgba(88, 88, 88, 0.42);
   --project-muted: rgba(247, 248, 251, 0.64);
   color: #fff;
   background:
-    radial-gradient(circle at 45% 8%, rgba(255, 255, 255, 0.12), transparent 34%),
-    linear-gradient(135deg, #101113, #050506 72%);
-  border-color: rgba(255, 255, 255, 0.08);
+    radial-gradient(circle at 45% 8%, rgba(255, 255, 255, 0.08), transparent 34%),
+    linear-gradient(135deg, #111111, #050505 72%);
+  border-color: rgba(66, 66, 66, 0.52);
 }
 
-:root[data-theme='dark'] .project-folder-tabs button,
+:root[data-theme='dark'] .project-folder-tabs button {
+  border-color: rgba(42, 42, 42, 0.96);
+  color: rgba(247, 248, 251, 0.56);
+  background: linear-gradient(180deg, #0b0b0b, #050505);
+}
+
 :root[data-theme='dark'] .project-folder-tabs button[data-active='true'] {
-  border-color: rgba(50, 55, 62, 0.92);
+  border-color: rgba(96, 96, 96, 0.72);
   color: #fff;
-  background: linear-gradient(180deg, #17181a, #050506);
+  background: linear-gradient(180deg, #202020, #101010);
 }
 
 :root[data-theme='dark'] .project-folder-tabs button svg,
@@ -4536,7 +4541,7 @@ h1 {
 }
 
 :root[data-theme='dark'] .project-folder-tabs button[data-active='true'] {
-  box-shadow: 10px -10px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 10px -10px 24px rgba(0, 0, 0, 0.36);
 }
 
 :root[data-theme='dark'] .project-folder-close:hover {
@@ -4544,9 +4549,9 @@ h1 {
 }
 
 :root[data-theme='dark'] .project-folder-tabs .project-folder-add {
-  color: #fff;
-  background: #050506;
-  border-color: rgba(50, 55, 62, 0.92);
+  color: rgba(247, 248, 251, 0.74);
+  background: #050505;
+  border-color: rgba(42, 42, 42, 0.96);
 }
 
 :root[data-theme='dark'] .project-mode-canvas {
@@ -4555,11 +4560,11 @@ h1 {
     radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.09), transparent 30%),
     radial-gradient(circle at 88% 0%, rgba(255, 255, 255, 0.07), transparent 28%),
     var(--project-paper);
-  border-color: rgba(38, 42, 48, 0.96);
+  border-color: rgba(24, 24, 24, 0.96);
 }
 
 :root[data-theme='dark'] .project-mode-head {
-  border-bottom-color: rgba(38, 42, 48, 0.96);
+  border-bottom-color: rgba(74, 74, 74, 0.72);
 }
 
 :root[data-theme='dark'] .project-mode-canvas .filters button,
@@ -4567,7 +4572,7 @@ h1 {
 :root[data-theme='dark'] .project-mode-canvas .task-person-filter {
   color: rgba(247, 248, 251, 0.86);
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(88, 88, 88, 0.44);
 }
 
 :root[data-theme='dark'] .project-mode-canvas .filters button[data-active='true'] {
@@ -4583,12 +4588,12 @@ h1 {
 :root[data-theme='dark'] .project-mode-shell .project-chat-panel,
 :root[data-theme='dark'] .project-mode-shell .report-compose-card {
   color: var(--project-ink);
-  background: rgba(17, 20, 24, 0.94) !important;
+  background: rgba(17, 17, 17, 0.94) !important;
   border-color: var(--project-line);
 }
 
 :root[data-theme='dark'] .project-mode-shell .task-board.list-surface.project-task-board {
-  background: rgba(17, 20, 24, 0.94) !important;
+  background: rgba(17, 17, 17, 0.94) !important;
 }
 
 :root[data-theme='dark'] .project-mode-shell .project-task-list {
@@ -4599,6 +4604,15 @@ h1 {
 :root[data-theme='dark'] .project-mode-shell .project-task-row:hover,
 :root[data-theme='dark'] .project-mode-shell .task-card:hover {
   background: rgba(255, 255, 255, 0.07) !important;
+}
+
+:root[data-theme='dark'] .project-mode-shell .project-task-row[data-status-tone='blue'] {
+  --status-line: #707070;
+}
+
+:root[data-theme='dark'] .project-mode-shell .status[data-status='진행중'] {
+  color: #ececec;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 :root[data-theme='dark'] .project-search-pill,
@@ -4635,9 +4649,9 @@ h1 {
 :root[data-theme='dark'] .project-page-head > .primary-action,
 :root[data-theme='dark'] .project-mode-shell .primary-action,
 :root[data-theme='dark'] .project-chat-send-button {
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(88, 88, 88, 0.44);
   color: #fff;
-  background: #050506;
+  background: #050505;
 }
 
 :root[data-theme='dark'] .project-mode-canvas .eyebrow,
@@ -4665,7 +4679,7 @@ h1 {
 :root[data-theme='dark'] .project-mode-canvas .project-task-item,
 :root[data-theme='dark'] .project-mode-canvas .project-inspector-people,
 :root[data-theme='dark'] .project-mode-canvas .project-inspector-meta {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(88, 88, 88, 0.38);
 }
 
 :root[data-theme='dark'] .project-mode-canvas .project-current-name,
@@ -4689,7 +4703,7 @@ h1 {
 :root[data-theme='dark'] .project-mode-canvas .project-inspector-comments,
 :root[data-theme='dark'] .project-mode-canvas .project-file-grid button {
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(88, 88, 88, 0.38);
 }
 
 :root[data-theme='dark'] .project-mode-canvas .project-member-pill,
@@ -4702,6 +4716,11 @@ h1 {
 :root[data-theme='dark'] .project-mode-canvas .project-board-toolbar span {
   color: rgba(247, 248, 251, 0.84);
   background: rgba(255, 255, 255, 0.1);
+}
+
+:root[data-theme='dark'] .project-mode-canvas .avatar {
+  border-color: rgba(118, 118, 118, 0.42);
+  background: linear-gradient(145deg, #2d2d2d, #171717);
 }
 
 :root[data-theme='dark'] .project-mode-canvas select,
@@ -4720,7 +4739,7 @@ h1 {
 
 :root[data-theme='dark'] .project-message[data-own='true'] {
   color: #fff;
-  background: #1d2632;
+  background: #242424;
 }
 
 @media (max-width: 1180px) {
