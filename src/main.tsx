@@ -617,7 +617,7 @@ const hasValidMobilePhoneLength = (value: string) => {
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const isActiveView = (value: unknown): value is ActiveView => typeof value === 'string' && appViews.includes(value as ActiveView);
 const urlPattern = /((?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi;
-const taskCardSummaryLimit = 90;
+const taskCardSummaryLimit = 52;
 
 function truncateText(value: string, limit = taskCardSummaryLimit) {
   const normalized = value.replace(/\s+/g, ' ').trim();
@@ -3825,7 +3825,7 @@ function TaskDetailModal({
             <Avatar name={task.from} src={task.creatorAvatarUrl} size="xs" />
             {task.from}
           </span>
-          <span>
+          <span className="task-detail-recipients">
             받는 사람:
             <span className="task-detail-recipient-list">
               {recipients.map((recipient) => (

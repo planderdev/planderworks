@@ -1164,7 +1164,9 @@ h1 {
   margin-bottom: 13px;
   color: var(--muted);
   line-height: 1.5;
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-meta {
@@ -2315,29 +2317,40 @@ h1 {
 
 .task-detail-meta {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(220px, 0.85fr) minmax(0, 1.15fr);
   gap: 10px;
   margin: 16px 0;
 }
 
 .task-detail-meta > span {
-  min-height: 38px;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 6px;
   border-radius: 8px;
-  padding: 0 10px;
+  padding: 4px 10px;
   color: var(--muted);
   background: var(--panel-2);
   font-size: 0.86rem;
 }
 
+.task-detail-meta > span:first-child {
+  white-space: nowrap;
+}
+
+.task-detail-recipients {
+  grid-column: span 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
 .task-detail-recipient-list {
   min-width: 0;
+  flex: 1 1 auto;
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
+  gap: 4px 9px;
 }
 
 .task-detail-person {
@@ -2345,6 +2358,17 @@ h1 {
   align-items: center;
   gap: 3px;
   white-space: nowrap;
+}
+
+.task-detail-recipients .read-badge {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+@media (min-width: 720px) {
+  .task-detail-recipients {
+    grid-column: 2 / -1;
+  }
 }
 
 .task-detail-body {
