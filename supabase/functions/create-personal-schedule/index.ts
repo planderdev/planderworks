@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts';
 
 type ScheduleBody = {
+  action?: 'create' | 'update' | 'delete';
   email?: string;
   userId?: string;
   title?: string;
@@ -66,6 +67,7 @@ Deno.serve(async (req) => {
   }
 
   const body = (await req.json()) as ScheduleBody;
+  const requestAction = body.action === 'delete' ? 'delete' : body.action === 'update' ? 'update' : 'create';
   const email = String(body.email || '').trim().toLowerCase();
   const userId = String(body.userId || '').trim();
   const title = String(body.title || '').trim();
@@ -73,6 +75,42 @@ Deno.serve(async (req) => {
   const allDay = Boolean(body.allDay);
   const externalId = body.externalId ? String(body.externalId).trim() : null;
   const externalSource = String(body.externalSource || 'personal_scheduler').trim() || 'personal_scheduler';
+
+  if (requestAction === 'delete') {
+    if (!externalId) {
+      return jsonResponse({ error: 'Missing externalId' }, 400);
+    }
+
+    const { data: existing, error: existingError } = await admin
+      .from('calendar_schedules')
+      .select('id')
+      .eq('external_source', externalSource)
+      .eq('external_id', externalId)
+      .maybeSingle();
+
+    if (existingError) {
+      return jsonResponse({ error: existingError.message }, 400);
+    }
+
+    if (existing?.id) {
+      const { error: deleteError } = await admin
+        .from('calendar_schedules')
+        .delete()
+        .eq('id', existing.id);
+
+      if (deleteError) {
+        return jsonResponse({ error: deleteError.message }, 400);
+      }
+    }
+
+    await admin.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', keyRecord.id);
+
+    return jsonResponse({
+      ok: true,
+      action: existing?.id ? 'deleted' : 'missing',
+      scheduleId: existing?.id || null,
+    });
+  }
 
   if (!title) {
     return jsonResponse({ error: 'Missing title' }, 400);
