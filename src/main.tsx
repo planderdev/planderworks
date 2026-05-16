@@ -599,9 +599,16 @@ function normalizeColorTheme(value: unknown): ColorTheme {
   return colorThemeOptions.some((option) => option.value === value) ? value as ColorTheme : 'default';
 }
 
+function getColorThemeBaseMode(colorTheme: ColorTheme): 'light' | 'dark' | null {
+  if (colorTheme === 'metal-silver' || colorTheme === 'pastel-pink') return 'light';
+  if (colorTheme === 'british-green' || colorTheme === 'navy' || colorTheme === 'orange') return 'dark';
+  return null;
+}
+
 function applyTheme(mode: ThemeMode, colorTheme: ColorTheme) {
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  document.documentElement.dataset.theme = mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode;
+  const forcedColorMode = getColorThemeBaseMode(colorTheme);
+  document.documentElement.dataset.theme = forcedColorMode || (mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode);
   document.documentElement.dataset.colorTheme = colorTheme;
 }
 
@@ -3247,13 +3254,17 @@ function App() {
   };
 
   const changeThemeMode = (mode: ThemeMode) => {
+    if (colorTheme !== 'default') return;
     setThemeMode(mode);
     void persistThemePreferences(mode, colorTheme);
   };
 
   const changeColorTheme = (nextColorTheme: ColorTheme) => {
     setColorTheme(nextColorTheme);
-    void persistThemePreferences(themeMode, nextColorTheme);
+    const forcedMode = getColorThemeBaseMode(nextColorTheme);
+    const nextThemeMode = forcedMode || themeMode;
+    if (forcedMode) setThemeMode(forcedMode);
+    void persistThemePreferences(nextThemeMode, nextColorTheme);
   };
 
   if (!authReady) {
@@ -3278,12 +3289,14 @@ function App() {
   }
 
   const isAdmin = currentUser.accountRole === 'admin';
+  const canControlThemeMode = colorTheme === 'default';
   const immersiveChromeProps = {
     currentUser,
     pushEnabled,
     pushLoading,
     pushStatus,
     themeMode,
+    showThemeSwitcher: canControlThemeMode,
     onLogout: handleLogout,
     onMenuClick: () => setSidebarOpen(true),
     onNavigate: navigateTo,
@@ -3370,6 +3383,7 @@ function App() {
           pushStatus={pushStatus}
           showSearch={activeView === 'dashboard'}
           themeMode={themeMode}
+          showThemeSwitcher={canControlThemeMode}
           onLogout={handleLogout}
           onNavigate={navigateTo}
           onOpenProfile={() => setProfileOpen(true)}
@@ -3444,6 +3458,7 @@ function App() {
             taskTypes={taskTypes}
             tasks={selectedProjectTasks}
             themeMode={themeMode}
+            showThemeSwitcher={canControlThemeMode}
             onAddComment={addTaskComment}
             onAddMessage={addProjectMessage}
             onCreateProject={() => setProjectCreateOpen(true)}
@@ -4121,6 +4136,7 @@ function Topbar({
   pushPreferences,
   pushStatus,
   showSearch,
+  showThemeSwitcher,
   themeMode,
   onLogout,
   onNavigate,
@@ -4134,6 +4150,7 @@ function Topbar({
   pushLoading: boolean;
   pushStatus: string;
   showSearch: boolean;
+  showThemeSwitcher: boolean;
   themeMode: ThemeMode;
   onLogout: () => void;
   onNavigate: (view: ActiveView) => void;
@@ -4174,7 +4191,7 @@ function Topbar({
       ) : null}
 
       <div className="top-actions">
-        <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
+        {showThemeSwitcher ? <ThemeSwitcher value={themeMode} onChange={onThemeChange} /> : null}
         <button
           className="icon-button"
           aria-label={pushEnabled ? '푸시알림 끄기' : '푸시알림 켜기'}
@@ -4269,6 +4286,7 @@ function ImmersiveTopControls({
   pushStatus,
   searchLabel,
   searchPlaceholder,
+  showThemeSwitcher,
   themeMode,
   onLogout,
   onMenuClick,
@@ -4283,6 +4301,7 @@ function ImmersiveTopControls({
   pushStatus: string;
   searchLabel: string;
   searchPlaceholder: string;
+  showThemeSwitcher: boolean;
   themeMode: ThemeMode;
   onLogout: () => void;
   onMenuClick: () => void;
@@ -4320,7 +4339,7 @@ function ImmersiveTopControls({
         <span>⌘ K</span>
       </label>
       <div className="top-actions immersive-top-actions">
-        <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
+        {showThemeSwitcher ? <ThemeSwitcher value={themeMode} onChange={onThemeChange} /> : null}
         <button
           className="icon-button"
           aria-label={pushEnabled ? '푸시알림 끄기' : '푸시알림 켜기'}
@@ -4362,6 +4381,7 @@ type ImmersiveChromeProps = {
   pushEnabled: boolean;
   pushLoading: boolean;
   pushStatus: string;
+  showThemeSwitcher: boolean;
   themeMode: ThemeMode;
   onLogout: () => void;
   onMenuClick: () => void;
@@ -5164,6 +5184,7 @@ function ProjectPage({
   pushEnabled,
   pushLoading,
   pushStatus,
+  showThemeSwitcher,
   taskTypes,
   tasks,
   themeMode,
@@ -5197,6 +5218,7 @@ function ProjectPage({
   pushEnabled: boolean;
   pushLoading: boolean;
   pushStatus: string;
+  showThemeSwitcher: boolean;
   taskTypes: string[];
   tasks: Task[];
   themeMode: ThemeMode;
@@ -5359,6 +5381,7 @@ function ProjectPage({
           pushStatus={pushStatus}
           searchLabel="프로젝트 검색"
           searchPlaceholder="업무, 프로젝트, 담당자 검색"
+          showThemeSwitcher={showThemeSwitcher}
           themeMode={themeMode}
           onLogout={onLogout}
           onMenuClick={onMenuClick}
@@ -7838,6 +7861,7 @@ function SettingsPage({
   onColorThemeChange: (theme: ColorTheme) => void;
   onThemeChange: (mode: ThemeMode) => void;
 }) {
+  const canControlThemeMode = colorTheme === 'default';
   const currentEmployee = employees.find((employee) => employee.id === currentUser.id);
   const [profileForm, setProfileForm] = useState({
     name: currentEmployee?.name || currentUser.name,
@@ -7939,8 +7963,12 @@ function SettingsPage({
         <div className="settings-side">
           <div className="page-card settings-card">
             <h2>테마</h2>
-            <p>화면 모드와 컬러 테마를 사용자별로 저장합니다. 기본 테마의 다크가 플랜더 블랙, 라이트가 모노화이트입니다.</p>
-            <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
+            <p>
+              {canControlThemeMode
+                ? '플랜더 기본 테마에서만 라이트/다크/시스템 모드를 직접 선택합니다.'
+                : '컬러 테마는 가장 어울리는 화면 모드로 자동 고정됩니다.'}
+            </p>
+            {canControlThemeMode ? <ThemeSwitcher value={themeMode} onChange={onThemeChange} /> : null}
             <ColorThemePicker value={colorTheme} onChange={onColorThemeChange} />
           </div>
           <div className="page-card settings-card">
