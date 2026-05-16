@@ -2115,7 +2115,7 @@ h1 {
 }
 
 .datetime-popover-actions {
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
 }
 
 .datetime-popover-actions button {
@@ -2396,6 +2396,114 @@ h1 {
   min-width: 640px;
   display: grid;
   gap: 0;
+}
+
+.calendar-stack-board {
+  min-width: 760px;
+  display: grid;
+  gap: 0;
+}
+
+.calendar-stack-board-week {
+  grid-template-columns: repeat(7, minmax(104px, 1fr));
+}
+
+.calendar-stack-board-day {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.calendar-day-column {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(560px, 1fr);
+  border: 1px solid var(--line);
+  border-right-width: 0;
+  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
+}
+
+.calendar-day-column:last-child {
+  border-right-width: 1px;
+}
+
+.calendar-day-column > strong {
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.calendar-day-stack {
+  display: grid;
+  gap: 3px;
+  padding: 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.calendar-day-stack:empty {
+  min-height: 8px;
+  padding: 0;
+}
+
+.calendar-time-layer {
+  position: relative;
+  min-height: 640px;
+  padding: 6px;
+}
+
+.calendar-time-layer::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  background:
+    linear-gradient(to bottom, transparent calc(100% / 24 - 1px), var(--line) calc(100% / 24)) 0 0 / 100% calc(100% / 24);
+  opacity: 0.28;
+  pointer-events: none;
+}
+
+.calendar-time-block {
+  position: absolute;
+  z-index: 2;
+  min-height: 28px;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  border: 1px solid var(--card-line);
+  border-radius: 6px;
+  padding: 6px 8px 6px 11px;
+  color: var(--text);
+  background: var(--card-bg);
+  box-shadow: inset 3px 0 0 #36a878;
+  overflow: hidden;
+  text-align: left;
+}
+
+.calendar-time-block[data-kind='받은 업무'] {
+  box-shadow: inset 3px 0 0 #4b8ef7;
+}
+
+.calendar-time-block[data-kind='보낸 업무'] {
+  box-shadow: inset 3px 0 0 #9aa1ad;
+}
+
+.calendar-time-block[data-kind='정산/만료관리'],
+.calendar-time-block[data-kind='구독/정산관리'] {
+  box-shadow: inset 3px 0 0 #d69731;
+}
+
+.calendar-time-block span,
+.calendar-time-block small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-time-block small {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 850;
 }
 
 .time-row {

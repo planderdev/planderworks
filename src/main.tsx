@@ -258,6 +258,7 @@ type WorkSchedule = {
   title: string;
   startAt: string;
   endAt: string;
+  allDay: boolean;
   memo: string;
   createdBy: string;
   creatorName: string;
@@ -266,6 +267,7 @@ type WorkScheduleDraft = {
   title: string;
   startAt: string;
   endAt: string;
+  allDay: boolean;
   memo: string;
 };
 type CalendarEventItem = {
@@ -855,6 +857,25 @@ function parseDateTimeLocalValue(value: string) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseDateOnlyLocalValue(value: string, endOfDay = false) {
+  if (!value) return null;
+  const parsed = new Date(`${value}T${endOfDay ? '23:59:59' : '00:00:00'}`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function toDateOnlyLocalValue(value: string | null | undefined) {
+  const parsed = parseTaskDate(value);
+  return parsed ? formatDateInputValue(parsed) : '';
+}
+
+function formatScheduleDate(value: string | null | undefined, allDay: boolean) {
+  if (!value) return '미정';
+  const parsed = parseTaskDate(value);
+  if (!parsed) return '미정';
+  if (allDay) return parsed.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+  return formatDueDate(value);
+}
+
 function parseOperationDate(value: string) {
   if (!value) return null;
   const parsed = new Date(`${value}T00:00:00`);
@@ -1386,7 +1407,7 @@ function App() {
         .order('read_at', { ascending: true }),
       supabase
         .from('calendar_schedules')
-        .select('id, title, start_at, end_at, memo, created_by, creator:profiles!calendar_schedules_created_by_fkey(name)')
+        .select('id, title, start_at, end_at, all_day, memo, created_by, creator:profiles!calendar_schedules_created_by_fkey(name)')
         .order('start_at', { ascending: true }),
       supabase
         .from('push_preferences')
@@ -1596,6 +1617,7 @@ function App() {
       title: schedule.title,
       startAt: schedule.start_at,
       endAt: schedule.end_at,
+      allDay: schedule.all_day ?? false,
       memo: schedule.memo || '',
       createdBy: schedule.created_by,
       creatorName: schedule.creator?.name || '알 수 없음',
@@ -2509,8 +2531,8 @@ function App() {
   const addWorkSchedule: WorkScheduleSubmitHandler = async (schedule) => {
     const title = schedule.title.trim();
     const memo = schedule.memo.trim();
-    const startDate = parseDateTimeLocalValue(schedule.startAt);
-    const endDate = parseDateTimeLocalValue(schedule.endAt);
+    const startDate = schedule.allDay ? parseDateOnlyLocalValue(schedule.startAt) : parseDateTimeLocalValue(schedule.startAt);
+    const endDate = schedule.allDay ? parseDateOnlyLocalValue(schedule.endAt, true) : parseDateTimeLocalValue(schedule.endAt);
 
     if (!title) return '스케줄 제목을 입력해주세요.';
     if (!startDate || !endDate) return '시작일과 종료일을 선택해주세요.';
@@ -2521,6 +2543,7 @@ function App() {
         title,
         start_at: startDate.toISOString(),
         end_at: endDate.toISOString(),
+        all_day: schedule.allDay,
         memo,
         created_by: currentUser.id,
       });
@@ -2541,6 +2564,7 @@ function App() {
       title,
       startAt: startDate.toISOString(),
       endAt: endDate.toISOString(),
+      allDay: schedule.allDay,
       memo,
       createdBy: currentUser?.id || 'prototype',
       creatorName: currentUser?.name || '나',
@@ -2552,8 +2576,8 @@ function App() {
   const updateWorkSchedule: WorkScheduleUpdateHandler = async (scheduleId, schedule) => {
     const title = schedule.title.trim();
     const memo = schedule.memo.trim();
-    const startDate = parseDateTimeLocalValue(schedule.startAt);
-    const endDate = parseDateTimeLocalValue(schedule.endAt);
+    const startDate = schedule.allDay ? parseDateOnlyLocalValue(schedule.startAt) : parseDateTimeLocalValue(schedule.startAt);
+    const endDate = schedule.allDay ? parseDateOnlyLocalValue(schedule.endAt, true) : parseDateTimeLocalValue(schedule.endAt);
 
     if (!title) return '스케줄 제목을 입력해주세요.';
     if (!startDate || !endDate) return '시작일과 종료일을 선택해주세요.';
@@ -2566,6 +2590,7 @@ function App() {
           title,
           start_at: startDate.toISOString(),
           end_at: endDate.toISOString(),
+          all_day: schedule.allDay,
           memo,
         })
         .eq('id', scheduleId);
@@ -2590,6 +2615,7 @@ function App() {
                 title,
                 startAt: startDate.toISOString(),
                 endAt: endDate.toISOString(),
+                allDay: schedule.allDay,
                 memo,
               }
             : item,
@@ -2960,12 +2986,11 @@ function App() {
     const project = updates.projectId ? projects.find((item) => item.id === updates.projectId) : null;
     const client = project?.clientId ? clients.find((item) => item.id === project.clientId) : clients.find((item) => item.id === updates.clientId);
 
-    if (!title || !summary || !updates.type || !assignee || !project || !client || !updates.due || !updates.priority) {
+    if (!title || !summary || !updates.type || !assignee || !project || !client || !updates.priority) {
       return '모든 항목을 입력해주세요.';
     }
 
     const nextDueAt = parseDueDate(updates.due);
-    if (!nextDueAt) return '마감기한을 선택해주세요.';
 
     const nextProjectId = project?.id && isUuid(project.id) ? project.id : null;
     const assigneeChanged = assignee.id !== task.assigneeId;
@@ -4888,7 +4913,7 @@ function TaskEditModal({
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading) return;
-    if (!form.title.trim() || !form.summary.trim() || !form.type || !form.assigneeId || !form.projectId || !form.due || !form.priority) {
+    if (!form.title.trim() || !form.summary.trim() || !form.type || !form.assigneeId || !form.projectId || !form.priority) {
       setStatus('모든 항목을 입력해주세요.');
       return;
     }
@@ -4944,7 +4969,7 @@ function TaskEditModal({
           </label>
           <label>
             마감기한
-            <DateTimeConfirmField value={form.due} onChange={(due) => setForm({ ...form, due })} />
+            <DateTimeConfirmField allowClear value={form.due} onChange={(due) => setForm({ ...form, due })} />
           </label>
           <label>
             우선순위
@@ -6247,7 +6272,7 @@ function CalendarPage({
         kind: '업무 스케줄',
         description: `${schedule.memo || '메모 없음'}\n작성: ${schedule.creatorName}`,
         sourceUrl: `${window.location.origin}/#calendar`,
-        allDay: false,
+        allDay: schedule.allDay,
         onClick: () => setSelectedSchedule(schedule),
       };
     })
@@ -6282,8 +6307,6 @@ function CalendarPage({
   const monthWeeks = Array.from({ length: Math.ceil((diffCalendarDays(monthCalendarStart, monthCalendarEnd) + 1) / 7) }, (_, weekIndex) =>
     Array.from({ length: 7 }, (_, dayIndex) => addCalendarDays(monthCalendarStart, weekIndex * 7 + dayIndex)),
   );
-  const hours = Array.from({ length: 14 }, (_, index) => index + 8);
-  const isSameCalendarDay = (first: Date, second: Date) => startOfCalendarDay(first).getTime() === startOfCalendarDay(second).getTime();
   const eventIntersectsDay = (event: { start: Date; end: Date }, day: Date) => {
     const dayStart = startOfCalendarDay(day);
     const dayEnd = addCalendarDays(dayStart, 1);
@@ -6305,6 +6328,42 @@ function CalendarPage({
         return { ...event, columnStart, span, firstDay, lastDay };
       })
       .filter((item): item is { id: string; title: string; kind: string; onClick: () => void; start: Date; end: Date; days: number; columnStart: number; span: number; firstDay: number; lastDay: number } => Boolean(item));
+  const eventTimeLabel = (event: CalendarEventItem) => {
+    if (event.allDay) return '날짜만';
+    if (event.days > 1) {
+      return `${event.start.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}~${event.end.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}`;
+    }
+    return `${event.start.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}~${event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`;
+  };
+  const eventsForDateStack = (day: Date) => eventsForDay(day).filter((event) => event.allDay || event.days > 1);
+  const timedEventsForDay = (day: Date) => eventsForDay(day).filter((event) => !event.allDay && event.days <= 1);
+  const layoutTimedEvents = (day: Date) => {
+    const dayStart = startOfCalendarDay(day).getTime();
+    const dayEnd = addCalendarDays(startOfCalendarDay(day), 1).getTime();
+    const events = timedEventsForDay(day)
+      .map((event) => {
+        const startMinutes = Math.max(0, Math.floor((Math.max(event.start.getTime(), dayStart) - dayStart) / 60000));
+        const endMinutes = Math.min(1440, Math.ceil((Math.min(getCalendarEndDate(event).getTime(), dayEnd) - dayStart) / 60000));
+        return { ...event, startMinutes, endMinutes: Math.max(startMinutes + 30, endMinutes), lane: 0, laneCount: 1 };
+      })
+      .sort((a, b) => a.startMinutes - b.startMinutes || a.endMinutes - b.endMinutes);
+    const active: Array<{ lane: number; endMinutes: number }> = [];
+    let laneCount = 1;
+
+    events.forEach((event) => {
+      for (let index = active.length - 1; index >= 0; index -= 1) {
+        if (active[index].endMinutes <= event.startMinutes) active.splice(index, 1);
+      }
+      const used = new Set(active.map((item) => item.lane));
+      let lane = 0;
+      while (used.has(lane)) lane += 1;
+      event.lane = lane;
+      active.push({ lane, endMinutes: event.endMinutes });
+      laneCount = Math.max(laneCount, active.length, lane + 1);
+    });
+
+    return events.map((event) => ({ ...event, laneCount }));
+  };
   const moveCalendar = (direction: -1 | 1) => {
     setAnchorDate((current) => {
       if (mode === '일') return addCalendarDays(current, direction);
@@ -6439,7 +6498,7 @@ function CalendarPage({
                       type="button"
                     >
                       <span>{event.title}</span>
-                      <small>{event.days > 1 ? `${event.firstDay}~${event.lastDay}일차` : event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</small>
+                      <small>{event.allDay ? '날짜만' : event.days > 1 ? `${event.firstDay}~${event.lastDay}일차` : event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</small>
                     </button>
                   ))}
                 </div>
@@ -6447,79 +6506,74 @@ function CalendarPage({
             ))}
           </div>
         ) : mode === '주' ? (
-          <div className="week-calendar">
-            <div className="week-range-grid">
-              {Array.from({ length: 7 }, (_, index) => addCalendarDays(startOfWeek, index)).map((day) => (
-                <strong key={day.toISOString()}>{day.toLocaleDateString('ko-KR', { weekday: 'short', day: 'numeric' })}</strong>
-              ))}
-              {eventSegmentsForWeek(Array.from({ length: 7 }, (_, index) => addCalendarDays(startOfWeek, index))).map((event) => (
-                <button
-                  className="calendar-range-pill"
-                  data-kind={event.kind}
-                  key={event.id}
-                  onClick={event.onClick}
-                  style={{ gridColumn: `${event.columnStart} / span ${event.span}` }}
-                  type="button"
-                >
-                  <span>{event.title}</span>
-                  <small>{event.days > 1 ? `${event.firstDay}~${event.lastDay}일차` : event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</small>
-                </button>
-              ))}
-            </div>
-            <div className="week-timeline">
-              {hours.map((hour) => {
-                const columns = Array.from({ length: 7 }, (_, index) => addCalendarDays(startOfWeek, index));
-                return (
-                  <div className="time-row" key={hour}>
-                    <span>{String(hour).padStart(2, '0')}:00</span>
-                    {columns.map((day) => {
-                      const hourEvents = eventsForDay(day).filter(({ start, end }) => {
-                        const isStartDay = isSameCalendarDay(start, day);
-                        const isEndDay = isSameCalendarDay(end, day);
-                        return (isStartDay && start.getHours() === hour) || (isEndDay && end.getHours() === hour);
-                      });
-                      return (
-                        <div className="time-slot" key={`${day.toDateString()}-${hour}`}>
-                          {hourEvents.map((event) => (
-                            <button className="calendar-task-pill" data-kind={event.kind} key={event.id} onClick={event.onClick} type="button">
-                              <span>{event.title}</span>
-                              <small>{event.days > 1 ? `${event.days}일 일정` : event.kind}</small>
-                            </button>
-                          ))}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
+          <div className="calendar-stack-board calendar-stack-board-week">
+            {Array.from({ length: 7 }, (_, index) => addCalendarDays(startOfWeek, index)).map((day) => (
+              <div className="calendar-day-column" key={day.toISOString()}>
+                <strong>{day.toLocaleDateString('ko-KR', { weekday: 'short', day: 'numeric' })}</strong>
+                <div className="calendar-day-stack">
+                  {eventsForDateStack(day).map((event) => (
+                    <button className="calendar-task-pill" data-kind={event.kind} key={event.id} onClick={event.onClick} type="button">
+                      <span>{event.title}</span>
+                      <small>{eventTimeLabel(event)}</small>
+                    </button>
+                  ))}
+                </div>
+                <div className="calendar-time-layer">
+                  {layoutTimedEvents(day).map((event) => (
+                    <button
+                      className="calendar-time-block"
+                      data-kind={event.kind}
+                      key={event.id}
+                      onClick={event.onClick}
+                      style={{
+                        top: `${(event.startMinutes / 1440) * 100}%`,
+                        height: `${((event.endMinutes - event.startMinutes) / 1440) * 100}%`,
+                        left: `calc(${(event.lane / event.laneCount) * 100}% + 3px)`,
+                        width: `calc(${100 / event.laneCount}% - 6px)`,
+                      }}
+                      type="button"
+                    >
+                      <span>{event.title}</span>
+                      <small>{eventTimeLabel(event)}</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         ) : (
-          <div className="day-timeline">
-            {hours.map((hour) => {
-              const hourEvents = eventsForDay(anchorDate).filter(({ start, end }) => {
-                const isStartDay = isSameCalendarDay(start, anchorDate);
-                const isEndDay = isSameCalendarDay(end, anchorDate);
-                return (isStartDay && start.getHours() === hour) || (isEndDay && end.getHours() === hour);
-              });
-              return (
-                <div className="time-row" key={hour}>
-                  <span>{String(hour).padStart(2, '0')}:00</span>
-                  <div className="time-slot">
-                    {hourEvents.map((event) => (
-                      <button className="calendar-task-pill" data-kind={event.kind} key={event.id} onClick={event.onClick} type="button">
-                        <span>{event.title}</span>
-                        <small>
-                          {event.days > 1
-                            ? `${event.start.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}~${event.end.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}`
-                            : event.kind}
-                        </small>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="calendar-stack-board calendar-stack-board-day">
+            <div className="calendar-day-column">
+              <strong>{anchorDate.toLocaleDateString('ko-KR', { weekday: 'long', month: 'numeric', day: 'numeric' })}</strong>
+              <div className="calendar-day-stack">
+                {eventsForDateStack(anchorDate).map((event) => (
+                  <button className="calendar-task-pill" data-kind={event.kind} key={event.id} onClick={event.onClick} type="button">
+                    <span>{event.title}</span>
+                    <small>{eventTimeLabel(event)}</small>
+                  </button>
+                ))}
+              </div>
+              <div className="calendar-time-layer">
+                {layoutTimedEvents(anchorDate).map((event) => (
+                  <button
+                    className="calendar-time-block"
+                    data-kind={event.kind}
+                    key={event.id}
+                    onClick={event.onClick}
+                    style={{
+                      top: `${(event.startMinutes / 1440) * 100}%`,
+                      height: `${((event.endMinutes - event.startMinutes) / 1440) * 100}%`,
+                      left: `calc(${(event.lane / event.laneCount) * 100}% + 3px)`,
+                      width: `calc(${100 / event.laneCount}% - 6px)`,
+                    }}
+                    type="button"
+                  >
+                    <span>{event.title}</span>
+                    <small>{eventTimeLabel(event)}</small>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
@@ -6544,8 +6598,9 @@ function ScheduleCreateModal({
   const isEdit = Boolean(schedule);
   const [form, setForm] = useState({
     title: schedule?.title || '',
-    startAt: schedule?.startAt ? toDateTimeLocalValue(parseTaskDate(schedule.startAt) || new Date()) : defaultStart,
-    endAt: schedule?.endAt ? toDateTimeLocalValue(parseTaskDate(schedule.endAt) || defaultEndDate) : toDateTimeLocalValue(defaultEndDate),
+    startAt: schedule?.allDay ? toDateOnlyLocalValue(schedule.startAt) : schedule?.startAt ? toDateTimeLocalValue(parseTaskDate(schedule.startAt) || new Date()) : defaultStart,
+    endAt: schedule?.allDay ? toDateOnlyLocalValue(schedule.endAt) : schedule?.endAt ? toDateTimeLocalValue(parseTaskDate(schedule.endAt) || defaultEndDate) : toDateTimeLocalValue(defaultEndDate),
+    allDay: schedule?.allDay || false,
     memo: schedule?.memo || '',
   });
   const [status, setStatus] = useState('');
@@ -6554,8 +6609,9 @@ function ScheduleCreateModal({
   useEffect(() => {
     setForm({
       title: schedule?.title || '',
-      startAt: schedule?.startAt ? toDateTimeLocalValue(parseTaskDate(schedule.startAt) || new Date()) : defaultStart,
-      endAt: schedule?.endAt ? toDateTimeLocalValue(parseTaskDate(schedule.endAt) || defaultEndDate) : toDateTimeLocalValue(defaultEndDate),
+      startAt: schedule?.allDay ? toDateOnlyLocalValue(schedule.startAt) : schedule?.startAt ? toDateTimeLocalValue(parseTaskDate(schedule.startAt) || new Date()) : defaultStart,
+      endAt: schedule?.allDay ? toDateOnlyLocalValue(schedule.endAt) : schedule?.endAt ? toDateTimeLocalValue(parseTaskDate(schedule.endAt) || defaultEndDate) : toDateTimeLocalValue(defaultEndDate),
+      allDay: schedule?.allDay || false,
       memo: schedule?.memo || '',
     });
   }, [schedule?.id]);
@@ -6596,13 +6652,40 @@ function ScheduleCreateModal({
           제목
           <input autoFocus required value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} />
         </label>
+        <label className="calendar-visibility-row">
+          <input
+            checked={form.allDay}
+            onChange={(event) => {
+              const allDay = event.target.checked;
+              setForm((current) => ({
+                ...current,
+                allDay,
+                startAt: allDay ? (current.startAt ? formatDateInputValue(parseDateTimeLocalValue(current.startAt) || new Date()) : formatDateInputValue(new Date())) : toDateTimeLocalValue(parseDateOnlyLocalValue(current.startAt) || new Date()),
+                endAt: allDay ? (current.endAt ? formatDateInputValue(parseDateTimeLocalValue(current.endAt) || new Date()) : formatDateInputValue(defaultEndDate)) : toDateTimeLocalValue(parseDateOnlyLocalValue(current.endAt) || defaultEndDate),
+              }));
+            }}
+            type="checkbox"
+          />
+          <span>
+            시간 없이 날짜만
+            <small>켜면 캘린더에서 날짜 일정으로 표시됩니다.</small>
+          </span>
+        </label>
         <label>
           시작일
-          <DateTimeConfirmField value={form.startAt} onChange={(startAt) => setForm({ ...form, startAt })} />
+          {form.allDay ? (
+            <input required type="date" value={form.startAt} onChange={(event) => setForm({ ...form, startAt: event.target.value })} />
+          ) : (
+            <DateTimeConfirmField required value={form.startAt} onChange={(startAt) => setForm({ ...form, startAt })} />
+          )}
         </label>
         <label>
           종료일
-          <DateTimeConfirmField value={form.endAt} onChange={(endAt) => setForm({ ...form, endAt })} />
+          {form.allDay ? (
+            <input required type="date" value={form.endAt} onChange={(event) => setForm({ ...form, endAt: event.target.value })} />
+          ) : (
+            <DateTimeConfirmField required value={form.endAt} onChange={(endAt) => setForm({ ...form, endAt })} />
+          )}
         </label>
         <label>
           메모
@@ -6651,8 +6734,9 @@ function ScheduleDetailModal({
         </div>
         <div className="task-detail-meta schedule-detail-meta">
           <span>작성자: {schedule.creatorName}</span>
-          <span>시작: {formatDueDate(schedule.startAt)}</span>
-          <span>종료: {formatDueDate(schedule.endAt)}</span>
+          <span>방식: {schedule.allDay ? '날짜만' : '시간 포함'}</span>
+          <span>시작: {formatScheduleDate(schedule.startAt, schedule.allDay)}</span>
+          <span>종료: {formatScheduleDate(schedule.endAt, schedule.allDay)}</span>
         </div>
         <div className="task-detail-body">
           <h3>내용</h3>
@@ -8496,7 +8580,7 @@ function TaskForm({
       setError('받는 담당자를 한 명 이상 선택해주세요.');
       return;
     }
-    if (!form.type || !form.projectId || !form.due || !form.priority || !form.title.trim() || !form.summary.trim()) {
+    if (!form.type || !form.projectId || !form.priority || !form.title.trim() || !form.summary.trim()) {
       setError('첨부파일을 제외한 모든 항목을 입력해주세요.');
       return;
     }
@@ -8572,7 +8656,7 @@ function TaskForm({
       ) : null}
       <label>
         마감기한
-        <DateTimeConfirmField value={form.due} onChange={(due) => setForm({ ...form, due })} />
+        <DateTimeConfirmField allowClear value={form.due} onChange={(due) => setForm({ ...form, due })} />
       </label>
       <label>
         우선순위
@@ -8752,9 +8836,15 @@ function ReportForm({
 }
 
 function DateTimeConfirmField({
+  allowClear = false,
+  placeholder = '마감일 선택',
+  required = false,
   value,
   onChange,
 }: {
+  allowClear?: boolean;
+  placeholder?: string;
+  required?: boolean;
   value: string;
   onChange: (value: string) => void;
 }) {
@@ -8816,16 +8906,21 @@ function DateTimeConfirmField({
     onChange(draft || toDateTimeLocalValue(new Date()));
     setIsOpen(false);
   };
+  const clearDate = () => {
+    onChange('');
+    setDraft('');
+    setIsOpen(false);
+  };
 
   return (
     <div className="datetime-field" ref={fieldRef}>
       <input
         className="datetime-display-input"
-        required
+        required={required}
         readOnly
         type="text"
         value={value ? formatDueDate(value) : ''}
-        placeholder="마감일 선택"
+        placeholder={placeholder}
         onClick={openPicker}
         onFocus={openPicker}
       />
@@ -8887,6 +8982,11 @@ function DateTimeConfirmField({
             </select>
           </div>
           <div className="datetime-popover-actions">
+            {allowClear ? (
+              <button type="button" onClick={clearDate}>
+                비우기
+              </button>
+            ) : null}
             <button type="button" onClick={() => {
               setDraft(value);
               setIsOpen(false);
@@ -8994,7 +9094,7 @@ function TaskComposer({
         </label>
         <label>
           마감기한
-          <DateTimeConfirmField value={due} onChange={setDue} />
+          <DateTimeConfirmField allowClear value={due} onChange={setDue} />
         </label>
         <div className="attachment-row">
           <Paperclip size={17} />
@@ -9020,7 +9120,7 @@ function TaskComposer({
               setError('받는 담당자를 한 명 이상 선택해주세요.');
               return;
             }
-            if (!type || !title.trim() || !summary.trim() || !due) {
+            if (!type || !title.trim() || !summary.trim()) {
               setError('첨부파일을 제외한 모든 항목을 입력해주세요.');
               return;
             }
