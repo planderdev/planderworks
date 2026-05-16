@@ -110,6 +110,7 @@ type Task = {
   startedAt?: string | null;
   readAt?: string | null;
   creatorReadAt?: string | null;
+  showOnCalendar?: boolean;
   due: string;
   status: TaskStatus;
   priority: Priority;
@@ -212,6 +213,7 @@ type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'comments' 
   clientId?: string;
   projectId?: string | null;
   files?: File[];
+  showOnCalendar?: boolean;
 };
 
 type TaskUpdateDraft = {
@@ -223,6 +225,7 @@ type TaskUpdateDraft = {
   projectId?: string | null;
   due: string;
   priority: Priority;
+  showOnCalendar: boolean;
 };
 
 type OperationCategory = '서버' | '도메인' | 'SaaS' | '정산' | '세금' | '라이선스' | '기타';
@@ -1403,6 +1406,7 @@ function App() {
           started_at,
           read_at,
           creator_read_at,
+          show_on_calendar,
           creator_id,
           assignee_id,
           client_id,
@@ -1479,6 +1483,7 @@ function App() {
         startedAt: task.started_at,
         readAt: task.read_at,
         creatorReadAt: task.creator_read_at,
+        showOnCalendar: task.show_on_calendar ?? true,
         due: formatDueDate(task.due_at),
         status: statusFromDb[task.status] || '대기',
         priority: priorityFromDb[task.priority] || '보통',
@@ -2061,6 +2066,7 @@ function App() {
         client_id: clientId,
         project_id: task.projectId && isUuid(task.projectId) ? task.projectId : null,
         due_at: parseDueDate(task.due),
+        show_on_calendar: task.showOnCalendar ?? true,
       };
 
       const { data, error } = await supabase
@@ -2129,6 +2135,7 @@ function App() {
       })),
       from: currentUser?.name || task.from,
       to: recipientNames.join(', '),
+      showOnCalendar: task.showOnCalendar ?? true,
     };
 
     setTasks((current) => [nextTask, ...current]);
@@ -2975,6 +2982,7 @@ function App() {
           client_id: isUuid(client.id) ? client.id : null,
           project_id: nextProjectId,
           due_at: nextDueAt,
+          show_on_calendar: updates.showOnCalendar,
           ...(assigneeChanged ? { read_at: null } : {}),
         })
         .eq('id', task.id);
@@ -3006,6 +3014,7 @@ function App() {
               projectName: project?.name || '',
               due: formatDueDate(nextDueAt),
               dueAt: nextDueAt,
+              showOnCalendar: updates.showOnCalendar,
               readAt: assigneeChanged ? null : item.readAt,
             }
           : item,
@@ -4851,6 +4860,7 @@ function TaskEditModal({
     projectId: fallbackProjectId,
     due: task.dueAt || '',
     priority: task.priority,
+    showOnCalendar: task.showOnCalendar ?? true,
   });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
@@ -4870,6 +4880,7 @@ function TaskEditModal({
       projectId: nextProjectId,
       due: task.dueAt || '',
       priority: task.priority,
+      showOnCalendar: task.showOnCalendar ?? true,
     });
     setStatus('');
   }, [clients, employees, projects, task]);
@@ -4942,6 +4953,17 @@ function TaskEditModal({
               <option>보통</option>
               <option>낮음</option>
             </select>
+          </label>
+          <label className="calendar-visibility-row">
+            <input
+              checked={form.showOnCalendar}
+              onChange={(event) => setForm({ ...form, showOnCalendar: event.target.checked })}
+              type="checkbox"
+            />
+            <span>
+              캘린더에 표시
+              <small>끄면 이 업무는 캘린더에 나오지 않습니다.</small>
+            </span>
           </label>
           <label className="span-2">
             제목
@@ -6181,10 +6203,12 @@ function CalendarPage({
   const [editingSchedule, setEditingSchedule] = useState<WorkSchedule | null>(null);
   const [googleSyncLoading, setGoogleSyncLoading] = useState(false);
   const [googleSyncStatus, setGoogleSyncStatus] = useState('');
-  const calendarTasks = tasks.filter((task) =>
-    getTaskRecipientIds(task).includes(currentUser.id) ||
-    task.creatorId === currentUser.id ||
-    (currentUser.isPrototype && (task.to === currentUser.name || task.from === currentUser.name)),
+  const calendarTasks = tasks.filter(
+    (task) =>
+      (task.showOnCalendar ?? true) &&
+      (getTaskRecipientIds(task).includes(currentUser.id) ||
+        task.creatorId === currentUser.id ||
+        (currentUser.isPrototype && (task.to === currentUser.name || task.from === currentUser.name))),
   );
   const taskCalendarEvents = calendarTasks
     .map((task) => {
@@ -8406,6 +8430,7 @@ function TaskForm({
     due: '',
     priority: '보통' as Priority,
     summary: '',
+    showOnCalendar: true,
   });
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState('');
@@ -8495,6 +8520,7 @@ function TaskForm({
       priority: form.priority,
       type: form.type,
       summary: form.summary,
+      showOnCalendar: form.showOnCalendar,
       files,
     });
     setLoading(false);
@@ -8555,6 +8581,17 @@ function TaskForm({
           <option>보통</option>
           <option>낮음</option>
         </select>
+      </label>
+      <label className="calendar-visibility-row">
+        <input
+          checked={form.showOnCalendar}
+          onChange={(event) => setForm({ ...form, showOnCalendar: event.target.checked })}
+          type="checkbox"
+        />
+        <span>
+          캘린더에 표시
+          <small>끄면 이 업무는 캘린더에 나오지 않습니다.</small>
+        </span>
       </label>
       <label className="span-2">
         제목

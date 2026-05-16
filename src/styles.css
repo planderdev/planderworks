@@ -1989,6 +1989,42 @@ h1 {
   text-align: left;
 }
 
+.calendar-visibility-row {
+  min-height: 46px;
+  display: flex !important;
+  align-items: center;
+  grid-template-columns: none !important;
+  grid-auto-flow: column;
+  justify-content: flex-start;
+  gap: 10px !important;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text) !important;
+}
+
+.calendar-visibility-row input {
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.calendar-visibility-row span {
+  display: grid;
+  gap: 2px;
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+
+.calendar-visibility-row small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
 .datetime-field {
   position: relative;
 }

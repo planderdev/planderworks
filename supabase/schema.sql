@@ -109,6 +109,7 @@ create table if not exists public.tasks (
   started_at timestamptz,
   read_at timestamptz,
   creator_read_at timestamptz,
+  show_on_calendar boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
