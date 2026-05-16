@@ -192,6 +192,20 @@ create table if not exists public.push_preferences (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.api_keys (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  scope text not null check (scope in ('personal_schedule')),
+  key_prefix text not null,
+  key_hash text not null unique,
+  active boolean not null default true,
+  created_by uuid references public.profiles(id) on delete set null,
+  last_used_at timestamptz,
+  revoked_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -248,6 +262,11 @@ for each row execute function public.set_updated_at();
 drop trigger if exists set_push_preferences_updated_at on public.push_preferences;
 create trigger set_push_preferences_updated_at
 before update on public.push_preferences
+for each row execute function public.set_updated_at();
+
+drop trigger if exists set_api_keys_updated_at on public.api_keys;
+create trigger set_api_keys_updated_at
+before update on public.api_keys
 for each row execute function public.set_updated_at();
 
 create or replace function public.handle_new_user()
@@ -349,6 +368,7 @@ alter table public.task_files enable row level security;
 alter table public.activity_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
 alter table public.push_preferences enable row level security;
+alter table public.api_keys enable row level security;
 
 drop policy if exists "job types are readable" on public.job_types;
 create policy "job types are readable"
@@ -634,6 +654,25 @@ on public.push_preferences for all
 to authenticated
 using (user_id = auth.uid())
 with check (user_id = auth.uid());
+
+drop policy if exists "admins read api keys" on public.api_keys;
+create policy "admins read api keys"
+on public.api_keys for select
+to authenticated
+using (public.current_user_role() = 'admin');
+
+drop policy if exists "admins create api keys" on public.api_keys;
+create policy "admins create api keys"
+on public.api_keys for insert
+to authenticated
+with check (public.current_user_role() = 'admin' and created_by = auth.uid());
+
+drop policy if exists "admins update api keys" on public.api_keys;
+create policy "admins update api keys"
+on public.api_keys for update
+to authenticated
+using (public.current_user_role() = 'admin')
+with check (public.current_user_role() = 'admin');
 
 drop policy if exists "activity logs are readable to admins" on public.activity_logs;
 create policy "activity logs are readable to admins"

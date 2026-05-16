@@ -83,6 +83,13 @@ const defaultPushPreferences: PushPreferences = {
   report: true,
   projectMessage: true,
 };
+const apiScopeOptions: Array<{ value: ApiScope; label: string; description: string }> = [
+  {
+    value: 'personal_schedule',
+    label: '개인 스케줄 등록',
+    description: '외부 스케줄러에서 PlanderWorks 캘린더 개인 스케줄을 생성/갱신합니다.',
+  },
+];
 
 type AppUser = {
   id: string;
@@ -180,6 +187,21 @@ type PushPreferences = {
   task: boolean;
   report: boolean;
   projectMessage: boolean;
+};
+
+type ApiScope = 'personal_schedule';
+type ApiKeyRecord = {
+  id: string;
+  name: string;
+  scope: ApiScope;
+  keyPrefix: string;
+  active: boolean;
+  lastUsedAt?: string | null;
+  createdAt?: string | null;
+};
+type ApiKeyCreateResult = {
+  message: string;
+  secret?: string;
 };
 
 type Employee = {
@@ -312,6 +334,8 @@ type EmployeeSubmitHandler = (employee: NewEmployee) => Promise<string>;
 type EmployeeUpdateHandler = (employeeId: string, updates: EmployeeUpdate) => Promise<string>;
 type GoogleCalendarSettingsHandler = (settings: GoogleCalendarSettings) => Promise<string>;
 type PushPreferencesUpdateHandler = (preferences: PushPreferences) => Promise<string>;
+type ApiKeyCreateHandler = (name: string, scope: ApiScope) => Promise<ApiKeyCreateResult>;
+type ApiKeyRevokeHandler = (apiKey: ApiKeyRecord) => Promise<string>;
 
 function showActionPopup(message: string) {
   window.dispatchEvent(new CustomEvent('plander-action-complete', { detail: message }));
@@ -544,6 +568,22 @@ function normalizeGoogleCalendarSettings(settings: GoogleCalendarSettings): Goog
   return {
     calendarId: settings.calendarId.trim(),
   };
+}
+
+async function sha256Hex(value: string) {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(hashBuffer)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function generateApiSecret() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  const encoded = btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  return `pw_live_${encoded}`;
+}
+
+function getApiScopeLabel(scope: ApiScope | string) {
+  return apiScopeOptions.find((item) => item.value === scope)?.label || scope;
 }
 
 function getCalendarEndDate(event: CalendarEventItem) {
@@ -1113,6 +1153,7 @@ function App() {
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
   const [googleCalendarSettings, setGoogleCalendarSettings] = useState<GoogleCalendarSettings>(getInitialGoogleCalendarSettings);
+  const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
   const [jobTypes, setJobTypes] = useState(seedJobTypes);
   const [taskTypes, setTaskTypes] = useState(fallbackTaskTypes);
   const [backendStatus, setBackendStatus] = useState('프로토타입 데이터');
@@ -1368,6 +1409,7 @@ function App() {
       projectMessageReadsResult,
       workSchedulesResult,
       pushPreferencesResult,
+      apiKeysResult,
       tasksResult,
       commentsResult,
     ] = await Promise.all([
@@ -1415,6 +1457,10 @@ function App() {
         .eq('user_id', currentUser.id)
         .maybeSingle(),
       supabase
+        .from('api_keys')
+        .select('id, name, scope, key_prefix, active, last_used_at, created_at')
+        .order('created_at', { ascending: false }),
+      supabase
         .from('tasks')
         .select(`
           id,
@@ -1457,6 +1503,7 @@ function App() {
       projectMessageReadsResult.error ||
       workSchedulesResult.error ||
       pushPreferencesResult.error ||
+      apiKeysResult.error ||
       tasksResult.error ||
       commentsResult.error
     ) {
@@ -1629,6 +1676,15 @@ function App() {
           projectMessage: Boolean((pushPreferencesResult.data as any).project_message_enabled),
         }
       : defaultPushPreferences;
+    const nextApiKeys: ApiKeyRecord[] = ((apiKeysResult.data || []) as any[]).map((apiKey) => ({
+      id: apiKey.id,
+      name: apiKey.name,
+      scope: apiKey.scope,
+      keyPrefix: apiKey.key_prefix,
+      active: apiKey.active,
+      lastUsedAt: apiKey.last_used_at,
+      createdAt: apiKey.created_at,
+    }));
 
     const nextJobTypes = (jobTypesResult.data || []).map((jobType) => jobType.name);
     const nextTaskTypes = (taskTypesResult.data || []).map((taskType) => taskType.name);
@@ -1640,6 +1696,7 @@ function App() {
     setProjectMessages(nextProjectMessages);
     setWorkSchedules(nextWorkSchedules);
     setPushPreferences(nextPushPreferences);
+    setApiKeys(nextApiKeys);
     setJobTypes(nextJobTypes.length ? nextJobTypes : seedJobTypes);
     setTaskTypes(nextTaskTypes.length ? nextTaskTypes : fallbackTaskTypes);
     setBackendStatus('Supabase 연결됨');
@@ -1672,6 +1729,7 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_message_reads' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_schedules' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'push_preferences' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'api_keys' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, queueRefresh)
       .subscribe();
 
@@ -2934,6 +2992,72 @@ function App() {
     return '푸시알림 설정을 저장했습니다.';
   };
 
+  const createApiKey: ApiKeyCreateHandler = async (name, scope) => {
+    const normalizedName = name.trim();
+    if (!normalizedName) return { message: 'API 이름을 입력해주세요.' };
+    if (currentUser?.accountRole !== 'admin') return { message: '관리자만 API 키를 생성할 수 있습니다.' };
+
+    const secret = generateApiSecret();
+    const keyHash = await sha256Hex(secret);
+    const keyPrefix = `${secret.slice(0, 14)}...`;
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('api_keys').insert({
+        name: normalizedName,
+        scope,
+        key_prefix: keyPrefix,
+        key_hash: keyHash,
+        created_by: currentUser.id,
+      });
+
+      if (error) {
+        const message = `API 키 생성 실패: ${error.message}`;
+        setBackendStatus(message);
+        return { message };
+      }
+
+      await loadBackendData();
+      return { message: 'API 키를 생성했습니다. 키는 이번에만 표시됩니다.', secret };
+    }
+
+    setApiKeys((current) => [
+      {
+        id: `api-${Date.now()}`,
+        name: normalizedName,
+        scope,
+        keyPrefix,
+        active: true,
+        createdAt: new Date().toISOString(),
+      },
+      ...current,
+    ]);
+    return { message: 'API 키를 생성했습니다. 키는 이번에만 표시됩니다.', secret };
+  };
+
+  const revokeApiKey: ApiKeyRevokeHandler = async (apiKey) => {
+    if (currentUser?.accountRole !== 'admin') return '관리자만 API 키를 폐기할 수 있습니다.';
+    if (!(await requestActionConfirm(`${apiKey.name} API 키를 폐기할까요?`))) return '취소했습니다.';
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('api_keys')
+        .update({ active: false, revoked_at: new Date().toISOString() })
+        .eq('id', apiKey.id);
+
+      if (error) {
+        const message = `API 키 폐기 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return 'API 키를 폐기했습니다.';
+    }
+
+    setApiKeys((current) => current.map((item) => (item.id === apiKey.id ? { ...item, active: false } : item)));
+    return 'API 키를 폐기했습니다.';
+  };
+
   const updateTaskStatus = async (taskId: string, status: TaskStatus): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const currentTask = tasks.find((task) => task.id === taskId);
@@ -3605,6 +3729,7 @@ function App() {
             backendStatus={backendStatus}
             currentUser={currentUser}
             employees={employees}
+            apiKeys={apiKeys}
             googleCalendarSettings={googleCalendarSettings}
             jobTypes={jobTypes}
             taskTypes={taskTypes}
@@ -3621,6 +3746,8 @@ function App() {
             onAddJobType={addJobType}
             onDeleteJobType={deleteJobType}
             onAddTaskType={addTaskType}
+            onCreateApiKey={createApiKey}
+            onRevokeApiKey={revokeApiKey}
             onDeleteTaskType={deleteTaskType}
             onSaveGoogleCalendarSettings={saveGoogleCalendarSettings}
             onUpdatePushPreferences={updatePushPreferences}
@@ -8022,6 +8149,7 @@ function SettingsPage({
   backendStatus,
   currentUser,
   employees,
+  apiKeys,
   googleCalendarSettings,
   jobTypes,
   taskTypes,
@@ -8039,6 +8167,8 @@ function SettingsPage({
   onAddJobType,
   onDeleteJobType,
   onAddTaskType,
+  onCreateApiKey,
+  onRevokeApiKey,
   onDeleteTaskType,
   onSaveGoogleCalendarSettings,
   onUpdatePushPreferences,
@@ -8049,6 +8179,7 @@ function SettingsPage({
   backendStatus: string;
   currentUser: AppUser;
   employees: Employee[];
+  apiKeys: ApiKeyRecord[];
   googleCalendarSettings: GoogleCalendarSettings;
   jobTypes: string[];
   taskTypes: string[];
@@ -8066,6 +8197,8 @@ function SettingsPage({
   onAddJobType: JobTypeSubmitHandler;
   onDeleteJobType: JobTypeDeleteHandler;
   onAddTaskType: TaskTypeSubmitHandler;
+  onCreateApiKey: ApiKeyCreateHandler;
+  onRevokeApiKey: ApiKeyRevokeHandler;
   onDeleteTaskType: TaskTypeDeleteHandler;
   onSaveGoogleCalendarSettings: GoogleCalendarSettingsHandler;
   onUpdatePushPreferences: PushPreferencesUpdateHandler;
@@ -8093,6 +8226,11 @@ function SettingsPage({
   const [googleStatus, setGoogleStatus] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
   const [pushPreferencesLoading, setPushPreferencesLoading] = useState(false);
+  const [apiName, setApiName] = useState('개인 스케줄러');
+  const [apiScope, setApiScope] = useState<ApiScope>('personal_schedule');
+  const [apiStatus, setApiStatus] = useState('');
+  const [apiSecret, setApiSecret] = useState('');
+  const [apiLoading, setApiLoading] = useState(false);
 
   useEffect(() => {
     setProfileForm({
@@ -8159,6 +8297,25 @@ function SettingsPage({
     setPushPreferencesLoading(true);
     const message = await onUpdatePushPreferences({ ...pushPreferences, [key]: enabled });
     setPushPreferencesLoading(false);
+    showActionPopup(message);
+  };
+  const submitApiKey = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (apiLoading) return;
+    setApiLoading(true);
+    const result = await onCreateApiKey(apiName, apiScope);
+    setApiLoading(false);
+    setApiStatus(result.message);
+    setApiSecret(result.secret || '');
+    showActionPopup(result.message);
+    if (result.secret) setApiName('');
+  };
+  const revokeKey = async (apiKey: ApiKeyRecord) => {
+    if (apiLoading) return;
+    setApiLoading(true);
+    const message = await onRevokeApiKey(apiKey);
+    setApiLoading(false);
+    setApiStatus(message);
     showActionPopup(message);
   };
 
@@ -8236,6 +8393,59 @@ function SettingsPage({
             {googleLoading ? '진행중...' : 'Google 설정 저장'}
           </button>
         </form>
+        {currentUser.accountRole === 'admin' ? (
+          <form className="page-card settings-card api-settings-card" onSubmit={submitApiKey}>
+            <h2>API 키 관리</h2>
+            <p>외부 앱이 PlanderWorks로 데이터를 보낼 때 사용할 기능별 API 키를 생성합니다. 생성된 키는 한 번만 표시됩니다.</p>
+            <div className="api-create-grid">
+              <label>
+                API 이름
+                <input value={apiName} onChange={(event) => setApiName(event.target.value)} placeholder="개인 스케줄러" />
+              </label>
+              <label>
+                기능
+                <select value={apiScope} onChange={(event) => setApiScope(event.target.value as ApiScope)}>
+                  {apiScopeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <p className="admin-note">{apiScopeOptions.find((option) => option.value === apiScope)?.description}</p>
+            <button className="primary-action" disabled={apiLoading} type="submit">
+              <Plus size={17} />
+              {apiLoading ? '진행중...' : 'API 키 생성'}
+            </button>
+            {apiSecret ? (
+              <div className="api-secret-box">
+                <strong>생성된 API 키</strong>
+                <code>{apiSecret}</code>
+                <small>이 값은 다시 볼 수 없으니 개인 스케줄러 설정에 바로 넣어줘.</small>
+              </div>
+            ) : null}
+            {apiStatus ? <p className="admin-note">{apiStatus}</p> : null}
+            <div className="api-key-list">
+              {apiKeys.length ? (
+                apiKeys.map((apiKey) => (
+                  <div className="api-key-row" data-active={apiKey.active} key={apiKey.id}>
+                    <div>
+                      <strong>{apiKey.name}</strong>
+                      <span>{getApiScopeLabel(apiKey.scope)} · {apiKey.keyPrefix}</span>
+                      <small>
+                        생성 {apiKey.createdAt ? formatDueDate(apiKey.createdAt) : '미정'} · 마지막 사용 {apiKey.lastUsedAt ? formatDueDate(apiKey.lastUsedAt) : '없음'}
+                      </small>
+                    </div>
+                    <button className="secondary-action" disabled={!apiKey.active || apiLoading} onClick={() => revokeKey(apiKey)} type="button">
+                      {apiKey.active ? '폐기' : '폐기됨'}
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="admin-note">아직 생성된 API 키가 없습니다.</p>
+              )}
+            </div>
+          </form>
+        ) : null}
         <div className="page-card settings-card">
           <h2>관리</h2>
           <div className="settings-shortcuts">
