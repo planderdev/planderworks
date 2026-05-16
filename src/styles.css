@@ -2180,13 +2180,13 @@ h1 {
 .week-calendar {
   min-width: 760px;
   display: grid;
-  gap: 14px;
+  gap: 0;
 }
 
 .month-week {
   position: relative;
   display: grid;
-  min-height: 126px;
+  min-height: 116px;
 }
 
 .month-days,
@@ -2194,22 +2194,32 @@ h1 {
 .week-range-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(96px, 1fr));
-  gap: 8px;
+  gap: 0;
 }
 
 .month-cell {
-  min-height: 112px;
+  min-height: 116px;
   display: grid;
   align-content: start;
   gap: 6px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 9px;
-  background: var(--panel-2);
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  padding: 7px 8px 32px;
+  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
+}
+
+.month-week:first-child .month-cell {
+  border-top: 1px solid var(--line);
+}
+
+.month-cell:first-child {
+  border-left: 1px solid var(--line);
 }
 
 .month-cell[data-outside-month='true'] {
-  opacity: 0.42;
+  opacity: 0.48;
 }
 
 .month-cell strong {
@@ -2282,9 +2292,9 @@ h1 {
   z-index: 2;
   grid-auto-rows: 20px;
   align-items: start;
-  gap: 2px 8px;
-  margin-top: -88px;
-  padding: 0 8px 8px;
+  gap: 2px 0;
+  margin-top: -80px;
+  padding: 0 0 7px;
   pointer-events: none;
 }
 
@@ -2293,8 +2303,8 @@ h1 {
   min-width: 0;
   gap: 4px;
   border: 1px solid var(--card-line);
-  border-radius: 5px;
-  padding: 0 7px 0 12px;
+  border-radius: 0;
+  padding: 0 7px 0 9px;
   background: var(--card-bg);
   font-size: 0.76rem;
   pointer-events: auto;
@@ -2306,7 +2316,7 @@ h1 {
 
 .calendar-panel[data-mode='월'] .calendar-range-pill {
   min-height: 20px;
-  padding: 0 6px 0 11px;
+  padding: 0 6px 0 9px;
   font-size: 0.68rem;
 }
 

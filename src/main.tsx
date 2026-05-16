@@ -298,6 +298,7 @@ type ProjectUpdateHandler = (projectId: string, project: ProjectDraft) => Promis
 type ProjectStatusHandler = (project: Project, status: string) => Promise<string>;
 type ProjectPermanentDeleteHandler = (project: Project) => Promise<string>;
 type WorkScheduleSubmitHandler = (schedule: WorkScheduleDraft) => Promise<string>;
+type WorkScheduleUpdateHandler = (scheduleId: string, schedule: WorkScheduleDraft) => Promise<string>;
 type JobTypeSubmitHandler = (name: string) => Promise<string>;
 type JobTypeDeleteHandler = (name: string) => Promise<string>;
 type TaskTypeSubmitHandler = (name: string) => Promise<string>;
@@ -2541,6 +2542,56 @@ function App() {
     return '스케줄이 추가되었습니다.';
   };
 
+  const updateWorkSchedule: WorkScheduleUpdateHandler = async (scheduleId, schedule) => {
+    const title = schedule.title.trim();
+    const memo = schedule.memo.trim();
+    const startDate = parseDateTimeLocalValue(schedule.startAt);
+    const endDate = parseDateTimeLocalValue(schedule.endAt);
+
+    if (!title) return '스케줄 제목을 입력해주세요.';
+    if (!startDate || !endDate) return '시작일과 종료일을 선택해주세요.';
+    if (endDate.getTime() < startDate.getTime()) return '종료일은 시작일보다 늦게 선택해주세요.';
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('calendar_schedules')
+        .update({
+          title,
+          start_at: startDate.toISOString(),
+          end_at: endDate.toISOString(),
+          memo,
+        })
+        .eq('id', scheduleId);
+
+      if (error) {
+        const message = `스케줄 수정 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      setBackendStatus('스케줄이 수정되었습니다.');
+      return '스케줄이 수정되었습니다.';
+    }
+
+    setWorkSchedules((current) =>
+      current
+        .map((item) =>
+          item.id === scheduleId
+            ? {
+                ...item,
+                title,
+                startAt: startDate.toISOString(),
+                endAt: endDate.toISOString(),
+                memo,
+              }
+            : item,
+        )
+        .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()),
+    );
+    return '스케줄이 수정되었습니다.';
+  };
+
   const markProjectMessagesRead = async (messageIds: string[]) => {
     const uniqueMessageIds = Array.from(new Set(messageIds.filter(Boolean)));
     if (!uniqueMessageIds.length || !currentUser) return;
@@ -3488,6 +3539,7 @@ function App() {
             operations={isAdmin ? operations : []}
             schedules={workSchedules}
             onAddSchedule={addWorkSchedule}
+            onUpdateSchedule={updateWorkSchedule}
             onOpenOperations={() => navigateTo('operations')}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
             tasks={tasks}
@@ -5032,6 +5084,7 @@ function TaskListPage({
   pushEnabled,
   pushLoading,
   pushStatus,
+  showThemeSwitcher,
   themeMode,
   title,
   initialStatus,
@@ -5098,6 +5151,7 @@ function TaskListPage({
       pushStatus={pushStatus}
       searchLabel={`${title} 검색`}
       searchPlaceholder="업무, 프로젝트, 담당자 검색"
+      showThemeSwitcher={showThemeSwitcher}
       subheading={`조건에 맞는 업무 ${filteredTasks.length}건 · 전체 ${tasks.length}건`}
       themeMode={themeMode}
       onLogout={onLogout}
@@ -5969,6 +6023,7 @@ function ReportsPage({
   pushEnabled,
   pushLoading,
   pushStatus,
+  showThemeSwitcher,
   themeMode,
   onLogout,
   onMenuClick,
@@ -6021,6 +6076,7 @@ function ReportsPage({
       pushStatus={pushStatus}
       searchLabel="보고 제안 검색"
       searchPlaceholder="보고, 제안, 담당자 검색"
+      showThemeSwitcher={showThemeSwitcher}
       subheading={`대표에게 전달한 보고와 직원 간 제안을 한 곳에서 확인합니다. · 전체 ${reportTasks.length}건`}
       themeMode={themeMode}
       onLogout={onLogout}
@@ -6092,6 +6148,7 @@ function CalendarPage({
   pushEnabled,
   pushLoading,
   pushStatus,
+  showThemeSwitcher,
   themeMode,
   googleCalendarSettings,
   tasks,
@@ -6104,6 +6161,7 @@ function CalendarPage({
   onRegisterPush,
   onThemeChange,
   onAddSchedule,
+  onUpdateSchedule,
   onOpenTask,
   onOpenOperations,
 }: ImmersiveChromeProps & {
@@ -6112,6 +6170,7 @@ function CalendarPage({
   operations: OperationItem[];
   schedules: WorkSchedule[];
   onAddSchedule: WorkScheduleSubmitHandler;
+  onUpdateSchedule: WorkScheduleUpdateHandler;
   onOpenTask: (task: Task) => void;
   onOpenOperations: () => void;
 }) {
@@ -6119,6 +6178,7 @@ function CalendarPage({
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [scheduleCreateOpen, setScheduleCreateOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<WorkSchedule | null>(null);
+  const [editingSchedule, setEditingSchedule] = useState<WorkSchedule | null>(null);
   const [googleSyncLoading, setGoogleSyncLoading] = useState(false);
   const [googleSyncStatus, setGoogleSyncStatus] = useState('');
   const calendarTasks = tasks.filter((task) =>
@@ -6295,6 +6355,7 @@ function CalendarPage({
       pushStatus={pushStatus}
       searchLabel="캘린더 검색"
       searchPlaceholder="업무, 스케줄, 정산 항목 검색"
+      showThemeSwitcher={showThemeSwitcher}
       subheading={currentDateLabel}
       themeMode={themeMode}
       onLogout={onLogout}
@@ -6313,8 +6374,21 @@ function CalendarPage({
       ) : null}
       {selectedSchedule ? (
         <ScheduleDetailModal
+          canEdit={selectedSchedule.createdBy === currentUser.id || currentUser.accountRole === 'admin' || currentUser.isPrototype}
           schedule={selectedSchedule}
           onClose={() => setSelectedSchedule(null)}
+          onEdit={() => {
+            setEditingSchedule(selectedSchedule);
+            setSelectedSchedule(null);
+          }}
+        />
+      ) : null}
+      {editingSchedule ? (
+        <ScheduleCreateModal
+          schedule={editingSchedule}
+          onAddSchedule={onAddSchedule}
+          onClose={() => setEditingSchedule(null)}
+          onUpdateSchedule={onUpdateSchedule}
         />
       ) : null}
 
@@ -6430,23 +6504,37 @@ function CalendarPage({
 }
 
 function ScheduleCreateModal({
+  schedule,
   onAddSchedule,
   onClose,
+  onUpdateSchedule,
 }: {
+  schedule?: WorkSchedule | null;
   onAddSchedule: WorkScheduleSubmitHandler;
   onClose: () => void;
+  onUpdateSchedule?: WorkScheduleUpdateHandler;
 }) {
   const defaultStart = toDateTimeLocalValue(new Date());
   const defaultEndDate = new Date();
   defaultEndDate.setHours(defaultEndDate.getHours() + 1);
+  const isEdit = Boolean(schedule);
   const [form, setForm] = useState({
-    title: '',
-    startAt: defaultStart,
-    endAt: toDateTimeLocalValue(defaultEndDate),
-    memo: '',
+    title: schedule?.title || '',
+    startAt: schedule?.startAt ? toDateTimeLocalValue(parseTaskDate(schedule.startAt) || new Date()) : defaultStart,
+    endAt: schedule?.endAt ? toDateTimeLocalValue(parseTaskDate(schedule.endAt) || defaultEndDate) : toDateTimeLocalValue(defaultEndDate),
+    memo: schedule?.memo || '',
   });
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setForm({
+      title: schedule?.title || '',
+      startAt: schedule?.startAt ? toDateTimeLocalValue(parseTaskDate(schedule.startAt) || new Date()) : defaultStart,
+      endAt: schedule?.endAt ? toDateTimeLocalValue(parseTaskDate(schedule.endAt) || defaultEndDate) : toDateTimeLocalValue(defaultEndDate),
+      memo: schedule?.memo || '',
+    });
+  }, [schedule?.id]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -6455,11 +6543,11 @@ function ScheduleCreateModal({
       setStatus('제목, 시작일, 종료일을 입력해주세요.');
       return;
     }
-    if (!(await requestActionConfirm('스케줄을 추가하시겠습니까?'))) return;
+    if (!(await requestActionConfirm(isEdit ? '스케줄을 수정하시겠습니까?' : '스케줄을 추가하시겠습니까?'))) return;
 
     setLoading(true);
     setStatus('저장중입니다.');
-    const message = await onAddSchedule(form);
+    const message = isEdit && schedule && onUpdateSchedule ? await onUpdateSchedule(schedule.id, form) : await onAddSchedule(form);
     setLoading(false);
     setStatus(message);
     showActionPopup(message);
@@ -6474,7 +6562,7 @@ function ScheduleCreateModal({
         <div className="modal-head">
           <div>
             <p className="eyebrow">Schedule</p>
-            <h2>스케줄 추가</h2>
+            <h2>{isEdit ? '스케줄 수정' : '스케줄 추가'}</h2>
           </div>
           <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
             <X size={18} />
@@ -6499,7 +6587,7 @@ function ScheduleCreateModal({
         {status ? <p className="admin-note">{status}</p> : null}
         <button className="primary-action wide" disabled={loading} type="submit">
           <Plus size={17} />
-          {loading ? '진행중...' : '스케줄 추가'}
+          {loading ? '진행중...' : isEdit ? '스케줄 저장' : '스케줄 추가'}
         </button>
       </form>
     </div>
@@ -6507,11 +6595,15 @@ function ScheduleCreateModal({
 }
 
 function ScheduleDetailModal({
+  canEdit,
   schedule,
   onClose,
+  onEdit,
 }: {
+  canEdit: boolean;
   schedule: WorkSchedule;
   onClose: () => void;
+  onEdit: () => void;
 }) {
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -6521,9 +6613,17 @@ function ScheduleDetailModal({
             <p className="eyebrow">Schedule</p>
             <h2>{schedule.creatorName} - {schedule.title}</h2>
           </div>
-          <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
-            <X size={18} />
-          </button>
+          <div className="modal-head-actions">
+            {canEdit ? (
+              <button className="secondary-action" onClick={onEdit} type="button">
+                <Pencil size={17} />
+                수정
+              </button>
+            ) : null}
+            <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
+              <X size={18} />
+            </button>
+          </div>
         </div>
         <div className="task-detail-meta schedule-detail-meta">
           <span>작성자: {schedule.creatorName}</span>
@@ -6547,6 +6647,7 @@ function ClientsPage({
   pushEnabled,
   pushLoading,
   pushStatus,
+  showThemeSwitcher,
   themeMode,
   clients,
   employees,
@@ -6667,6 +6768,7 @@ function ClientsPage({
       pushStatus={pushStatus}
       searchLabel="업체 검색"
       searchPlaceholder="업체, 담당자, 지역 검색"
+      showThemeSwitcher={showThemeSwitcher}
       subheading={`등록 업체 ${clients.length}곳`}
       themeMode={themeMode}
       onLogout={onLogout}
@@ -7412,6 +7514,7 @@ function OperationsPage({
   pushEnabled,
   pushLoading,
   pushStatus,
+  showThemeSwitcher,
   themeMode,
   items,
   employees,
@@ -7568,6 +7671,7 @@ function OperationsPage({
       pushStatus={pushStatus}
       searchLabel="구독 정산 검색"
       searchPlaceholder="항목, 서비스, 담당자 검색"
+      showThemeSwitcher={showThemeSwitcher}
       subheading={`미완료 ${summary.pending}건 · 이번달 예정액 ${new Intl.NumberFormat('ko-KR').format(summary.monthAmount)}원`}
       themeMode={themeMode}
       onLogout={onLogout}
