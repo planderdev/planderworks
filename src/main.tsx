@@ -1121,8 +1121,11 @@ function buildWeeklyReportDraft(userId: string, tasks: Task[], schedules: WorkSc
     ...nextWeekTasks.slice(0, 12).map(formatWeeklyTaskLine),
     ...nextWeekSchedules.slice(0, 12).map(formatWeeklyScheduleLine),
   ];
-  const pendingReports = userTasks.filter(
-    (task) => (task.type === '보고' || task.type === '제안') && isDateWithinRange(getTaskActivityDate(task), range.start, range.end),
+  const openReports = userTasks.filter(
+    (task) =>
+      (task.type === '보고' || task.type === '제안') &&
+      task.status !== '완료' &&
+      isDateWithinRange(getTaskActivityDate(task), range.start, range.end),
   );
 
   return {
@@ -1132,8 +1135,8 @@ function buildWeeklyReportDraft(userId: string, tasks: Task[], schedules: WorkSc
     nextWeekPlan: nextWeekLines.length
       ? nextWeekLines.join('\n')
       : '- 다음 주 캘린더 일정 또는 예정 업무를 입력해주세요.',
-    notes: pendingReports.length
-      ? pendingReports.slice(0, 10).map(formatWeeklyTaskLine).join('\n')
+    notes: openReports.length
+      ? openReports.slice(0, 10).map(formatWeeklyTaskLine).join('\n')
       : '- 특이사항이 있으면 입력해주세요.',
     suggestions: '- 건의사항이 있으면 입력해주세요.',
   };
