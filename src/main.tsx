@@ -403,6 +403,8 @@ type WeeklyReportSaveHandler = (report: WeeklyReport, draft: WeeklyReportDraft) 
 type WeeklyReportStatusHandler = (report: WeeklyReport, status: WeeklyReportStatus) => Promise<string>;
 type WeeklyReportDeleteHandler = (report: WeeklyReport) => Promise<string>;
 type MeetingMinuteSubmitHandler = (minute: MeetingMinuteDraft) => Promise<string>;
+type MeetingMinuteUpdateHandler = (minuteId: string, minute: MeetingMinuteDraft) => Promise<string>;
+type MeetingMinuteDeleteHandler = (minute: MeetingMinute) => Promise<string>;
 type MeetingMinuteCategorySubmitHandler = (name: string) => Promise<string>;
 type MeetingMinuteCategoryDeleteHandler = (name: string) => Promise<string>;
 
@@ -3172,6 +3174,97 @@ function App() {
     return '회의록을 등록했습니다.';
   };
 
+  const updateMeetingMinute: MeetingMinuteUpdateHandler = async (minuteId, minute) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    const existingMinute = meetingMinutes.find((item) => item.id === minuteId);
+    if (!existingMinute) return '수정할 회의록을 찾을 수 없습니다.';
+    if (currentUser.accountRole !== 'admin' && existingMinute.createdBy !== currentUser.id) return '회의록 작성자와 관리자만 수정할 수 있습니다.';
+
+    const title = minute.title.trim();
+    const content = minute.content.trim();
+    const category = minute.category.trim();
+    const heldAt = minute.heldAt ? parseDateTimeLocalValue(minute.heldAt) : null;
+
+    if (!category) return '회의록 카테고리를 선택해주세요.';
+    if (!title) return '회의록 제목을 입력해주세요.';
+    if (!content) return '회의 내용을 입력해주세요.';
+
+    const updates = {
+      category,
+      title,
+      content,
+      summary: minute.summary.trim(),
+      decisions: minute.decisions.trim(),
+      action_items: minute.actionItems.trim(),
+      attendees: minute.attendees.trim(),
+      project_id: minute.projectId || null,
+      held_at: heldAt ? heldAt.toISOString() : null,
+    };
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('meeting_minutes')
+        .update(updates)
+        .eq('id', minuteId);
+
+      if (error) {
+        const message = `회의록 수정 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '회의록을 수정했습니다.';
+    }
+
+    setMeetingMinutes((current) =>
+      current.map((item) =>
+        item.id === minuteId
+          ? {
+              ...item,
+              category,
+              title,
+              content,
+              summary: minute.summary.trim(),
+              decisions: minute.decisions.trim(),
+              actionItems: minute.actionItems.trim(),
+              attendees: minute.attendees.trim(),
+              projectId: minute.projectId || null,
+              projectName: projects.find((project) => project.id === minute.projectId)?.name || '',
+              heldAt: heldAt ? heldAt.toISOString() : null,
+              updatedAt: new Date().toISOString(),
+            }
+          : item,
+      ),
+    );
+    return '회의록을 수정했습니다.';
+  };
+
+  const deleteMeetingMinute: MeetingMinuteDeleteHandler = async (minute) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    if (currentUser.accountRole !== 'admin' && minute.createdBy !== currentUser.id) return '회의록 작성자와 관리자만 삭제할 수 있습니다.';
+    if (!(await requestActionConfirm(`${minute.title} 회의록을 삭제할까요?`))) return '취소했습니다.';
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('meeting_minutes')
+        .delete()
+        .eq('id', minute.id);
+
+      if (error) {
+        const message = `회의록 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '회의록을 삭제했습니다.';
+    }
+
+    setMeetingMinutes((current) => current.filter((item) => item.id !== minute.id));
+    return '회의록을 삭제했습니다.';
+  };
+
   const addEmployee = async (employee: NewEmployee): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -4204,6 +4297,8 @@ function App() {
             minutes={meetingMinutes}
             projects={projects}
             onCreateMinute={addMeetingMinute}
+            onDeleteMinute={deleteMeetingMinute}
+            onUpdateMinute={updateMeetingMinute}
           />
         ) : null}
         {activeView === 'weeklyReports' ? (
@@ -6927,6 +7022,8 @@ function MeetingMinutesPage({
   showThemeSwitcher,
   themeMode,
   onCreateMinute,
+  onDeleteMinute,
+  onUpdateMinute,
   onLogout,
   onMenuClick,
   onNavigate,
@@ -6938,11 +7035,27 @@ function MeetingMinutesPage({
   minutes: MeetingMinute[];
   projects: Project[];
   onCreateMinute: MeetingMinuteSubmitHandler;
+  onDeleteMinute: MeetingMinuteDeleteHandler;
+  onUpdateMinute: MeetingMinuteUpdateHandler;
 }) {
   const [composeOpen, setComposeOpen] = useState(false);
+  const [editingMinuteId, setEditingMinuteId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('전체');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
   const visibleMinutes = minutes.filter((minute) => categoryFilter === '전체' || minute.category === categoryFilter);
+  const editingMinute = minutes.find((minute) => minute.id === editingMinuteId) || null;
+
+  const deleteMinute = async (minute: MeetingMinute) => {
+    if (deleteLoadingId) return;
+    setDeleteLoadingId(minute.id);
+    const message = await onDeleteMinute(minute);
+    setDeleteLoadingId(null);
+    showActionPopup(message);
+    if (!message.includes('실패') && !message.includes('취소')) {
+      setExpandedId((current) => (current === minute.id ? null : current));
+    }
+  };
 
   return (
     <ImmersivePageFrame
@@ -6990,6 +7103,7 @@ function MeetingMinutesPage({
           {visibleMinutes.length ? (
             visibleMinutes.map((minute) => {
               const expanded = expandedId === minute.id;
+              const canManageMinute = currentUser.accountRole === 'admin' || minute.createdBy === currentUser.id;
               return (
                 <article className="meeting-minute-card" data-expanded={expanded} key={minute.id}>
                   <button className="meeting-minute-summary" onClick={() => setExpandedId((current) => (current === minute.id ? null : minute.id))} type="button">
@@ -7007,6 +7121,18 @@ function MeetingMinutesPage({
                   </button>
                   {expanded ? (
                     <div className="meeting-minute-detail">
+                      {canManageMinute ? (
+                        <div className="meeting-minute-detail-actions">
+                          <button className="secondary-action" onClick={() => setEditingMinuteId(minute.id)} type="button">
+                            <Pencil size={16} />
+                            수정
+                          </button>
+                          <button className="secondary-action danger-action" disabled={deleteLoadingId === minute.id} onClick={() => deleteMinute(minute)} type="button">
+                            <Trash2 size={16} />
+                            {deleteLoadingId === minute.id ? '진행중...' : '삭제'}
+                          </button>
+                        </div>
+                      ) : null}
                       <dl className="meeting-minute-meta">
                         <div>
                           <dt>참석자</dt>
@@ -7061,7 +7187,30 @@ function MeetingMinutesPage({
                 <X size={18} />
               </button>
             </div>
-            <MeetingMinuteForm categories={categories} projects={projects} onCreateMinute={onCreateMinute} onSuccess={() => setComposeOpen(false)} />
+            <MeetingMinuteForm categories={categories} projects={projects} onSubmitMinute={onCreateMinute} onSuccess={() => setComposeOpen(false)} />
+          </article>
+        </div>
+      ) : null}
+      {editingMinute ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setEditingMinuteId(null)}>
+          <article className="modal-card meeting-compose-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Edit Meeting</p>
+                <h2>회의록 수정</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setEditingMinuteId(null)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <MeetingMinuteForm
+              categories={categories}
+              minute={editingMinute}
+              projects={projects}
+              submitLabel="회의록 수정"
+              onSubmitMinute={(draft) => onUpdateMinute(editingMinute.id, draft)}
+              onSuccess={() => setEditingMinuteId(null)}
+            />
           </article>
         </div>
       ) : null}
@@ -7071,35 +7220,67 @@ function MeetingMinutesPage({
 
 function MeetingMinuteForm({
   categories,
+  minute,
   projects,
-  onCreateMinute,
+  submitLabel = '회의록 등록',
+  onSubmitMinute,
   onSuccess,
 }: {
   categories: string[];
+  minute?: MeetingMinute;
   projects: Project[];
-  onCreateMinute: MeetingMinuteSubmitHandler;
+  submitLabel?: string;
+  onSubmitMinute: MeetingMinuteSubmitHandler;
   onSuccess: () => void;
 }) {
   const defaultCategory = categories[0] || fallbackMeetingMinuteCategories[0];
   const [form, setForm] = useState<MeetingMinuteDraft>({
-    category: defaultCategory,
-    title: '',
-    content: '',
-    summary: '',
-    decisions: '',
-    actionItems: '',
-    attendees: '',
-    projectId: '',
-    heldAt: toDateTimeLocalValue(new Date()),
+    category: minute?.category || defaultCategory,
+    title: minute?.title || '',
+    content: minute?.content || '',
+    summary: minute?.summary || '',
+    decisions: minute?.decisions || '',
+    actionItems: minute?.actionItems || '',
+    attendees: minute?.attendees || '',
+    projectId: minute?.category === '신규브리핑' ? '' : minute?.projectId || '',
+    heldAt: minute?.heldAt ? toDateTimeLocalValue(parseTaskDate(minute.heldAt) || new Date()) : toDateTimeLocalValue(new Date()),
   });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
+  const isNewBriefing = form.category === '신규브리핑';
+
+  useEffect(() => {
+    setForm({
+      category: minute?.category || defaultCategory,
+      title: minute?.title || '',
+      content: minute?.content || '',
+      summary: minute?.summary || '',
+      decisions: minute?.decisions || '',
+      actionItems: minute?.actionItems || '',
+      attendees: minute?.attendees || '',
+      projectId: minute?.category === '신규브리핑' ? '' : minute?.projectId || '',
+      heldAt: minute?.heldAt ? toDateTimeLocalValue(parseTaskDate(minute.heldAt) || new Date()) : toDateTimeLocalValue(new Date()),
+    });
+    setStatus('');
+  }, [defaultCategory, minute?.id]);
+
+  const changeCategory = (category: string) => {
+    setForm((current) => ({
+      ...current,
+      category,
+      projectId: category === '신규브리핑' ? '' : current.projectId,
+      summary: category === '신규브리핑' ? '' : current.summary,
+      decisions: category === '신규브리핑' ? '' : current.decisions,
+      actionItems: category === '신규브리핑' ? '' : current.actionItems,
+      attendees: category === '신규브리핑' ? '' : current.attendees,
+    }));
+  };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading) return;
     setLoading(true);
-    const message = await onCreateMinute(form);
+    const message = await onSubmitMinute(form);
     setLoading(false);
     setStatus(message);
     showActionPopup(message);
@@ -7162,7 +7343,7 @@ function MeetingMinuteForm({
       {status ? <p className="admin-note">{status}</p> : null}
       <button className="primary-action wide" disabled={loading} type="submit">
         <CheckCircle2 size={17} />
-        {loading ? '진행중...' : '회의록 등록'}
+        {loading ? '진행중...' : submitLabel}
       </button>
     </form>
   );

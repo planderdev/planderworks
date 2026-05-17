@@ -4156,6 +4156,13 @@ h1 {
   animation: detailSlide 180ms ease-out;
 }
 
+.meeting-minute-detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .meeting-minute-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
