@@ -397,6 +397,7 @@ type GoogleCalendarSettingsHandler = (settings: GoogleCalendarSettings) => Promi
 type PushPreferencesUpdateHandler = (preferences: PushPreferences) => Promise<string>;
 type ApiKeyCreateHandler = (name: string, scope: ApiScope) => Promise<ApiKeyCreateResult>;
 type ApiKeyRevokeHandler = (apiKey: ApiKeyRecord) => Promise<string>;
+type ApiKeyDeleteHandler = (apiKey: ApiKeyRecord) => Promise<string>;
 type WeeklyReportGenerateHandler = (userId?: string, range?: WeekRange) => Promise<string>;
 type WeeklyReportSaveHandler = (report: WeeklyReport, draft: WeeklyReportDraft) => Promise<string>;
 type WeeklyReportStatusHandler = (report: WeeklyReport, status: WeeklyReportStatus) => Promise<string>;
@@ -3440,6 +3441,32 @@ function App() {
     return 'API 키를 폐기했습니다.';
   };
 
+  const deleteApiKey: ApiKeyDeleteHandler = async (apiKey) => {
+    if (currentUser?.accountRole !== 'admin') return '관리자만 API 키를 삭제할 수 있습니다.';
+    if (apiKey.active) return '활성 API 키는 먼저 폐기한 뒤 삭제할 수 있습니다.';
+    if (!(await requestActionConfirm(`${apiKey.name} API 키를 삭제할까요? 삭제된 키는 복구할 수 없습니다.`))) return '취소했습니다.';
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('api_keys')
+        .delete()
+        .eq('id', apiKey.id)
+        .eq('active', false);
+
+      if (error) {
+        const message = `API 키 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return 'API 키를 삭제했습니다.';
+    }
+
+    setApiKeys((current) => current.filter((item) => item.id !== apiKey.id));
+    return 'API 키를 삭제했습니다.';
+  };
+
   const generateWeeklyReport: WeeklyReportGenerateHandler = async (userId = currentUser?.id, range = getWeekRange()) => {
     if (!currentUser || !userId) return '로그인이 필요합니다.';
     if (userId !== currentUser.id && currentUser.accountRole !== 'admin') return '관리자만 다른 직원 보고서를 생성할 수 있습니다.';
@@ -4305,6 +4332,7 @@ function App() {
             onAddMeetingMinuteCategory={addMeetingMinuteCategory}
             onDeleteMeetingMinuteCategory={deleteMeetingMinuteCategory}
             onCreateApiKey={createApiKey}
+            onDeleteApiKey={deleteApiKey}
             onRevokeApiKey={revokeApiKey}
             onDeleteTaskType={deleteTaskType}
             onSaveGoogleCalendarSettings={saveGoogleCalendarSettings}
@@ -9319,6 +9347,7 @@ function SettingsPage({
   onDeleteMeetingMinuteCategory,
   onAddTaskType,
   onCreateApiKey,
+  onDeleteApiKey,
   onRevokeApiKey,
   onDeleteTaskType,
   onSaveGoogleCalendarSettings,
@@ -9352,6 +9381,7 @@ function SettingsPage({
   onDeleteMeetingMinuteCategory: MeetingMinuteCategoryDeleteHandler;
   onAddTaskType: TaskTypeSubmitHandler;
   onCreateApiKey: ApiKeyCreateHandler;
+  onDeleteApiKey: ApiKeyDeleteHandler;
   onRevokeApiKey: ApiKeyRevokeHandler;
   onDeleteTaskType: TaskTypeDeleteHandler;
   onSaveGoogleCalendarSettings: GoogleCalendarSettingsHandler;
@@ -9473,6 +9503,14 @@ function SettingsPage({
     setApiStatus(message);
     showActionPopup(message);
   };
+  const deleteKey = async (apiKey: ApiKeyRecord) => {
+    if (apiLoading) return;
+    setApiLoading(true);
+    const message = await onDeleteApiKey(apiKey);
+    setApiLoading(false);
+    setApiStatus(message);
+    showActionPopup(message);
+  };
 
   return (
     <section className="page-shell">
@@ -9590,9 +9628,20 @@ function SettingsPage({
                         생성 {apiKey.createdAt ? formatDueDate(apiKey.createdAt) : '미정'} · 마지막 사용 {apiKey.lastUsedAt ? formatDueDate(apiKey.lastUsedAt) : '없음'}
                       </small>
                     </div>
-                    <button className="secondary-action" disabled={!apiKey.active || apiLoading} onClick={() => revokeKey(apiKey)} type="button">
-                      {apiKey.active ? '폐기' : '폐기됨'}
-                    </button>
+                    <div className="api-key-actions">
+                      {apiKey.active ? (
+                        <button className="secondary-action" disabled={apiLoading} onClick={() => revokeKey(apiKey)} type="button">
+                          폐기
+                        </button>
+                      ) : (
+                        <>
+                          <span className="api-key-revoked">폐기됨</span>
+                          <button className="secondary-action danger-action" disabled={apiLoading} onClick={() => deleteKey(apiKey)} type="button">
+                            삭제
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))
               ) : (

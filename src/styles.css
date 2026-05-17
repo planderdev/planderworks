@@ -3558,7 +3558,7 @@ h1 {
   opacity: 0.55;
 }
 
-.api-key-row div {
+.api-key-row > div:first-child {
   min-width: 0;
   display: grid;
   gap: 3px;
@@ -3578,6 +3578,20 @@ h1 {
   color: var(--muted);
   font-size: 0.78rem;
   font-weight: 800;
+}
+
+.api-key-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.api-key-revoked {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 900;
+  white-space: nowrap;
 }
 
 .type-chip-list {
