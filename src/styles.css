@@ -754,7 +754,6 @@ button:disabled {
   margin-left: 280px;
   padding: 22px;
   transition: transform 180ms ease;
-  will-change: transform;
 }
 
 .workspace[data-immersive='true'] {
@@ -767,6 +766,7 @@ button:disabled {
 
 .workspace[data-swiping='true'] {
   transition: none;
+  will-change: transform;
 }
 
 .topbar {
@@ -2905,15 +2905,19 @@ h1 {
   inset: 0;
   z-index: 80;
   display: grid;
-  place-items: center;
-  padding: 18px;
+  align-items: center;
+  justify-items: center;
+  min-height: 100dvh;
+  padding: 24px;
   background: rgba(0, 0, 0, 0.58);
+  overflow-y: auto;
   overscroll-behavior: contain;
 }
 
 .modal-card {
   width: min(460px, 100%);
-  max-height: min(720px, calc(100vh - 36px));
+  max-height: min(720px, calc(100dvh - 48px));
+  margin: auto 0;
   overflow: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
