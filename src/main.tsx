@@ -64,7 +64,7 @@ type TaskListFilter = '전체' | TaskStatus;
 type Priority = '높음' | '보통' | '낮음';
 type TaskType = string;
 
-const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'project', 'create', 'reports', 'clients', 'weeklyReports', 'employees', 'operations', 'settings'];
+const appViews: ActiveView[] = ['dashboard', 'calendar', 'weeklyReports', 'allTasks', 'inbox', 'sent', 'project', 'create', 'reports', 'clients', 'employees', 'operations', 'settings'];
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 const MAX_TASK_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_FILE_SIZE_LABEL = '10MB';
@@ -406,10 +406,10 @@ const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.Elemen
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
   { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
-  { id: 'weeklyReports', label: '주간보고', icon: FileText },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
   { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
   { id: 'calendar', label: '캘린더', icon: CalendarClock },
+  { id: 'weeklyReports', label: '주간업무보고', icon: FileText },
 ];
 
 const adminNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
@@ -6690,7 +6690,6 @@ function WeeklyReportsPage({
   const weekReports = reports
     .filter((report) => report.weekStart === selectedRange.weekStart)
     .sort((first, second) => first.userName.localeCompare(second.userName, 'ko'));
-  const myReport = weekReports.find((report) => report.userId === currentUser.id || report.userName === currentUser.name) || null;
   const missingEmployees = employees.filter(
     (employee) => !weekReports.some((report) => report.userId === employee.id || report.userName === employee.name),
   );
@@ -6762,12 +6761,12 @@ function WeeklyReportsPage({
       className="weekly-report-shell"
       currentUser={currentUser}
       folderIcon={FileText}
-      folderLabel="주간보고"
+      folderLabel="주간업무보고"
       heading="주간 업무보고"
       pushEnabled={pushEnabled}
       pushLoading={pushLoading}
       pushStatus={pushStatus}
-      searchLabel="주간보고 검색"
+      searchLabel="주간업무보고 검색"
       searchPlaceholder="직원, 보고내용 검색"
       showThemeSwitcher={showThemeSwitcher}
       subheading={`${formatWeekLabel(selectedRange.weekStart, selectedRange.weekEnd)} · 보고서 ${weekReports.length}건 · 내 관련 업무 ${myWeekTasks.length}건`}
@@ -6780,18 +6779,20 @@ function WeeklyReportsPage({
       onThemeChange={onThemeChange}
     >
       <div className="weekly-report-grid">
-        <section className="weekly-report-summary list-surface">
-          <h2>제출 현황</h2>
-          <div className="weekly-report-status-grid">
-            <div><strong>{weekReports.length}</strong><span>생성</span></div>
-            <div><strong>{weekReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed').length}</strong><span>제출</span></div>
-            <div><strong>{weekReports.filter((report) => report.status === 'reviewed').length}</strong><span>확인</span></div>
-            <div><strong>{isAdmin ? missingEmployees.length : myReport ? 0 : 1}</strong><span>미생성</span></div>
-          </div>
-          {isAdmin && missingEmployees.length ? (
-            <p className="weekly-missing">미생성: {missingEmployees.map((employee) => employee.name).join(', ')}</p>
-          ) : null}
-        </section>
+        {isAdmin ? (
+          <section className="weekly-report-summary list-surface">
+            <h2>제출 현황</h2>
+            <div className="weekly-report-status-grid">
+              <div><strong>{weekReports.length}</strong><span>생성</span></div>
+              <div><strong>{weekReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed').length}</strong><span>제출</span></div>
+              <div><strong>{weekReports.filter((report) => report.status === 'reviewed').length}</strong><span>확인</span></div>
+              <div><strong>{missingEmployees.length}</strong><span>미생성</span></div>
+            </div>
+            {missingEmployees.length ? (
+              <p className="weekly-missing">미생성: {missingEmployees.map((employee) => employee.name).join(', ')}</p>
+            ) : null}
+          </section>
+        ) : null}
 
         <section className="weekly-report-list list-surface">
           <div className="project-board-toolbar">
