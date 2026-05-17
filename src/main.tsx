@@ -55,6 +55,7 @@ type ActiveView =
   | 'create'
   | 'reports'
   | 'clients'
+  | 'weeklyReports'
   | 'employees'
   | 'operations'
   | 'settings';
@@ -63,7 +64,7 @@ type TaskListFilter = '전체' | TaskStatus;
 type Priority = '높음' | '보통' | '낮음';
 type TaskType = string;
 
-const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'project', 'create', 'reports', 'clients', 'employees', 'operations', 'settings'];
+const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'project', 'create', 'reports', 'clients', 'weeklyReports', 'employees', 'operations', 'settings'];
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 const MAX_TASK_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_FILE_SIZE_LABEL = '10MB';
@@ -118,6 +119,8 @@ type Task = {
   readAt?: string | null;
   creatorReadAt?: string | null;
   showOnCalendar?: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
   due: string;
   status: TaskStatus;
   priority: Priority;
@@ -188,6 +191,25 @@ type PushPreferences = {
   report: boolean;
   projectMessage: boolean;
 };
+
+type WeeklyReportStatus = 'draft' | 'submitted' | 'reviewed';
+type WeeklyReport = {
+  id: string;
+  userId: string;
+  userName: string;
+  weekStart: string;
+  weekEnd: string;
+  status: WeeklyReportStatus;
+  thisWeekDone: string;
+  nextWeekPlan: string;
+  notes: string;
+  suggestions: string;
+  submittedAt?: string | null;
+  reviewedAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+type WeeklyReportDraft = Pick<WeeklyReport, 'thisWeekDone' | 'nextWeekPlan' | 'notes' | 'suggestions'>;
 
 type ApiScope = 'personal_schedule';
 type ApiKeyRecord = {
@@ -336,6 +358,9 @@ type GoogleCalendarSettingsHandler = (settings: GoogleCalendarSettings) => Promi
 type PushPreferencesUpdateHandler = (preferences: PushPreferences) => Promise<string>;
 type ApiKeyCreateHandler = (name: string, scope: ApiScope) => Promise<ApiKeyCreateResult>;
 type ApiKeyRevokeHandler = (apiKey: ApiKeyRecord) => Promise<string>;
+type WeeklyReportGenerateHandler = (userId?: string) => Promise<string>;
+type WeeklyReportSaveHandler = (report: WeeklyReport, draft: WeeklyReportDraft) => Promise<string>;
+type WeeklyReportStatusHandler = (report: WeeklyReport, status: WeeklyReportStatus) => Promise<string>;
 
 function showActionPopup(message: string) {
   window.dispatchEvent(new CustomEvent('plander-action-complete', { detail: message }));
@@ -381,6 +406,7 @@ const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.Elemen
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
   { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
+  { id: 'weeklyReports', label: '주간보고', icon: FileText },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
   { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
   { id: 'calendar', label: '캘린더', icon: CalendarClock },
@@ -781,6 +807,19 @@ const addCalendarDays = (date: Date, days: number) => {
 const diffCalendarDays = (start: Date, end: Date) =>
   Math.round((startOfCalendarDay(end).getTime() - startOfCalendarDay(start).getTime()) / 86400000);
 
+const getWeekRange = (date = new Date()) => {
+  const day = date.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const start = startOfCalendarDay(addCalendarDays(date, mondayOffset));
+  const end = startOfCalendarDay(addCalendarDays(start, 6));
+  return {
+    start,
+    end,
+    weekStart: formatDateInputValue(start),
+    weekEnd: formatDateInputValue(end),
+  };
+};
+
 const formatDateInputValue = (date: Date) => {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -790,6 +829,19 @@ const parseTaskDate = (value: string | null | undefined) => {
   if (!value) return null;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const isDateWithinRange = (value: string | null | undefined, start: Date, end: Date) => {
+  const parsed = parseTaskDate(value);
+  if (!parsed) return false;
+  return parsed.getTime() >= start.getTime() && parsed.getTime() <= addCalendarDays(end, 1).getTime();
+};
+
+const formatWeekLabel = (weekStart: string, weekEnd: string) => {
+  const start = parseTaskDate(weekStart);
+  const end = parseTaskDate(weekEnd);
+  if (!start || !end) return `${weekStart} ~ ${weekEnd}`;
+  return `${start.getFullYear()}. ${start.getMonth() + 1}. ${start.getDate()}. ~ ${end.getMonth() + 1}. ${end.getDate()}.`;
 };
 
 const getTaskCalendarRange = (task: Task) => {
@@ -1015,6 +1067,53 @@ function getTaskRecipientIds(task: Task) {
   return task.recipientIds?.length ? task.recipientIds : task.assigneeId ? [task.assigneeId] : [];
 }
 
+function isTaskParticipantById(task: Task, userId: string) {
+  return task.creatorId === userId || getTaskRecipientIds(task).includes(userId);
+}
+
+function getTaskActivityDate(task: Task) {
+  return task.updatedAt || task.startedAt || task.dueAt || task.createdAt || null;
+}
+
+function formatWeeklyTaskLine(task: Task) {
+  const projectLabel = task.projectName ? ` · ${task.projectName}` : '';
+  const dueLabel = task.dueAt ? ` · 마감 ${formatDueDate(task.dueAt)}` : '';
+  return `- [${task.status}] ${task.title}${projectLabel}${dueLabel}`;
+}
+
+function buildWeeklyReportDraft(userId: string, tasks: Task[], range = getWeekRange()): WeeklyReportDraft {
+  const nextWeekStart = addCalendarDays(range.end, 1);
+  const nextWeekEnd = addCalendarDays(nextWeekStart, 6);
+  const userTasks = tasks.filter((task) => isTaskParticipantById(task, userId));
+  const doneThisWeek = userTasks.filter(
+    (task) =>
+      ['완료', '완료 요청', '진행중'].includes(task.status) &&
+      (isDateWithinRange(getTaskActivityDate(task), range.start, range.end) ||
+        isDateWithinRange(task.dueAt, range.start, range.end)),
+  );
+  const nextWeekTasks = userTasks.filter(
+    (task) =>
+      task.status !== '완료' &&
+      (isDateWithinRange(task.dueAt, nextWeekStart, nextWeekEnd) || (!task.dueAt && task.status !== '완료 요청')),
+  );
+  const pendingReports = userTasks.filter(
+    (task) => (task.type === '보고' || task.type === '제안') && isDateWithinRange(getTaskActivityDate(task), range.start, range.end),
+  );
+
+  return {
+    thisWeekDone: doneThisWeek.length
+      ? doneThisWeek.slice(0, 16).map(formatWeeklyTaskLine).join('\n')
+      : '- 이번 주 진행/완료 업무를 입력해주세요.',
+    nextWeekPlan: nextWeekTasks.length
+      ? nextWeekTasks.slice(0, 16).map(formatWeeklyTaskLine).join('\n')
+      : '- 다음 주 예정 업무를 입력해주세요.',
+    notes: pendingReports.length
+      ? pendingReports.slice(0, 10).map(formatWeeklyTaskLine).join('\n')
+      : '- 특이사항이 있으면 입력해주세요.',
+    suggestions: '- 건의사항이 있으면 입력해주세요.',
+  };
+}
+
 function isUnreadForUser(task: Task, currentUser: AppUser | null) {
   return needsTaskAttention(task, currentUser);
 }
@@ -1150,6 +1249,7 @@ function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectMessages, setProjectMessages] = useState<ProjectMessage[]>([]);
   const [workSchedules, setWorkSchedules] = useState<WorkSchedule[]>([]);
+  const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
   const [googleCalendarSettings, setGoogleCalendarSettings] = useState<GoogleCalendarSettings>(getInitialGoogleCalendarSettings);
@@ -1408,6 +1508,7 @@ function App() {
       projectMessagesResult,
       projectMessageReadsResult,
       workSchedulesResult,
+      weeklyReportsResult,
       pushPreferencesResult,
       apiKeysResult,
       tasksResult,
@@ -1452,6 +1553,25 @@ function App() {
         .select('id, title, start_at, end_at, all_day, memo, created_by, creator:profiles!calendar_schedules_created_by_fkey(name)')
         .order('start_at', { ascending: true }),
       supabase
+        .from('weekly_reports')
+        .select(`
+          id,
+          user_id,
+          week_start,
+          week_end,
+          status,
+          this_week_done,
+          next_week_plan,
+          notes,
+          suggestions,
+          submitted_at,
+          reviewed_at,
+          created_at,
+          updated_at,
+          user:profiles!weekly_reports_user_id_fkey(name)
+        `)
+        .order('week_start', { ascending: false }),
+      supabase
         .from('push_preferences')
         .select('task_enabled, report_enabled, project_message_enabled')
         .eq('user_id', currentUser.id)
@@ -1474,6 +1594,8 @@ function App() {
           read_at,
           creator_read_at,
           show_on_calendar,
+          created_at,
+          updated_at,
           creator_id,
           assignee_id,
           client_id,
@@ -1502,6 +1624,7 @@ function App() {
       projectMessagesResult.error ||
       projectMessageReadsResult.error ||
       workSchedulesResult.error ||
+      weeklyReportsResult.error ||
       pushPreferencesResult.error ||
       apiKeysResult.error ||
       tasksResult.error ||
@@ -1552,6 +1675,8 @@ function App() {
         readAt: task.read_at,
         creatorReadAt: task.creator_read_at,
         showOnCalendar: task.show_on_calendar ?? true,
+        createdAt: task.created_at,
+        updatedAt: task.updated_at,
         due: formatDueDate(task.due_at),
         status: statusFromDb[task.status] || '대기',
         priority: priorityFromDb[task.priority] || '보통',
@@ -1590,6 +1715,23 @@ function App() {
     }));
 
     const currentProfile = nextEmployees.find((employee) => employee.id === currentUser.id);
+
+    const nextWeeklyReports: WeeklyReport[] = ((weeklyReportsResult.data || []) as any[]).map((report) => ({
+      id: report.id,
+      userId: report.user_id,
+      userName: report.user?.name || nextEmployees.find((employee) => employee.id === report.user_id)?.name || '알 수 없음',
+      weekStart: report.week_start,
+      weekEnd: report.week_end,
+      status: report.status || 'draft',
+      thisWeekDone: report.this_week_done || '',
+      nextWeekPlan: report.next_week_plan || '',
+      notes: report.notes || '',
+      suggestions: report.suggestions || '',
+      submittedAt: report.submitted_at,
+      reviewedAt: report.reviewed_at,
+      createdAt: report.created_at,
+      updatedAt: report.updated_at,
+    }));
 
     if (currentProfile) {
       setCurrentUser((user) =>
@@ -1695,6 +1837,7 @@ function App() {
     setProjects(nextProjects);
     setProjectMessages(nextProjectMessages);
     setWorkSchedules(nextWorkSchedules);
+    setWeeklyReports(nextWeeklyReports);
     setPushPreferences(nextPushPreferences);
     setApiKeys(nextApiKeys);
     setJobTypes(nextJobTypes.length ? nextJobTypes : seedJobTypes);
@@ -1728,6 +1871,7 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_messages' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_message_reads' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_schedules' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_reports' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'push_preferences' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'api_keys' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, queueRefresh)
@@ -1937,6 +2081,7 @@ function App() {
     inbox: inboxTasks.length,
     sent: sentTasks.length,
     reports: reportTasks.length,
+    weeklyReports: weeklyReports.filter((report) => report.weekStart === getWeekRange().weekStart).length,
   };
   const navUnreadBadges: Partial<Record<ActiveView, number>> = {
     inbox: inboxTasks.filter((task) => needsTaskAttention(task, currentUser)).length,
@@ -3058,6 +3203,125 @@ function App() {
     return 'API 키를 폐기했습니다.';
   };
 
+  const generateWeeklyReport: WeeklyReportGenerateHandler = async (userId = currentUser?.id) => {
+    if (!currentUser || !userId) return '로그인이 필요합니다.';
+    if (userId !== currentUser.id && currentUser.accountRole !== 'admin') return '관리자만 다른 직원 보고서를 생성할 수 있습니다.';
+
+    const range = getWeekRange();
+    const targetEmployee = employees.find((employee) => employee.id === userId);
+    const existing = weeklyReports.find((report) => report.userId === userId && report.weekStart === range.weekStart);
+    if (existing) return `${targetEmployee?.name || '해당 직원'}의 이번 주 보고서가 이미 있습니다.`;
+
+    const draft = buildWeeklyReportDraft(userId, tasks, range);
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase.from('weekly_reports').insert({
+        user_id: userId,
+        week_start: range.weekStart,
+        week_end: range.weekEnd,
+        status: 'draft',
+        this_week_done: draft.thisWeekDone,
+        next_week_plan: draft.nextWeekPlan,
+        notes: draft.notes,
+        suggestions: draft.suggestions,
+      });
+
+      if (error) {
+        const message = `주간보고 생성 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return `${targetEmployee?.name || '직원'} 주간보고 초안을 생성했습니다.`;
+    }
+
+    const nextReport: WeeklyReport = {
+      id: `weekly-${Date.now()}-${userId}`,
+      userId,
+      userName: targetEmployee?.name || currentUser.name,
+      weekStart: range.weekStart,
+      weekEnd: range.weekEnd,
+      status: 'draft',
+      ...draft,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    setWeeklyReports((current) => [nextReport, ...current]);
+    return `${nextReport.userName} 주간보고 초안을 생성했습니다.`;
+  };
+
+  const saveWeeklyReport: WeeklyReportSaveHandler = async (report, draft) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    if (currentUser.accountRole !== 'admin' && report.userId !== currentUser.id) return '주간보고 수정 권한이 없습니다.';
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('weekly_reports')
+        .update({
+          this_week_done: draft.thisWeekDone,
+          next_week_plan: draft.nextWeekPlan,
+          notes: draft.notes,
+          suggestions: draft.suggestions,
+        })
+        .eq('id', report.id);
+
+      if (error) {
+        const message = `주간보고 저장 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '주간보고를 저장했습니다.';
+    }
+
+    setWeeklyReports((current) => current.map((item) => (item.id === report.id ? { ...item, ...draft, updatedAt: new Date().toISOString() } : item)));
+    return '주간보고를 저장했습니다.';
+  };
+
+  const updateWeeklyReportStatus: WeeklyReportStatusHandler = async (report, status) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    const canUpdate = currentUser.accountRole === 'admin' || report.userId === currentUser.id;
+    if (!canUpdate) return '주간보고 상태 변경 권한이 없습니다.';
+    if (status === 'reviewed' && currentUser.accountRole !== 'admin') return '관리자만 확인 완료 처리할 수 있습니다.';
+
+    const now = new Date().toISOString();
+    const updates = {
+      status,
+      ...(status === 'submitted' ? { submitted_at: now } : {}),
+      ...(status === 'reviewed' ? { reviewed_at: now } : {}),
+    };
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase.from('weekly_reports').update(updates).eq('id', report.id);
+
+      if (error) {
+        const message = `주간보고 상태 변경 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return status === 'submitted' ? '주간보고를 제출했습니다.' : '주간보고를 확인 완료 처리했습니다.';
+    }
+
+    setWeeklyReports((current) =>
+      current.map((item) =>
+        item.id === report.id
+          ? {
+              ...item,
+              status,
+              submittedAt: status === 'submitted' ? now : item.submittedAt,
+              reviewedAt: status === 'reviewed' ? now : item.reviewedAt,
+              updatedAt: now,
+            }
+          : item,
+      ),
+    );
+    return status === 'submitted' ? '주간보고를 제출했습니다.' : '주간보고를 확인 완료 처리했습니다.';
+  };
+
   const updateTaskStatus = async (taskId: string, status: TaskStatus): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const currentTask = tasks.find((task) => task.id === taskId);
@@ -3513,7 +3777,7 @@ function App() {
     onRegisterPush: handleRegisterPush,
     onThemeChange: changeThemeMode,
   };
-  const isImmersiveView = ['project', 'reports', 'allTasks', 'inbox', 'sent', 'clients', 'operations', 'calendar'].includes(activeView);
+  const isImmersiveView = ['project', 'reports', 'weeklyReports', 'allTasks', 'inbox', 'sent', 'clients', 'operations', 'calendar'].includes(activeView);
 
   return (
     <div className="app">
@@ -3634,6 +3898,17 @@ function App() {
             onEditTask={(task) => setEditingTaskId(task.id)}
             onMarkTaskRead={markTaskRead}
             onUpdateTaskStatus={updateTaskStatus}
+          />
+        ) : null}
+        {activeView === 'weeklyReports' ? (
+          <WeeklyReportsPage
+            {...immersiveChromeProps}
+            employees={employees}
+            reports={weeklyReports}
+            tasks={visibleTasks}
+            onGenerateReport={generateWeeklyReport}
+            onSaveReport={saveWeeklyReport}
+            onUpdateReportStatus={updateWeeklyReportStatus}
           />
         ) : null}
         {activeView === 'allTasks' ? (
@@ -6313,6 +6588,299 @@ function ReportsPage({
           </article>
         </div>
       ) : null}
+    </ImmersivePageFrame>
+  );
+}
+
+const weeklyReportStatusLabel: Record<WeeklyReportStatus, string> = {
+  draft: '작성중',
+  submitted: '제출됨',
+  reviewed: '확인 완료',
+};
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function openWeeklyReportPdf(report: WeeklyReport) {
+  const popup = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100');
+  if (!popup) {
+    showActionPopup('팝업 차단을 해제한 뒤 다시 눌러주세요.');
+    return;
+  }
+
+  const section = (title: string, content: string) => `
+    <section>
+      <h2>${escapeHtml(title)}</h2>
+      <div>${escapeHtml(content || '-').replace(/\n/g, '<br />')}</div>
+    </section>
+  `;
+
+  popup.document.write(`<!doctype html>
+    <html lang="ko">
+      <head>
+        <meta charset="utf-8" />
+        <title>${escapeHtml(report.userName)} 주간 업무보고</title>
+        <style>
+          body { margin: 0; padding: 42px; color: #111; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+          header { border-bottom: 2px solid #111; padding-bottom: 24px; margin-bottom: 28px; }
+          h1 { margin: 0 0 10px; font-size: 32px; }
+          p { margin: 0; color: #555; font-size: 14px; }
+          section { break-inside: avoid; margin: 0 0 28px; }
+          h2 { margin: 0 0 12px; font-size: 18px; }
+          div { min-height: 92px; padding: 18px; border: 1px solid #ddd; border-radius: 12px; line-height: 1.65; white-space: pre-wrap; }
+          @page { margin: 18mm; }
+        </style>
+      </head>
+      <body>
+        <header>
+          <h1>주간 업무보고</h1>
+          <p>${escapeHtml(report.userName)} · ${escapeHtml(formatWeekLabel(report.weekStart, report.weekEnd))} · ${escapeHtml(weeklyReportStatusLabel[report.status])}</p>
+        </header>
+        ${section('이번주 한 일', report.thisWeekDone)}
+        ${section('다음주 할 일', report.nextWeekPlan)}
+        ${section('기타 보고사항', report.notes)}
+        ${section('건의사항', report.suggestions)}
+      </body>
+    </html>`);
+  popup.document.close();
+  popup.focus();
+  popup.print();
+}
+
+function WeeklyReportsPage({
+  reports,
+  employees,
+  tasks,
+  currentUser,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
+  showThemeSwitcher,
+  themeMode,
+  onLogout,
+  onMenuClick,
+  onNavigate,
+  onOpenProfile,
+  onRegisterPush,
+  onThemeChange,
+  onGenerateReport,
+  onSaveReport,
+  onUpdateReportStatus,
+}: ImmersiveChromeProps & {
+  reports: WeeklyReport[];
+  employees: Employee[];
+  tasks: Task[];
+  onGenerateReport: WeeklyReportGenerateHandler;
+  onSaveReport: WeeklyReportSaveHandler;
+  onUpdateReportStatus: WeeklyReportStatusHandler;
+}) {
+  const currentRange = getWeekRange();
+  const [weekStart, setWeekStart] = useState(currentRange.weekStart);
+  const [drafts, setDrafts] = useState<Record<string, WeeklyReportDraft>>({});
+  const [loadingKey, setLoadingKey] = useState('');
+  const selectedStartDate = parseTaskDate(weekStart) || currentRange.start;
+  const selectedRange = getWeekRange(selectedStartDate);
+  const isAdmin = currentUser.accountRole === 'admin';
+  const weekReports = reports
+    .filter((report) => report.weekStart === selectedRange.weekStart)
+    .sort((first, second) => first.userName.localeCompare(second.userName, 'ko'));
+  const myReport = weekReports.find((report) => report.userId === currentUser.id || report.userName === currentUser.name) || null;
+  const missingEmployees = employees.filter(
+    (employee) => !weekReports.some((report) => report.userId === employee.id || report.userName === employee.name),
+  );
+  const visibleReports = isAdmin ? weekReports : weekReports.filter((report) => report.userId === currentUser.id);
+  const myWeekTasks = tasks.filter((task) => isTaskParticipantById(task, currentUser.id) && isDateWithinRange(getTaskActivityDate(task), selectedRange.start, selectedRange.end));
+
+  const getReportDraft = (report: WeeklyReport): WeeklyReportDraft => drafts[report.id] || {
+    thisWeekDone: report.thisWeekDone,
+    nextWeekPlan: report.nextWeekPlan,
+    notes: report.notes,
+    suggestions: report.suggestions,
+  };
+  const updateDraft = (report: WeeklyReport, field: keyof WeeklyReportDraft, value: string) => {
+    setDrafts((current) => ({
+      ...current,
+      [report.id]: {
+        ...getReportDraft(report),
+        [field]: value,
+      },
+    }));
+  };
+  const runAction = async (key: string, action: () => Promise<string>) => {
+    setLoadingKey(key);
+    const message = await action();
+    setLoadingKey('');
+    showActionPopup(message);
+  };
+  const generateAll = async () => {
+    if (!missingEmployees.length) {
+      showActionPopup('이번 주 미생성 보고서가 없습니다.');
+      return;
+    }
+    setLoadingKey('generate-all');
+    let created = 0;
+    for (const employee of missingEmployees) {
+      const message = await onGenerateReport(employee.id);
+      if (!message.includes('이미') && !message.includes('실패') && !message.includes('권한')) created += 1;
+    }
+    setLoadingKey('');
+    showActionPopup(`주간보고 초안 ${created}건을 생성했습니다.`);
+  };
+
+  return (
+    <ImmersivePageFrame
+      action={(
+        <div className="weekly-report-actions">
+          <input
+            aria-label="주간보고 주차 선택"
+            type="date"
+            value={selectedRange.weekStart}
+            onChange={(event) => setWeekStart(event.target.value)}
+          />
+          <button
+            className="primary-action"
+            disabled={loadingKey === 'generate-mine'}
+            onClick={() => runAction('generate-mine', () => onGenerateReport(currentUser.id))}
+            type="button"
+          >
+            <Plus size={17} />
+            {loadingKey === 'generate-mine' ? '진행중...' : '내 보고 생성'}
+          </button>
+          {isAdmin ? (
+            <button className="secondary-action" disabled={loadingKey === 'generate-all'} onClick={generateAll} type="button">
+              {loadingKey === 'generate-all' ? '진행중...' : '미생성 전체 생성'}
+            </button>
+          ) : null}
+        </div>
+      )}
+      className="weekly-report-shell"
+      currentUser={currentUser}
+      folderIcon={FileText}
+      folderLabel="주간보고"
+      heading="주간 업무보고"
+      pushEnabled={pushEnabled}
+      pushLoading={pushLoading}
+      pushStatus={pushStatus}
+      searchLabel="주간보고 검색"
+      searchPlaceholder="직원, 보고내용 검색"
+      showThemeSwitcher={showThemeSwitcher}
+      subheading={`${formatWeekLabel(selectedRange.weekStart, selectedRange.weekEnd)} · 보고서 ${weekReports.length}건 · 내 관련 업무 ${myWeekTasks.length}건`}
+      themeMode={themeMode}
+      onLogout={onLogout}
+      onMenuClick={onMenuClick}
+      onNavigate={onNavigate}
+      onOpenProfile={onOpenProfile}
+      onRegisterPush={onRegisterPush}
+      onThemeChange={onThemeChange}
+    >
+      <div className="weekly-report-grid">
+        <section className="weekly-report-summary list-surface">
+          <h2>제출 현황</h2>
+          <div className="weekly-report-status-grid">
+            <div><strong>{weekReports.length}</strong><span>생성</span></div>
+            <div><strong>{weekReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed').length}</strong><span>제출</span></div>
+            <div><strong>{weekReports.filter((report) => report.status === 'reviewed').length}</strong><span>확인</span></div>
+            <div><strong>{isAdmin ? missingEmployees.length : myReport ? 0 : 1}</strong><span>미생성</span></div>
+          </div>
+          {isAdmin && missingEmployees.length ? (
+            <p className="weekly-missing">미생성: {missingEmployees.map((employee) => employee.name).join(', ')}</p>
+          ) : null}
+        </section>
+
+        <section className="weekly-report-list list-surface">
+          <div className="project-board-toolbar">
+            <div>
+              <h2>보고서 목록</h2>
+              <span>{visibleReports.length}</span>
+            </div>
+          </div>
+          {visibleReports.length ? (
+            visibleReports.map((report) => {
+              const draft = getReportDraft(report);
+              const canEdit = isAdmin || report.userId === currentUser.id;
+              return (
+                <article className="weekly-report-card" key={report.id}>
+                  <div className="weekly-report-card-head">
+                    <div>
+                      <p className="eyebrow">{formatWeekLabel(report.weekStart, report.weekEnd)}</p>
+                      <h3>{report.userName} 주간 업무보고</h3>
+                    </div>
+                    <span className="weekly-status" data-status={report.status}>{weeklyReportStatusLabel[report.status]}</span>
+                  </div>
+
+                  <div className="weekly-report-editor-grid">
+                    {([
+                      ['thisWeekDone', '이번주 한 일'],
+                      ['nextWeekPlan', '다음주 할 일'],
+                      ['notes', '기타 보고사항'],
+                      ['suggestions', '건의사항'],
+                    ] as Array<[keyof WeeklyReportDraft, string]>).map(([field, label]) => (
+                      <label key={field}>
+                        <span>{label}</span>
+                        <textarea
+                          disabled={!canEdit}
+                          value={draft[field]}
+                          onChange={(event) => updateDraft(report, field, event.target.value)}
+                        />
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="weekly-report-footer">
+                    <span>
+                      {report.submittedAt ? `제출 ${formatDueDate(report.submittedAt)}` : '아직 제출 전'}
+                      {report.reviewedAt ? ` · 확인 ${formatDueDate(report.reviewedAt)}` : ''}
+                    </span>
+                    <div>
+                      {canEdit ? (
+                        <button
+                          className="secondary-action"
+                          disabled={loadingKey === `save-${report.id}`}
+                          onClick={() => runAction(`save-${report.id}`, () => onSaveReport(report, draft))}
+                          type="button"
+                        >
+                          {loadingKey === `save-${report.id}` ? '진행중...' : '저장'}
+                        </button>
+                      ) : null}
+                      {report.userId === currentUser.id && report.status !== 'reviewed' ? (
+                        <button
+                          className="primary-action"
+                          disabled={loadingKey === `submit-${report.id}`}
+                          onClick={() => runAction(`submit-${report.id}`, () => onUpdateReportStatus(report, 'submitted'))}
+                          type="button"
+                        >
+                          {loadingKey === `submit-${report.id}` ? '진행중...' : '제출'}
+                        </button>
+                      ) : null}
+                      {isAdmin && report.status !== 'reviewed' ? (
+                        <button
+                          className="secondary-action"
+                          disabled={loadingKey === `review-${report.id}`}
+                          onClick={() => runAction(`review-${report.id}`, () => onUpdateReportStatus(report, 'reviewed'))}
+                          type="button"
+                        >
+                          {loadingKey === `review-${report.id}` ? '진행중...' : '확인 완료'}
+                        </button>
+                      ) : null}
+                      <button className="secondary-action" onClick={() => openWeeklyReportPdf({ ...report, ...draft })} type="button">
+                        PDF 생성
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              );
+            })
+          ) : (
+            <EmptyState text="선택한 주차에 생성된 주간보고가 없습니다." />
+          )}
+        </section>
+      </div>
     </ImmersivePageFrame>
   );
 }

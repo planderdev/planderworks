@@ -1,0 +1,4 @@
+-- Remote migration history placeholder.
+-- This version already exists in the linked Supabase project, but the SQL file
+-- was missing locally. Keeping this file lets future migrations apply without
+-- rewriting remote migration history.
