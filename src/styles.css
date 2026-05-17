@@ -4060,6 +4060,125 @@ h1 {
   white-space: nowrap;
 }
 
+.meeting-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.meeting-board {
+  display: block;
+}
+
+.meeting-minute-list {
+  display: grid;
+  gap: 0;
+}
+
+.meeting-minute-card {
+  border-top: 1px solid var(--line);
+}
+
+.meeting-minute-card:first-child {
+  border-top: 0;
+}
+
+.meeting-minute-summary {
+  width: 100%;
+  min-height: 86px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 22px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.meeting-minute-summary strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 1.08rem;
+}
+
+.meeting-minute-summary small,
+.meeting-minute-author {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.meeting-minute-category {
+  min-width: 86px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--chip);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.meeting-minute-author {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.meeting-minute-detail {
+  display: grid;
+  gap: 16px;
+  margin: 0 22px 22px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--card) 80%, transparent);
+  animation: detailSlide 180ms ease-out;
+}
+
+.meeting-minute-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.meeting-minute-meta div {
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--soft);
+}
+
+.meeting-minute-meta dt,
+.meeting-minute-detail h3 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.meeting-minute-meta dd,
+.meeting-minute-detail p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.meeting-compose-modal {
+  width: min(760px, calc(100vw - 32px));
+}
+
+.meeting-minute-form textarea {
+  resize: vertical;
+}
+
 .report-compose-card {
   border-color: var(--project-line);
   background: rgba(255, 255, 255, 0.72);

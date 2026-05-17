@@ -13,6 +13,7 @@ import {
   ChevronRight,
   CircleUserRound,
   Download,
+  ClipboardList,
   FileText,
   FolderKanban,
   LayoutDashboard,
@@ -53,6 +54,7 @@ type ActiveView =
   | 'sent'
   | 'project'
   | 'create'
+  | 'meetingMinutes'
   | 'reports'
   | 'clients'
   | 'weeklyReports'
@@ -64,8 +66,9 @@ type TaskListFilter = '전체' | TaskStatus;
 type Priority = '높음' | '보통' | '낮음';
 type TaskType = string;
 
-const appViews: ActiveView[] = ['dashboard', 'calendar', 'weeklyReports', 'allTasks', 'inbox', 'sent', 'project', 'create', 'reports', 'clients', 'employees', 'operations', 'settings'];
+const appViews: ActiveView[] = ['dashboard', 'calendar', 'weeklyReports', 'allTasks', 'inbox', 'sent', 'project', 'create', 'meetingMinutes', 'reports', 'clients', 'employees', 'operations', 'settings'];
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
+const fallbackMeetingMinuteCategories = ['프로젝트회의', '내부회의', '신규브리핑'];
 const MAX_TASK_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_FILE_SIZE_LABEL = '10MB';
 const MAX_AVATAR_FILE_SIZE = 1024 * 1024;
@@ -89,6 +92,11 @@ const apiScopeOptions: Array<{ value: ApiScope; label: string; description: stri
     value: 'personal_schedule',
     label: '개인 스케줄 등록',
     description: '외부 스케줄러에서 PlanderWorks 캘린더 개인 스케줄을 생성/갱신합니다.',
+  },
+  {
+    value: 'meeting_minutes',
+    label: '회의록 등록',
+    description: '녹음기/요약 앱에서 PlanderWorks 회의록 게시판으로 회의 요약을 등록합니다.',
   },
 ];
 
@@ -217,7 +225,32 @@ type WeekRange = {
   weekEnd: string;
 };
 
-type ApiScope = 'personal_schedule';
+type MeetingMinute = {
+  id: string;
+  category: string;
+  title: string;
+  content: string;
+  summary: string;
+  decisions: string;
+  actionItems: string;
+  attendees: string;
+  projectId?: string | null;
+  projectName?: string;
+  heldAt?: string | null;
+  sourceApp?: string | null;
+  externalId?: string | null;
+  createdBy?: string | null;
+  author: string;
+  authorAvatarUrl?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+type MeetingMinuteDraft = Pick<MeetingMinute, 'category' | 'title' | 'content' | 'summary' | 'decisions' | 'actionItems' | 'attendees'> & {
+  projectId?: string;
+  heldAt?: string;
+};
+
+type ApiScope = 'personal_schedule' | 'meeting_minutes';
 type ApiKeyRecord = {
   id: string;
   name: string;
@@ -368,6 +401,9 @@ type WeeklyReportGenerateHandler = (userId?: string, range?: WeekRange) => Promi
 type WeeklyReportSaveHandler = (report: WeeklyReport, draft: WeeklyReportDraft) => Promise<string>;
 type WeeklyReportStatusHandler = (report: WeeklyReport, status: WeeklyReportStatus) => Promise<string>;
 type WeeklyReportDeleteHandler = (report: WeeklyReport) => Promise<string>;
+type MeetingMinuteSubmitHandler = (minute: MeetingMinuteDraft) => Promise<string>;
+type MeetingMinuteCategorySubmitHandler = (name: string) => Promise<string>;
+type MeetingMinuteCategoryDeleteHandler = (name: string) => Promise<string>;
 
 function showActionPopup(message: string) {
   window.dispatchEvent(new CustomEvent('plander-action-complete', { detail: message }));
@@ -413,6 +449,7 @@ const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.Elemen
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
   { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
+  { id: 'meetingMinutes', label: '회의록', icon: ClipboardList },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
   { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
   { id: 'calendar', label: '캘린더', icon: CalendarClock },
@@ -1278,12 +1315,14 @@ function App() {
   const [projectMessages, setProjectMessages] = useState<ProjectMessage[]>([]);
   const [workSchedules, setWorkSchedules] = useState<WorkSchedule[]>([]);
   const [weeklyReports, setWeeklyReports] = useState<WeeklyReport[]>([]);
+  const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>([]);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
   const [googleCalendarSettings, setGoogleCalendarSettings] = useState<GoogleCalendarSettings>(getInitialGoogleCalendarSettings);
   const [apiKeys, setApiKeys] = useState<ApiKeyRecord[]>([]);
   const [jobTypes, setJobTypes] = useState(seedJobTypes);
   const [taskTypes, setTaskTypes] = useState(fallbackTaskTypes);
+  const [meetingMinuteCategories, setMeetingMinuteCategories] = useState(fallbackMeetingMinuteCategories);
   const [backendStatus, setBackendStatus] = useState('프로토타입 데이터');
   const [pushStatus, setPushStatus] = useState('종 버튼을 누르면 이 기기 업무 푸시알림을 켤 수 있습니다.');
   const [pushLoading, setPushLoading] = useState(false);
@@ -1508,7 +1547,8 @@ function App() {
     if (lastUserId.current === currentUser.id) return;
     lastUserId.current = currentUser.id;
     appHistoryReady.current = false;
-    setActiveView('dashboard');
+    const hashView = window.location.hash.replace('#', '');
+    setActiveView(isActiveView(hashView) ? hashView : 'dashboard');
     setViewHistory([]);
     setForwardHistory([]);
     setSidebarOpen(false);
@@ -1537,6 +1577,8 @@ function App() {
       projectMessageReadsResult,
       workSchedulesResult,
       weeklyReportsResult,
+      meetingMinuteCategoriesResult,
+      meetingMinutesResult,
       pushPreferencesResult,
       apiKeysResult,
       tasksResult,
@@ -1600,6 +1642,33 @@ function App() {
         `)
         .order('week_start', { ascending: false }),
       supabase
+        .from('meeting_minute_categories')
+        .select('name')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true }),
+      supabase
+        .from('meeting_minutes')
+        .select(`
+          id,
+          category,
+          title,
+          content,
+          summary,
+          decisions,
+          action_items,
+          attendees,
+          project_id,
+          held_at,
+          source_app,
+          external_id,
+          created_by,
+          created_at,
+          updated_at,
+          creator:profiles!meeting_minutes_created_by_fkey(name, avatar_url),
+          project:projects(name)
+        `)
+        .order('created_at', { ascending: false }),
+      supabase
         .from('push_preferences')
         .select('task_enabled, report_enabled, project_message_enabled')
         .eq('user_id', currentUser.id)
@@ -1653,6 +1722,8 @@ function App() {
       projectMessageReadsResult.error ||
       workSchedulesResult.error ||
       weeklyReportsResult.error ||
+      meetingMinuteCategoriesResult.error ||
+      meetingMinutesResult.error ||
       pushPreferencesResult.error ||
       apiKeysResult.error ||
       tasksResult.error ||
@@ -1760,6 +1831,27 @@ function App() {
       createdAt: report.created_at,
       updatedAt: report.updated_at,
     }));
+    const nextMeetingMinuteCategories = ((meetingMinuteCategoriesResult.data || []) as any[]).map((category) => category.name).filter(Boolean);
+    const nextMeetingMinutes: MeetingMinute[] = ((meetingMinutesResult.data || []) as any[]).map((minute) => ({
+      id: minute.id,
+      category: minute.category || '내부회의',
+      title: minute.title || '제목 없음',
+      content: minute.content || '',
+      summary: minute.summary || '',
+      decisions: minute.decisions || '',
+      actionItems: minute.action_items || '',
+      attendees: minute.attendees || '',
+      projectId: minute.project_id,
+      projectName: minute.project?.name || '',
+      heldAt: minute.held_at,
+      sourceApp: minute.source_app || null,
+      externalId: minute.external_id || null,
+      createdBy: minute.created_by,
+      author: minute.creator?.name || '알 수 없음',
+      authorAvatarUrl: minute.creator?.avatar_url || null,
+      createdAt: minute.created_at,
+      updatedAt: minute.updated_at,
+    }));
 
     if (currentProfile) {
       setCurrentUser((user) =>
@@ -1866,10 +1958,12 @@ function App() {
     setProjectMessages(nextProjectMessages);
     setWorkSchedules(nextWorkSchedules);
     setWeeklyReports(nextWeeklyReports);
+    setMeetingMinutes(nextMeetingMinutes);
     setPushPreferences(nextPushPreferences);
     setApiKeys(nextApiKeys);
     setJobTypes(nextJobTypes.length ? nextJobTypes : seedJobTypes);
     setTaskTypes(nextTaskTypes.length ? nextTaskTypes : fallbackTaskTypes);
+    setMeetingMinuteCategories(nextMeetingMinuteCategories.length ? nextMeetingMinuteCategories : fallbackMeetingMinuteCategories);
     setBackendStatus('Supabase 연결됨');
   };
 
@@ -1900,6 +1994,8 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'project_message_reads' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_schedules' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_reports' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_minutes' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_minute_categories' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'push_preferences' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'api_keys' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, queueRefresh)
@@ -1969,8 +2065,6 @@ function App() {
       appHistoryReady.current = false;
       return;
     }
-
-    if (!appHistoryReady.current && activeView !== 'dashboard') return;
 
     if (!appHistoryReady.current) {
       window.history.replaceState({ plander: true, view: activeView, guard: true }, '', getAppHistoryUrl(activeView));
@@ -2109,6 +2203,7 @@ function App() {
     inbox: inboxTasks.length,
     sent: sentTasks.length,
     reports: reportTasks.length,
+    meetingMinutes: meetingMinutes.length,
     weeklyReports: weeklyReports.filter((report) => report.weekStart === getWeekRange().weekStart).length,
   };
   const navUnreadBadges: Partial<Record<ActiveView, number>> = {
@@ -2960,6 +3055,120 @@ function App() {
 
     setTaskTypes((current) => current.filter((taskType) => taskType !== name));
     return '업무유형을 삭제했습니다.';
+  };
+
+  const addMeetingMinuteCategory = async (name: string): Promise<string> => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('meeting_minute_categories').insert({
+        name,
+        sort_order: (meetingMinuteCategories.length + 1) * 10,
+      });
+
+      if (error) {
+        const message = `회의록 카테고리 저장 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '회의록 카테고리를 추가했습니다.';
+    }
+
+    setMeetingMinuteCategories((current) => [name, ...current]);
+    return '회의록 카테고리를 추가했습니다.';
+  };
+
+  const deleteMeetingMinuteCategory = async (name: string): Promise<string> => {
+    if (fallbackMeetingMinuteCategories.includes(name)) {
+      return '기본 회의록 카테고리는 삭제할 수 없습니다.';
+    }
+
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('meeting_minute_categories').update({ is_active: false }).eq('name', name);
+
+      if (error) {
+        const message = `회의록 카테고리 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '회의록 카테고리를 삭제했습니다.';
+    }
+
+    setMeetingMinuteCategories((current) => current.filter((category) => category !== name));
+    return '회의록 카테고리를 삭제했습니다.';
+  };
+
+  const addMeetingMinute: MeetingMinuteSubmitHandler = async (minute) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    const title = minute.title.trim();
+    const content = minute.content.trim();
+    const category = minute.category.trim();
+    const heldAt = minute.heldAt ? parseDateTimeLocalValue(minute.heldAt) : null;
+
+    if (!category) return '회의록 카테고리를 선택해주세요.';
+    if (!title) return '회의록 제목을 입력해주세요.';
+    if (!content) return '회의 내용을 입력해주세요.';
+
+    if (supabase && !currentUser.isPrototype) {
+      const { data, error } = await supabase
+        .from('meeting_minutes')
+        .insert({
+          category,
+          title,
+          content,
+          summary: minute.summary.trim(),
+          decisions: minute.decisions.trim(),
+          action_items: minute.actionItems.trim(),
+          attendees: minute.attendees.trim(),
+          project_id: minute.projectId || null,
+          held_at: heldAt ? heldAt.toISOString() : null,
+          source_app: 'planderworks',
+          created_by: currentUser.id,
+        })
+        .select('id')
+        .single();
+
+      if (error || !data) {
+        const message = `회의록 저장 실패: ${error?.message || '저장된 회의록을 확인할 수 없습니다.'}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      if (category === '신규브리핑') {
+        await supabase.functions.invoke('send-meeting-minute-notification', {
+          body: { meetingMinuteId: data.id },
+        });
+      }
+
+      await loadBackendData();
+      return '회의록을 등록했습니다.';
+    }
+
+    setMeetingMinutes((current) => [
+      {
+        id: `minute-${Date.now()}`,
+        category,
+        title,
+        content,
+        summary: minute.summary.trim(),
+        decisions: minute.decisions.trim(),
+        actionItems: minute.actionItems.trim(),
+        attendees: minute.attendees.trim(),
+        projectId: minute.projectId || null,
+        projectName: projects.find((project) => project.id === minute.projectId)?.name || '',
+        heldAt: heldAt ? heldAt.toISOString() : null,
+        sourceApp: 'planderworks',
+        createdBy: currentUser.id,
+        author: currentUser.name,
+        authorAvatarUrl: currentUser.avatarUrl || null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      ...current,
+    ]);
+    return '회의록을 등록했습니다.';
   };
 
   const addEmployee = async (employee: NewEmployee): Promise<string> => {
@@ -3961,6 +4170,15 @@ function App() {
             onUpdateTaskStatus={updateTaskStatus}
           />
         ) : null}
+        {activeView === 'meetingMinutes' ? (
+          <MeetingMinutesPage
+            {...immersiveChromeProps}
+            categories={meetingMinuteCategories}
+            minutes={meetingMinutes}
+            projects={projects}
+            onCreateMinute={addMeetingMinute}
+          />
+        ) : null}
         {activeView === 'weeklyReports' ? (
           <WeeklyReportsPage
             {...immersiveChromeProps}
@@ -4083,6 +4301,9 @@ function App() {
             onAddJobType={addJobType}
             onDeleteJobType={deleteJobType}
             onAddTaskType={addTaskType}
+            meetingMinuteCategories={meetingMinuteCategories}
+            onAddMeetingMinuteCategory={addMeetingMinuteCategory}
+            onDeleteMeetingMinuteCategory={deleteMeetingMinuteCategory}
             onCreateApiKey={createApiKey}
             onRevokeApiKey={revokeApiKey}
             onDeleteTaskType={deleteTaskType}
@@ -6654,6 +6875,254 @@ function ReportsPage({
   );
 }
 
+function MeetingMinutesPage({
+  categories,
+  currentUser,
+  minutes,
+  projects,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
+  showThemeSwitcher,
+  themeMode,
+  onCreateMinute,
+  onLogout,
+  onMenuClick,
+  onNavigate,
+  onOpenProfile,
+  onRegisterPush,
+  onThemeChange,
+}: ImmersiveChromeProps & {
+  categories: string[];
+  minutes: MeetingMinute[];
+  projects: Project[];
+  onCreateMinute: MeetingMinuteSubmitHandler;
+}) {
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState('전체');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const visibleMinutes = minutes.filter((minute) => categoryFilter === '전체' || minute.category === categoryFilter);
+
+  return (
+    <ImmersivePageFrame
+      action={(
+        <button className="primary-action" onClick={() => setComposeOpen(true)} type="button">
+          <Plus size={17} />
+          회의록 작성
+        </button>
+      )}
+      className="meeting-mode-shell"
+      currentUser={currentUser}
+      folderIcon={ClipboardList}
+      folderLabel="회의록"
+      heading="회의록"
+      pushEnabled={pushEnabled}
+      pushLoading={pushLoading}
+      pushStatus={pushStatus}
+      searchLabel="회의록 검색"
+      searchPlaceholder="회의록, 프로젝트, 참석자 검색"
+      showThemeSwitcher={showThemeSwitcher}
+      subheading={`회의 요약과 결정사항을 게시판처럼 보관합니다. · 전체 ${minutes.length}건`}
+      themeMode={themeMode}
+      onLogout={onLogout}
+      onMenuClick={onMenuClick}
+      onNavigate={onNavigate}
+      onOpenProfile={onOpenProfile}
+      onRegisterPush={onRegisterPush}
+      onThemeChange={onThemeChange}
+    >
+      <div className="meeting-filter-row">
+        {['전체', ...categories].map((category) => (
+          <button className="filter-chip" data-active={categoryFilter === category} key={category} onClick={() => setCategoryFilter(category)} type="button">
+            {category}
+          </button>
+        ))}
+      </div>
+      <div className="task-board list-surface project-task-board meeting-board">
+        <div className="project-board-toolbar">
+          <div>
+            <h2>회의록 목록</h2>
+            <span>{visibleMinutes.length}</span>
+          </div>
+        </div>
+        <div className="meeting-minute-list">
+          {visibleMinutes.length ? (
+            visibleMinutes.map((minute) => {
+              const expanded = expandedId === minute.id;
+              return (
+                <article className="meeting-minute-card" data-expanded={expanded} key={minute.id}>
+                  <button className="meeting-minute-summary" onClick={() => setExpandedId((current) => (current === minute.id ? null : minute.id))} type="button">
+                    <span className="meeting-minute-category">{minute.category}</span>
+                    <div>
+                      <strong>{minute.title}</strong>
+                      <small>
+                        {minute.projectName || '프로젝트 미지정'} · {minute.heldAt ? formatDueDate(minute.heldAt) : minute.createdAt ? formatDueDate(minute.createdAt) : '일시 미정'}
+                      </small>
+                    </div>
+                    <span className="meeting-minute-author">
+                      <Avatar name={minute.author} src={minute.authorAvatarUrl} size="xs" />
+                      {minute.author}
+                    </span>
+                  </button>
+                  {expanded ? (
+                    <div className="meeting-minute-detail">
+                      <dl className="meeting-minute-meta">
+                        <div>
+                          <dt>참석자</dt>
+                          <dd>{minute.attendees || '미기재'}</dd>
+                        </div>
+                        <div>
+                          <dt>출처</dt>
+                          <dd>{minute.sourceApp || 'PlanderWorks'}</dd>
+                        </div>
+                      </dl>
+                      {minute.summary ? (
+                        <section>
+                          <h3>요약</h3>
+                          <p>{renderLinkedText(minute.summary)}</p>
+                        </section>
+                      ) : null}
+                      <section>
+                        <h3>회의 내용</h3>
+                        <p>{renderLinkedText(minute.content)}</p>
+                      </section>
+                      {minute.decisions ? (
+                        <section>
+                          <h3>결정사항</h3>
+                          <p>{renderLinkedText(minute.decisions)}</p>
+                        </section>
+                      ) : null}
+                      {minute.actionItems ? (
+                        <section>
+                          <h3>액션아이템</h3>
+                          <p>{renderLinkedText(minute.actionItems)}</p>
+                        </section>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })
+          ) : (
+            <EmptyState text="등록된 회의록이 없습니다." />
+          )}
+        </div>
+      </div>
+      {composeOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setComposeOpen(false)}>
+          <article className="modal-card meeting-compose-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Meeting Minutes</p>
+                <h2>회의록 작성</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setComposeOpen(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <MeetingMinuteForm categories={categories} projects={projects} onCreateMinute={onCreateMinute} onSuccess={() => setComposeOpen(false)} />
+          </article>
+        </div>
+      ) : null}
+    </ImmersivePageFrame>
+  );
+}
+
+function MeetingMinuteForm({
+  categories,
+  projects,
+  onCreateMinute,
+  onSuccess,
+}: {
+  categories: string[];
+  projects: Project[];
+  onCreateMinute: MeetingMinuteSubmitHandler;
+  onSuccess: () => void;
+}) {
+  const defaultCategory = categories[0] || fallbackMeetingMinuteCategories[0];
+  const [form, setForm] = useState<MeetingMinuteDraft>({
+    category: defaultCategory,
+    title: '',
+    content: '',
+    summary: '',
+    decisions: '',
+    actionItems: '',
+    attendees: '',
+    projectId: '',
+    heldAt: toDateTimeLocalValue(new Date()),
+  });
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState('');
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (loading) return;
+    setLoading(true);
+    const message = await onCreateMinute(form);
+    setLoading(false);
+    setStatus(message);
+    showActionPopup(message);
+    if (!message.includes('실패') && !message.includes('입력') && !message.includes('선택')) {
+      onSuccess();
+    }
+  };
+
+  return (
+    <form className="form-stack meeting-minute-form" onSubmit={submit}>
+      <div className="form-grid two">
+        <label>
+          카테고리
+          <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>
+            {categories.map((category) => <option key={category}>{category}</option>)}
+          </select>
+        </label>
+        <label>
+          프로젝트
+          <select value={form.projectId || ''} onChange={(event) => setForm({ ...form, projectId: event.target.value })}>
+            <option value="">프로젝트 미지정</option>
+            {projects.filter((project) => project.status !== 'deleted').map((project) => (
+              <option key={project.id} value={project.id}>{project.name}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <label>
+        회의일시
+        <DateTimeConfirmField allowClear value={form.heldAt || ''} onChange={(heldAt) => setForm({ ...form, heldAt })} />
+      </label>
+      <label>
+        제목
+        <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="회의록 제목" />
+      </label>
+      <label>
+        참석자
+        <input value={form.attendees} onChange={(event) => setForm({ ...form, attendees: event.target.value })} placeholder="이동욱, 이인성, 한정원" />
+      </label>
+      <label>
+        요약
+        <textarea value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} rows={3} />
+      </label>
+      <label>
+        회의 내용
+        <textarea required value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} rows={7} />
+      </label>
+      <label>
+        결정사항
+        <textarea value={form.decisions} onChange={(event) => setForm({ ...form, decisions: event.target.value })} rows={3} />
+      </label>
+      <label>
+        액션아이템
+        <textarea value={form.actionItems} onChange={(event) => setForm({ ...form, actionItems: event.target.value })} rows={3} />
+      </label>
+      {status ? <p className="admin-note">{status}</p> : null}
+      <button className="primary-action wide" disabled={loading} type="submit">
+        <CheckCircle2 size={17} />
+        {loading ? '진행중...' : '회의록 등록'}
+      </button>
+    </form>
+  );
+}
+
 const weeklyReportStatusLabel: Record<WeeklyReportStatus, string> = {
   draft: '작성중',
   submitted: '제출됨',
@@ -8831,6 +9300,7 @@ function SettingsPage({
   apiKeys,
   googleCalendarSettings,
   jobTypes,
+  meetingMinuteCategories,
   taskTypes,
   pushEnabled,
   pushLoading,
@@ -8844,7 +9314,9 @@ function SettingsPage({
   onRegisterPush,
   onInstallApp,
   onAddJobType,
+  onAddMeetingMinuteCategory,
   onDeleteJobType,
+  onDeleteMeetingMinuteCategory,
   onAddTaskType,
   onCreateApiKey,
   onRevokeApiKey,
@@ -8861,6 +9333,7 @@ function SettingsPage({
   apiKeys: ApiKeyRecord[];
   googleCalendarSettings: GoogleCalendarSettings;
   jobTypes: string[];
+  meetingMinuteCategories: string[];
   taskTypes: string[];
   pushEnabled: boolean;
   pushLoading: boolean;
@@ -8874,7 +9347,9 @@ function SettingsPage({
   onRegisterPush: () => void;
   onInstallApp: () => void;
   onAddJobType: JobTypeSubmitHandler;
+  onAddMeetingMinuteCategory: MeetingMinuteCategorySubmitHandler;
   onDeleteJobType: JobTypeDeleteHandler;
+  onDeleteMeetingMinuteCategory: MeetingMinuteCategoryDeleteHandler;
   onAddTaskType: TaskTypeSubmitHandler;
   onCreateApiKey: ApiKeyCreateHandler;
   onRevokeApiKey: ApiKeyRevokeHandler;
@@ -8901,6 +9376,7 @@ function SettingsPage({
   const [profileOpen, setProfileOpen] = useState(false);
   const [jobTypeOpen, setJobTypeOpen] = useState(false);
   const [taskTypeOpen, setTaskTypeOpen] = useState(false);
+  const [meetingMinuteCategoryOpen, setMeetingMinuteCategoryOpen] = useState(false);
   const [googleForm, setGoogleForm] = useState<GoogleCalendarSettings>(googleCalendarSettings);
   const [googleStatus, setGoogleStatus] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -9131,6 +9607,7 @@ function SettingsPage({
             <button className="secondary-action" onClick={() => setProfileOpen(true)} type="button">내 정보 수정</button>
             <button className="secondary-action" onClick={() => setJobTypeOpen(true)} type="button">담당업무 관리</button>
             <button className="secondary-action" onClick={() => setTaskTypeOpen(true)} type="button">업무유형 추가/삭제</button>
+            <button className="secondary-action" onClick={() => setMeetingMinuteCategoryOpen(true)} type="button">회의록 카테고리 관리</button>
           </div>
         </div>
         <div className="page-card settings-card settings-backend">
@@ -9214,6 +9691,17 @@ function SettingsPage({
           onAdd={onAddTaskType}
           onClose={() => setTaskTypeOpen(false)}
           onDelete={onDeleteTaskType}
+        />
+      ) : null}
+      {meetingMinuteCategoryOpen ? (
+        <SimpleTypeModal
+          items={meetingMinuteCategories}
+          title="회의록 카테고리 관리"
+          eyebrow="Meeting Category"
+          addLabel="카테고리명"
+          onAdd={onAddMeetingMinuteCategory}
+          onClose={() => setMeetingMinuteCategoryOpen(false)}
+          onDelete={onDeleteMeetingMinuteCategory}
         />
       ) : null}
     </section>
