@@ -3313,14 +3313,17 @@ function App() {
     const canUpdate = currentUser.accountRole === 'admin' || report.userId === currentUser.id;
     if (!canUpdate) return '주간보고 상태 변경 권한이 없습니다.';
     if (status === 'reviewed' && currentUser.accountRole !== 'admin') return '관리자만 확인 완료 처리할 수 있습니다.';
+    if (status === 'draft' && currentUser.accountRole !== 'admin') return '관리자만 주간보고를 반려할 수 있습니다.';
     if (status === 'submitted' && report.status !== 'draft') return '제출완료된 보고서는 다시 제출할 수 없습니다.';
     if (status === 'reviewed' && report.status !== 'submitted') return '제출된 보고서만 확인 완료 처리할 수 있습니다.';
+    if (status === 'draft' && report.status !== 'submitted') return '제출된 보고서만 반려할 수 있습니다.';
 
     const now = new Date().toISOString();
-    const updates = {
+    const updates: Record<string, string | null> = {
       status,
       ...(status === 'submitted' ? { submitted_at: now } : {}),
       ...(status === 'reviewed' ? { reviewed_at: now } : {}),
+      ...(status === 'draft' ? { submitted_at: null, reviewed_at: null } : {}),
     };
 
     if (supabase && !currentUser.isPrototype) {
@@ -3333,7 +3336,9 @@ function App() {
       }
 
       await loadBackendData();
-      return status === 'submitted' ? '주간보고를 제출했습니다.' : '주간보고를 확인 완료 처리했습니다.';
+      if (status === 'submitted') return '주간보고를 제출했습니다.';
+      if (status === 'draft') return '주간보고를 반려했습니다. 직원이 다시 수정할 수 있습니다.';
+      return '주간보고를 확인 완료 처리했습니다.';
     }
 
     setWeeklyReports((current) =>
@@ -3342,21 +3347,23 @@ function App() {
           ? {
               ...item,
               status,
-              submittedAt: status === 'submitted' ? now : item.submittedAt,
-              reviewedAt: status === 'reviewed' ? now : item.reviewedAt,
+              submittedAt: status === 'draft' ? null : status === 'submitted' ? now : item.submittedAt,
+              reviewedAt: status === 'draft' ? null : status === 'reviewed' ? now : item.reviewedAt,
               updatedAt: now,
             }
           : item,
       ),
     );
-    return status === 'submitted' ? '주간보고를 제출했습니다.' : '주간보고를 확인 완료 처리했습니다.';
+    if (status === 'submitted') return '주간보고를 제출했습니다.';
+    if (status === 'draft') return '주간보고를 반려했습니다. 직원이 다시 수정할 수 있습니다.';
+    return '주간보고를 확인 완료 처리했습니다.';
   };
 
   const deleteWeeklyReport: WeeklyReportDeleteHandler = async (report) => {
     if (!currentUser) return '로그인이 필요합니다.';
     const canDelete = currentUser.accountRole === 'admin' || report.userId === currentUser.id || report.userName === currentUser.name;
     if (!canDelete) return '주간보고 삭제 권한이 없습니다.';
-    if (report.status !== 'draft') return '제출완료된 보고서는 삭제할 수 없습니다.';
+    if (currentUser.accountRole !== 'admin' && report.status !== 'draft') return '제출완료된 보고서는 삭제할 수 없습니다.';
     if (!(await requestActionConfirm(`${report.userName} ${formatWeekLabel(report.weekStart, report.weekEnd)} 주간보고를 삭제할까요?`))) return '취소했습니다.';
 
     if (supabase && !currentUser.isPrototype) {
@@ -6741,17 +6748,27 @@ function WeeklyReportsPage({
   const [weekStart, setWeekStart] = useState(currentRange.weekStart);
   const [drafts, setDrafts] = useState<Record<string, WeeklyReportDraft>>({});
   const [loadingKey, setLoadingKey] = useState('');
+  const [showReviewedReports, setShowReviewedReports] = useState(false);
   const selectedStartDate = parseTaskDate(weekStart) || currentRange.start;
   const selectedRange = getWeekRange(selectedStartDate);
   const isAdmin = currentUser.accountRole === 'admin';
+  const sortedReports = [...reports].sort((first, second) => {
+    const firstTime = parseTaskDate(first.submittedAt || first.updatedAt || first.createdAt)?.getTime() || 0;
+    const secondTime = parseTaskDate(second.submittedAt || second.updatedAt || second.createdAt)?.getTime() || 0;
+    return secondTime - firstTime;
+  });
   const weekReports = reports
     .filter((report) => report.weekStart === selectedRange.weekStart)
     .sort((first, second) => first.userName.localeCompare(second.userName, 'ko'));
+  const pendingAdminReports = sortedReports.filter((report) => report.status === 'submitted');
+  const reviewedAdminReports = sortedReports.filter((report) => report.status === 'reviewed');
   const missingEmployees = employees.filter(
     (employee) => !weekReports.some((report) => report.userId === employee.id || report.userName === employee.name),
   );
   const visibleReports = isAdmin
-    ? weekReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed')
+    ? showReviewedReports
+      ? reviewedAdminReports
+      : pendingAdminReports
     : weekReports.filter((report) => report.userId === currentUser.id);
   const myReports = weekReports.filter((report) => report.userId === currentUser.id || report.userName === currentUser.name);
   const myWeekTasks = tasks.filter((task) => isTaskParticipantById(task, currentUser.id) && isDateWithinRange(getTaskActivityDate(task), selectedRange.start, selectedRange.end));
@@ -6797,15 +6814,17 @@ function WeeklyReportsPage({
             value={selectedRange.weekStart}
             onChange={(event) => setWeekStart(event.target.value)}
           />
-          <button
-            className="primary-action"
-            disabled={loadingKey === 'generate-mine'}
-            onClick={() => runAction('generate-mine', () => onGenerateReport(currentUser.id, selectedRange))}
-            type="button"
-          >
-            <Plus size={17} />
-            {loadingKey === 'generate-mine' ? '진행중...' : '내 보고 생성'}
-          </button>
+          {!isAdmin ? (
+            <button
+              className="primary-action"
+              disabled={loadingKey === 'generate-mine'}
+              onClick={() => runAction('generate-mine', () => onGenerateReport(currentUser.id, selectedRange))}
+              type="button"
+            >
+              <Plus size={17} />
+              {loadingKey === 'generate-mine' ? '진행중...' : '내 보고 생성'}
+            </button>
+          ) : null}
         </div>
       )}
       className="weekly-report-shell"
@@ -6832,12 +6851,12 @@ function WeeklyReportsPage({
         <section className="weekly-report-summary list-surface">
           <h2>제출 현황</h2>
           <div className={`weekly-report-status-grid ${isAdmin ? '' : 'staff'}`.trim()}>
-            <div><strong>{isAdmin ? weekReports.length : myReports.length}</strong><span>생성</span></div>
-            <div><strong>{isAdmin ? weekReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed').length : myReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed').length}</strong><span>제출</span></div>
+            <div><strong>{isAdmin ? pendingAdminReports.length : myReports.length}</strong><span>{isAdmin ? '검토 대기' : '생성'}</span></div>
+            <div><strong>{isAdmin ? reviewedAdminReports.length : myReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed').length}</strong><span>{isAdmin ? '확인 완료' : '제출'}</span></div>
             {isAdmin ? (
               <>
-                <div><strong>{weekReports.filter((report) => report.status === 'reviewed').length}</strong><span>확인</span></div>
-                <div><strong>{missingEmployees.length}</strong><span>미생성</span></div>
+                <div><strong>{weekReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed').length}</strong><span>이번주 제출</span></div>
+                <div><strong>{missingEmployees.length}</strong><span>이번주 미제출</span></div>
               </>
             ) : null}
           </div>
@@ -6849,9 +6868,18 @@ function WeeklyReportsPage({
         <section className="weekly-report-list list-surface">
           <div className="project-board-toolbar">
             <div>
-              <h2>보고서 목록</h2>
+              <h2>{isAdmin ? (showReviewedReports ? '지난 보고서' : '확인 대기 보고서') : '보고서 목록'}</h2>
               <span>{visibleReports.length}</span>
             </div>
+            {isAdmin ? (
+              <button
+                className="secondary-action"
+                onClick={() => setShowReviewedReports((current) => !current)}
+                type="button"
+              >
+                {showReviewedReports ? '확인 대기 보기' : '지난 보고서 보기'}
+              </button>
+            ) : null}
           </div>
           {visibleReports.length ? (
             visibleReports.map((report) => {
@@ -6914,19 +6942,37 @@ function WeeklyReportsPage({
                         </button>
                       ) : null}
                       {isAdmin && report.status === 'submitted' ? (
-                        <button
-                          className="secondary-action"
-                          disabled={loadingKey === `review-${report.id}`}
-                          onClick={() => runAction(`review-${report.id}`, () => onUpdateReportStatus(report, 'reviewed'))}
-                          type="button"
-                        >
-                          {loadingKey === `review-${report.id}` ? '진행중...' : '확인 완료'}
-                        </button>
+                        <>
+                          <button
+                            className="secondary-action"
+                            disabled={loadingKey === `review-${report.id}`}
+                            onClick={() => runAction(`review-${report.id}`, () => onUpdateReportStatus(report, 'reviewed'))}
+                            type="button"
+                          >
+                            {loadingKey === `review-${report.id}` ? '진행중...' : '확인 완료'}
+                          </button>
+                          <button
+                            className="secondary-action"
+                            disabled={loadingKey === `reject-${report.id}`}
+                            onClick={() => runAction(`reject-${report.id}`, () => onUpdateReportStatus(report, 'draft'))}
+                            type="button"
+                          >
+                            {loadingKey === `reject-${report.id}` ? '진행중...' : '반려'}
+                          </button>
+                          <button
+                            className="secondary-action danger-action"
+                            disabled={loadingKey === `delete-${report.id}`}
+                            onClick={() => runAction(`delete-${report.id}`, () => onDeleteReport(report))}
+                            type="button"
+                          >
+                            {loadingKey === `delete-${report.id}` ? '진행중...' : '삭제'}
+                          </button>
+                        </>
                       ) : null}
                       <button className="secondary-action" onClick={() => openWeeklyReportPdf({ ...report, ...draft })} type="button">
                         PDF 생성
                       </button>
-                      {canEdit ? (
+                      {canEdit && !isAdmin ? (
                         <button
                           className="secondary-action danger-action"
                           disabled={loadingKey === `delete-${report.id}`}
