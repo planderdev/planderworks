@@ -3281,6 +3281,7 @@ function App() {
   const saveWeeklyReport: WeeklyReportSaveHandler = async (report, draft) => {
     if (!currentUser) return '로그인이 필요합니다.';
     if (currentUser.accountRole !== 'admin' && report.userId !== currentUser.id) return '주간보고 수정 권한이 없습니다.';
+    if (report.status !== 'draft') return '제출완료된 보고서는 수정할 수 없습니다.';
 
     if (supabase && !currentUser.isPrototype) {
       const { error } = await supabase
@@ -3312,6 +3313,8 @@ function App() {
     const canUpdate = currentUser.accountRole === 'admin' || report.userId === currentUser.id;
     if (!canUpdate) return '주간보고 상태 변경 권한이 없습니다.';
     if (status === 'reviewed' && currentUser.accountRole !== 'admin') return '관리자만 확인 완료 처리할 수 있습니다.';
+    if (status === 'submitted' && report.status !== 'draft') return '제출완료된 보고서는 다시 제출할 수 없습니다.';
+    if (status === 'reviewed' && report.status !== 'submitted') return '제출된 보고서만 확인 완료 처리할 수 있습니다.';
 
     const now = new Date().toISOString();
     const updates = {
@@ -3353,6 +3356,7 @@ function App() {
     if (!currentUser) return '로그인이 필요합니다.';
     const canDelete = currentUser.accountRole === 'admin' || report.userId === currentUser.id || report.userName === currentUser.name;
     if (!canDelete) return '주간보고 삭제 권한이 없습니다.';
+    if (report.status !== 'draft') return '제출완료된 보고서는 삭제할 수 없습니다.';
     if (!(await requestActionConfirm(`${report.userName} ${formatWeekLabel(report.weekStart, report.weekEnd)} 주간보고를 삭제할까요?`))) return '취소했습니다.';
 
     if (supabase && !currentUser.isPrototype) {
@@ -6746,7 +6750,9 @@ function WeeklyReportsPage({
   const missingEmployees = employees.filter(
     (employee) => !weekReports.some((report) => report.userId === employee.id || report.userName === employee.name),
   );
-  const visibleReports = isAdmin ? weekReports : weekReports.filter((report) => report.userId === currentUser.id);
+  const visibleReports = isAdmin
+    ? weekReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed')
+    : weekReports.filter((report) => report.userId === currentUser.id);
   const myReports = weekReports.filter((report) => report.userId === currentUser.id || report.userName === currentUser.name);
   const myWeekTasks = tasks.filter((task) => isTaskParticipantById(task, currentUser.id) && isDateWithinRange(getTaskActivityDate(task), selectedRange.start, selectedRange.end));
 
@@ -6850,7 +6856,8 @@ function WeeklyReportsPage({
           {visibleReports.length ? (
             visibleReports.map((report) => {
               const draft = getReportDraft(report);
-              const canEdit = isAdmin || report.userId === currentUser.id;
+              const isOwnReport = report.userId === currentUser.id || report.userName === currentUser.name;
+              const canEdit = report.status === 'draft' && (isOwnReport || isAdmin);
               const reportChanged = hasReportChanges(report);
               return (
                 <article className="weekly-report-card" key={report.id}>
@@ -6896,7 +6903,7 @@ function WeeklyReportsPage({
                           {loadingKey === `save-${report.id}` ? '진행중...' : reportChanged ? '저장' : '수정'}
                         </button>
                       ) : null}
-                      {report.userId === currentUser.id && report.status !== 'reviewed' ? (
+                      {isOwnReport && report.status === 'draft' ? (
                         <button
                           className="primary-action"
                           disabled={loadingKey === `submit-${report.id}`}
@@ -6906,7 +6913,7 @@ function WeeklyReportsPage({
                           {loadingKey === `submit-${report.id}` ? '진행중...' : '제출'}
                         </button>
                       ) : null}
-                      {isAdmin && report.status !== 'reviewed' ? (
+                      {isAdmin && report.status === 'submitted' ? (
                         <button
                           className="secondary-action"
                           disabled={loadingKey === `review-${report.id}`}
