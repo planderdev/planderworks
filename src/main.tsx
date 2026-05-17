@@ -5602,6 +5602,19 @@ function TaskEditModal({
   });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
+  const isNewBriefing = form.category === '신규브리핑';
+
+  const changeCategory = (category: string) => {
+    setForm((current) => ({
+      ...current,
+      category,
+      projectId: category === '신규브리핑' ? '' : current.projectId,
+      summary: category === '신규브리핑' ? '' : current.summary,
+      decisions: category === '신규브리핑' ? '' : current.decisions,
+      actionItems: category === '신규브리핑' ? '' : current.actionItems,
+      attendees: category === '신규브리핑' ? '' : current.attendees,
+    }));
+  };
   const sortedProjects = [...projects].sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
 
   useEffect(() => {
@@ -7100,13 +7113,13 @@ function MeetingMinuteForm({
       <div className="form-grid two">
         <label>
           카테고리
-          <select value={form.category} onChange={(event) => setForm({ ...form, category: event.target.value })}>
+          <select value={form.category} onChange={(event) => changeCategory(event.target.value)}>
             {categories.map((category) => <option key={category}>{category}</option>)}
           </select>
         </label>
         <label>
           프로젝트
-          <select value={form.projectId || ''} onChange={(event) => setForm({ ...form, projectId: event.target.value })}>
+          <select disabled={isNewBriefing} value={form.projectId || ''} onChange={(event) => setForm({ ...form, projectId: event.target.value })}>
             <option value="">프로젝트 미지정</option>
             {projects.filter((project) => project.status !== 'deleted').map((project) => (
               <option key={project.id} value={project.id}>{project.name}</option>
@@ -7123,25 +7136,29 @@ function MeetingMinuteForm({
         <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="회의록 제목" />
       </label>
       <label>
-        참석자
-        <input value={form.attendees} onChange={(event) => setForm({ ...form, attendees: event.target.value })} placeholder="이동욱, 이인성, 한정원" />
-      </label>
-      <label>
-        요약
-        <textarea value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} rows={3} />
-      </label>
-      <label>
         회의 내용
         <textarea required value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} rows={7} />
       </label>
-      <label>
-        결정사항
-        <textarea value={form.decisions} onChange={(event) => setForm({ ...form, decisions: event.target.value })} rows={3} />
-      </label>
-      <label>
-        액션아이템
-        <textarea value={form.actionItems} onChange={(event) => setForm({ ...form, actionItems: event.target.value })} rows={3} />
-      </label>
+      {!isNewBriefing ? (
+        <>
+          <label>
+            참석자
+            <input value={form.attendees} onChange={(event) => setForm({ ...form, attendees: event.target.value })} placeholder="이동욱, 이인성, 한정원" />
+          </label>
+          <label>
+            요약
+            <textarea value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} rows={3} />
+          </label>
+          <label>
+            결정사항
+            <textarea value={form.decisions} onChange={(event) => setForm({ ...form, decisions: event.target.value })} rows={3} />
+          </label>
+          <label>
+            액션아이템
+            <textarea value={form.actionItems} onChange={(event) => setForm({ ...form, actionItems: event.target.value })} rows={3} />
+          </label>
+        </>
+      ) : null}
       {status ? <p className="admin-note">{status}</p> : null}
       <button className="primary-action wide" disabled={loading} type="submit">
         <CheckCircle2 size={17} />
