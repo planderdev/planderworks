@@ -4115,6 +4115,10 @@ h1 {
   gap: 10px;
 }
 
+.weekly-report-status-grid.staff {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .weekly-report-status-grid div {
   min-height: 82px;
   display: grid;

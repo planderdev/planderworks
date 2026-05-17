@@ -210,6 +210,12 @@ type WeeklyReport = {
   updatedAt?: string | null;
 };
 type WeeklyReportDraft = Pick<WeeklyReport, 'thisWeekDone' | 'nextWeekPlan' | 'notes' | 'suggestions'>;
+type WeekRange = {
+  start: Date;
+  end: Date;
+  weekStart: string;
+  weekEnd: string;
+};
 
 type ApiScope = 'personal_schedule';
 type ApiKeyRecord = {
@@ -358,9 +364,10 @@ type GoogleCalendarSettingsHandler = (settings: GoogleCalendarSettings) => Promi
 type PushPreferencesUpdateHandler = (preferences: PushPreferences) => Promise<string>;
 type ApiKeyCreateHandler = (name: string, scope: ApiScope) => Promise<ApiKeyCreateResult>;
 type ApiKeyRevokeHandler = (apiKey: ApiKeyRecord) => Promise<string>;
-type WeeklyReportGenerateHandler = (userId?: string) => Promise<string>;
+type WeeklyReportGenerateHandler = (userId?: string, range?: WeekRange) => Promise<string>;
 type WeeklyReportSaveHandler = (report: WeeklyReport, draft: WeeklyReportDraft) => Promise<string>;
 type WeeklyReportStatusHandler = (report: WeeklyReport, status: WeeklyReportStatus) => Promise<string>;
+type WeeklyReportDeleteHandler = (report: WeeklyReport) => Promise<string>;
 
 function showActionPopup(message: string) {
   window.dispatchEvent(new CustomEvent('plander-action-complete', { detail: message }));
@@ -807,7 +814,7 @@ const addCalendarDays = (date: Date, days: number) => {
 const diffCalendarDays = (start: Date, end: Date) =>
   Math.round((startOfCalendarDay(end).getTime() - startOfCalendarDay(start).getTime()) / 86400000);
 
-const getWeekRange = (date = new Date()) => {
+const getWeekRange = (date = new Date()): WeekRange => {
   const day = date.getDay();
   const mondayOffset = day === 0 ? -6 : 1 - day;
   const start = startOfCalendarDay(addCalendarDays(date, mondayOffset));
@@ -1081,10 +1088,18 @@ function formatWeeklyTaskLine(task: Task) {
   return `- [${task.status}] ${task.title}${projectLabel}${dueLabel}`;
 }
 
-function buildWeeklyReportDraft(userId: string, tasks: Task[], range = getWeekRange()): WeeklyReportDraft {
+function formatWeeklyScheduleLine(schedule: WorkSchedule) {
+  const start = formatDueDate(schedule.startAt);
+  const end = schedule.allDay ? '날짜만' : formatDueDate(schedule.endAt);
+  const memo = schedule.memo ? ` · ${truncateText(schedule.memo, 36)}` : '';
+  return `- [스케줄] ${schedule.title} · ${start}${schedule.allDay ? '' : ` ~ ${end}`}${memo}`;
+}
+
+function buildWeeklyReportDraft(userId: string, tasks: Task[], schedules: WorkSchedule[], range = getWeekRange()): WeeklyReportDraft {
   const nextWeekStart = addCalendarDays(range.end, 1);
   const nextWeekEnd = addCalendarDays(nextWeekStart, 6);
   const userTasks = tasks.filter((task) => isTaskParticipantById(task, userId));
+  const userSchedules = schedules.filter((schedule) => schedule.createdBy === userId);
   const doneThisWeek = userTasks.filter(
     (task) =>
       ['완료', '완료 요청', '진행중'].includes(task.status) &&
@@ -1094,8 +1109,18 @@ function buildWeeklyReportDraft(userId: string, tasks: Task[], range = getWeekRa
   const nextWeekTasks = userTasks.filter(
     (task) =>
       task.status !== '완료' &&
-      (isDateWithinRange(task.dueAt, nextWeekStart, nextWeekEnd) || (!task.dueAt && task.status !== '완료 요청')),
+      (isDateWithinRange(task.dueAt, nextWeekStart, nextWeekEnd) ||
+        (task.showOnCalendar !== false && isDateWithinRange(task.startedAt, nextWeekStart, nextWeekEnd))),
   );
+  const nextWeekSchedules = userSchedules.filter(
+    (schedule) =>
+      isDateWithinRange(schedule.startAt, nextWeekStart, nextWeekEnd) ||
+      isDateWithinRange(schedule.endAt, nextWeekStart, nextWeekEnd),
+  );
+  const nextWeekLines = [
+    ...nextWeekTasks.slice(0, 12).map(formatWeeklyTaskLine),
+    ...nextWeekSchedules.slice(0, 12).map(formatWeeklyScheduleLine),
+  ];
   const pendingReports = userTasks.filter(
     (task) => (task.type === '보고' || task.type === '제안') && isDateWithinRange(getTaskActivityDate(task), range.start, range.end),
   );
@@ -1104,9 +1129,9 @@ function buildWeeklyReportDraft(userId: string, tasks: Task[], range = getWeekRa
     thisWeekDone: doneThisWeek.length
       ? doneThisWeek.slice(0, 16).map(formatWeeklyTaskLine).join('\n')
       : '- 이번 주 진행/완료 업무를 입력해주세요.',
-    nextWeekPlan: nextWeekTasks.length
-      ? nextWeekTasks.slice(0, 16).map(formatWeeklyTaskLine).join('\n')
-      : '- 다음 주 예정 업무를 입력해주세요.',
+    nextWeekPlan: nextWeekLines.length
+      ? nextWeekLines.join('\n')
+      : '- 다음 주 캘린더 일정 또는 예정 업무를 입력해주세요.',
     notes: pendingReports.length
       ? pendingReports.slice(0, 10).map(formatWeeklyTaskLine).join('\n')
       : '- 특이사항이 있으면 입력해주세요.',
@@ -3203,16 +3228,15 @@ function App() {
     return 'API 키를 폐기했습니다.';
   };
 
-  const generateWeeklyReport: WeeklyReportGenerateHandler = async (userId = currentUser?.id) => {
+  const generateWeeklyReport: WeeklyReportGenerateHandler = async (userId = currentUser?.id, range = getWeekRange()) => {
     if (!currentUser || !userId) return '로그인이 필요합니다.';
     if (userId !== currentUser.id && currentUser.accountRole !== 'admin') return '관리자만 다른 직원 보고서를 생성할 수 있습니다.';
 
-    const range = getWeekRange();
     const targetEmployee = employees.find((employee) => employee.id === userId);
     const existing = weeklyReports.find((report) => report.userId === userId && report.weekStart === range.weekStart);
     if (existing) return `${targetEmployee?.name || '해당 직원'}의 이번 주 보고서가 이미 있습니다.`;
 
-    const draft = buildWeeklyReportDraft(userId, tasks, range);
+    const draft = buildWeeklyReportDraft(userId, tasks, workSchedules, range);
 
     if (supabase && !currentUser.isPrototype) {
       const { error } = await supabase.from('weekly_reports').insert({
@@ -3320,6 +3344,29 @@ function App() {
       ),
     );
     return status === 'submitted' ? '주간보고를 제출했습니다.' : '주간보고를 확인 완료 처리했습니다.';
+  };
+
+  const deleteWeeklyReport: WeeklyReportDeleteHandler = async (report) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    const canDelete = currentUser.accountRole === 'admin' || report.userId === currentUser.id || report.userName === currentUser.name;
+    if (!canDelete) return '주간보고 삭제 권한이 없습니다.';
+    if (!(await requestActionConfirm(`${report.userName} ${formatWeekLabel(report.weekStart, report.weekEnd)} 주간보고를 삭제할까요?`))) return '취소했습니다.';
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase.from('weekly_reports').delete().eq('id', report.id);
+
+      if (error) {
+        const message = `주간보고 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      return '주간보고를 삭제했습니다.';
+    }
+
+    setWeeklyReports((current) => current.filter((item) => item.id !== report.id));
+    return '주간보고를 삭제했습니다.';
   };
 
   const updateTaskStatus = async (taskId: string, status: TaskStatus): Promise<string> => {
@@ -3907,6 +3954,7 @@ function App() {
             reports={weeklyReports}
             tasks={visibleTasks}
             onGenerateReport={generateWeeklyReport}
+            onDeleteReport={deleteWeeklyReport}
             onSaveReport={saveWeeklyReport}
             onUpdateReportStatus={updateWeeklyReportStatus}
           />
@@ -6670,6 +6718,7 @@ function WeeklyReportsPage({
   onRegisterPush,
   onThemeChange,
   onGenerateReport,
+  onDeleteReport,
   onSaveReport,
   onUpdateReportStatus,
 }: ImmersiveChromeProps & {
@@ -6677,6 +6726,7 @@ function WeeklyReportsPage({
   employees: Employee[];
   tasks: Task[];
   onGenerateReport: WeeklyReportGenerateHandler;
+  onDeleteReport: WeeklyReportDeleteHandler;
   onSaveReport: WeeklyReportSaveHandler;
   onUpdateReportStatus: WeeklyReportStatusHandler;
 }) {
@@ -6694,6 +6744,7 @@ function WeeklyReportsPage({
     (employee) => !weekReports.some((report) => report.userId === employee.id || report.userName === employee.name),
   );
   const visibleReports = isAdmin ? weekReports : weekReports.filter((report) => report.userId === currentUser.id);
+  const myReports = weekReports.filter((report) => report.userId === currentUser.id || report.userName === currentUser.name);
   const myWeekTasks = tasks.filter((task) => isTaskParticipantById(task, currentUser.id) && isDateWithinRange(getTaskActivityDate(task), selectedRange.start, selectedRange.end));
 
   const getReportDraft = (report: WeeklyReport): WeeklyReportDraft => drafts[report.id] || {
@@ -6701,6 +6752,15 @@ function WeeklyReportsPage({
     nextWeekPlan: report.nextWeekPlan,
     notes: report.notes,
     suggestions: report.suggestions,
+  };
+  const hasReportChanges = (report: WeeklyReport) => {
+    const draft = getReportDraft(report);
+    return (
+      draft.thisWeekDone !== report.thisWeekDone ||
+      draft.nextWeekPlan !== report.nextWeekPlan ||
+      draft.notes !== report.notes ||
+      draft.suggestions !== report.suggestions
+    );
   };
   const updateDraft = (report: WeeklyReport, field: keyof WeeklyReportDraft, value: string) => {
     setDrafts((current) => ({
@@ -6717,20 +6777,6 @@ function WeeklyReportsPage({
     setLoadingKey('');
     showActionPopup(message);
   };
-  const generateAll = async () => {
-    if (!missingEmployees.length) {
-      showActionPopup('이번 주 미생성 보고서가 없습니다.');
-      return;
-    }
-    setLoadingKey('generate-all');
-    let created = 0;
-    for (const employee of missingEmployees) {
-      const message = await onGenerateReport(employee.id);
-      if (!message.includes('이미') && !message.includes('실패') && !message.includes('권한')) created += 1;
-    }
-    setLoadingKey('');
-    showActionPopup(`주간보고 초안 ${created}건을 생성했습니다.`);
-  };
 
   return (
     <ImmersivePageFrame
@@ -6745,17 +6791,12 @@ function WeeklyReportsPage({
           <button
             className="primary-action"
             disabled={loadingKey === 'generate-mine'}
-            onClick={() => runAction('generate-mine', () => onGenerateReport(currentUser.id))}
+            onClick={() => runAction('generate-mine', () => onGenerateReport(currentUser.id, selectedRange))}
             type="button"
           >
             <Plus size={17} />
             {loadingKey === 'generate-mine' ? '진행중...' : '내 보고 생성'}
           </button>
-          {isAdmin ? (
-            <button className="secondary-action" disabled={loadingKey === 'generate-all'} onClick={generateAll} type="button">
-              {loadingKey === 'generate-all' ? '진행중...' : '미생성 전체 생성'}
-            </button>
-          ) : null}
         </div>
       )}
       className="weekly-report-shell"
@@ -6779,20 +6820,22 @@ function WeeklyReportsPage({
       onThemeChange={onThemeChange}
     >
       <div className="weekly-report-grid">
-        {isAdmin ? (
-          <section className="weekly-report-summary list-surface">
-            <h2>제출 현황</h2>
-            <div className="weekly-report-status-grid">
-              <div><strong>{weekReports.length}</strong><span>생성</span></div>
-              <div><strong>{weekReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed').length}</strong><span>제출</span></div>
-              <div><strong>{weekReports.filter((report) => report.status === 'reviewed').length}</strong><span>확인</span></div>
-              <div><strong>{missingEmployees.length}</strong><span>미생성</span></div>
-            </div>
-            {missingEmployees.length ? (
-              <p className="weekly-missing">미생성: {missingEmployees.map((employee) => employee.name).join(', ')}</p>
+        <section className="weekly-report-summary list-surface">
+          <h2>제출 현황</h2>
+          <div className={`weekly-report-status-grid ${isAdmin ? '' : 'staff'}`.trim()}>
+            <div><strong>{isAdmin ? weekReports.length : myReports.length}</strong><span>생성</span></div>
+            <div><strong>{isAdmin ? weekReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed').length : myReports.filter((report) => report.status === 'submitted' || report.status === 'reviewed').length}</strong><span>제출</span></div>
+            {isAdmin ? (
+              <>
+                <div><strong>{weekReports.filter((report) => report.status === 'reviewed').length}</strong><span>확인</span></div>
+                <div><strong>{missingEmployees.length}</strong><span>미생성</span></div>
+              </>
             ) : null}
-          </section>
-        ) : null}
+          </div>
+          {isAdmin && missingEmployees.length ? (
+            <p className="weekly-missing">미생성: {missingEmployees.map((employee) => employee.name).join(', ')}</p>
+          ) : null}
+        </section>
 
         <section className="weekly-report-list list-surface">
           <div className="project-board-toolbar">
@@ -6805,6 +6848,7 @@ function WeeklyReportsPage({
             visibleReports.map((report) => {
               const draft = getReportDraft(report);
               const canEdit = isAdmin || report.userId === currentUser.id;
+              const reportChanged = hasReportChanges(report);
               return (
                 <article className="weekly-report-card" key={report.id}>
                   <div className="weekly-report-card-head">
@@ -6846,7 +6890,7 @@ function WeeklyReportsPage({
                           onClick={() => runAction(`save-${report.id}`, () => onSaveReport(report, draft))}
                           type="button"
                         >
-                          {loadingKey === `save-${report.id}` ? '진행중...' : '저장'}
+                          {loadingKey === `save-${report.id}` ? '진행중...' : reportChanged ? '저장' : '수정'}
                         </button>
                       ) : null}
                       {report.userId === currentUser.id && report.status !== 'reviewed' ? (
@@ -6872,6 +6916,16 @@ function WeeklyReportsPage({
                       <button className="secondary-action" onClick={() => openWeeklyReportPdf({ ...report, ...draft })} type="button">
                         PDF 생성
                       </button>
+                      {canEdit ? (
+                        <button
+                          className="secondary-action danger-action"
+                          disabled={loadingKey === `delete-${report.id}`}
+                          onClick={() => runAction(`delete-${report.id}`, () => onDeleteReport(report))}
+                          type="button"
+                        >
+                          {loadingKey === `delete-${report.id}` ? '진행중...' : '삭제'}
+                        </button>
+                      ) : null}
                     </div>
                   </div>
                 </article>
