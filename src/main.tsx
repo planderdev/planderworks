@@ -3159,10 +3159,11 @@ function App() {
         return message;
       }
 
-      if (category === '신규브리핑') {
-        await supabase.functions.invoke('send-meeting-minute-notification', {
-          body: { meetingMinuteId: data.id },
-        });
+      const { error: notificationError } = await supabase.functions.invoke('send-meeting-minute-notification', {
+        body: { meetingMinuteId: data.id },
+      });
+      if (notificationError) {
+        setBackendStatus(`회의록 알림 실패: ${notificationError.message}`);
       }
 
       await loadBackendData();
@@ -5329,35 +5330,37 @@ function ImmersivePageFrame({
   subheading?: React.ReactNode;
 }) {
   return (
-    <section className={`page-shell project-mode-shell ${className}`.trim()}>
-      <div className="project-folder-tabs" role="tablist" aria-label={folderLabel}>
-        <button aria-selected="true" data-active="true" role="tab" type="button">
-          <FolderIcon size={19} />
-          <span>{folderLabel}</span>
-          <X size={15} />
-        </button>
-      </div>
+    <>
+      <ImmersiveTopControls
+        {...chrome}
+        searchLabel={searchLabel}
+        searchPlaceholder={searchPlaceholder}
+      />
 
-      <div className="project-mode-canvas">
-        <ImmersiveTopControls
-          {...chrome}
-          searchLabel={searchLabel}
-          searchPlaceholder={searchPlaceholder}
-        />
-
-        <div className="page-head project-page-head project-mode-head">
-          <div>
-            <div className="project-title-row">
-              <h1 className="project-current-name">{heading}</h1>
-            </div>
-            {subheading ? <p>{subheading}</p> : null}
-          </div>
-          {action}
+      <section className={`page-shell project-mode-shell ${className}`.trim()}>
+        <div className="project-folder-tabs" role="tablist" aria-label={folderLabel}>
+          <button aria-selected="true" data-active="true" role="tab" type="button">
+            <FolderIcon size={19} />
+            <span>{folderLabel}</span>
+            <X size={15} />
+          </button>
         </div>
 
-        {children}
-      </div>
-    </section>
+        <div className="project-mode-canvas">
+          <div className="page-head project-page-head project-mode-head">
+            <div>
+              <div className="project-title-row">
+                <h1 className="project-current-name">{heading}</h1>
+              </div>
+              {subheading ? <p>{subheading}</p> : null}
+            </div>
+            {action}
+          </div>
+
+          {children}
+        </div>
+      </section>
+    </>
   );
 }
 

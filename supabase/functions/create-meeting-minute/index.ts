@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
   await admin.from('api_keys').update({ last_used_at: new Date().toISOString() }).eq('id', keyRecord.id);
 
   let notification: unknown = null;
-  if (category === '신규브리핑') {
+  if (action === 'created') {
     const notifyResponse = await fetch(`${supabaseUrl}/functions/v1/send-meeting-minute-notification`, {
       method: 'POST',
       headers: {

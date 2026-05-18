@@ -52,10 +52,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: minuteError?.message || 'Meeting minute not found' }, 404);
   }
 
-  if (minute.category !== '신규브리핑') {
-    return jsonResponse({ sent: 0, skipped: 'Only 신규브리핑 notifies admins' });
-  }
-
   if (!isInternalCall && minute.created_by !== callerUserId) {
     const { data: callerProfile } = await admin.from('profiles').select('role').eq('id', callerUserId).single();
     if (callerProfile?.role !== 'admin') {
@@ -108,8 +104,8 @@ Deno.serve(async (req) => {
   webpush.setVapidDetails(vapidSubject, vapidPublicKey, vapidPrivateKey);
 
   const payload = JSON.stringify({
-    title: '새 신규브리핑 회의록이 도착했습니다',
-    body: `${minute.creator?.name || 'Plander'}: ${minute.title}`,
+    title: '새 회의록이 등록되었습니다',
+    body: `${minute.category} · ${minute.creator?.name || 'Plander'}: ${minute.title}`,
     url: '/#meetingMinutes',
     meetingMinuteId: minute.id,
   });
