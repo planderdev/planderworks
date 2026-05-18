@@ -7842,8 +7842,8 @@ function CalendarPage({
     return event.start.getTime() < dayEnd.getTime() && event.end.getTime() >= dayStart.getTime();
   };
   const eventsForDay = (day: Date) => calendarEvents.filter((event) => eventIntersectsDay(event, day));
-  const eventSegmentsForWeek = (week: Date[]) =>
-    calendarEvents
+  const eventSegmentsForWeek = (week: Date[]) => {
+    const segments = calendarEvents
       .map((event) => {
         const weekStart = week[0];
         const weekEnd = addCalendarDays(week[6], 1);
@@ -7857,6 +7857,9 @@ function CalendarPage({
         return { ...event, columnStart, span, firstDay, lastDay };
       })
       .filter((item): item is { id: string; title: string; kind: string; onClick: () => void; start: Date; end: Date; days: number; columnStart: number; span: number; firstDay: number; lastDay: number } => Boolean(item));
+
+    return segments.map((segment, index) => ({ ...segment, row: index + 1 }));
+  };
   const eventTimeLabel = (event: CalendarEventItem) => {
     if (event.allDay) return '날짜만';
     if (event.days > 1) {
@@ -8023,13 +8026,13 @@ function CalendarPage({
                   ))}
                 </div>
                 <div className="month-events">
-                  {eventSegmentsForWeek(week).slice(0, 5).map((event) => (
+                  {eventSegmentsForWeek(week).map((event) => (
                     <button
                       className="calendar-range-pill"
                       data-kind={event.kind}
                       key={`${event.id}-${week[0].toISOString()}`}
                       onClick={event.onClick}
-                      style={{ gridColumn: `${event.columnStart} / span ${event.span}` }}
+                      style={{ gridColumn: `${event.columnStart} / span ${event.span}`, gridRow: `${event.row}` }}
                       type="button"
                     >
                       <span>{event.title}</span>
@@ -8260,13 +8263,11 @@ function ScheduleDetailModal({
           <div className="modal-head-actions">
             {canEdit ? (
               <>
-                <button className="secondary-action" onClick={onEdit} type="button">
+                <button className="icon-button" aria-label="스케줄 수정" onClick={onEdit} type="button">
                   <Pencil size={17} />
-                  수정
                 </button>
-                <button className="secondary-action danger-action" onClick={onDelete} type="button">
+                <button className="icon-button danger-icon" aria-label="스케줄 삭제" onClick={onDelete} type="button">
                   <Trash2 size={17} />
-                  삭제
                 </button>
               </>
             ) : null}

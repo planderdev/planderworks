@@ -2222,7 +2222,7 @@ h1 {
 .month-week {
   position: relative;
   display: grid;
-  min-height: 116px;
+  min-height: 104px;
 }
 
 .month-days,
@@ -2233,8 +2233,13 @@ h1 {
   gap: 0;
 }
 
+.month-days,
+.month-events {
+  grid-area: 1 / 1;
+}
+
 .month-cell {
-  min-height: 116px;
+  min-height: 104px;
   display: grid;
   align-content: start;
   gap: 6px;
@@ -2242,7 +2247,7 @@ h1 {
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   border-radius: 0;
-  padding: 7px 8px 32px;
+  padding: 7px 8px 8px;
   background: color-mix(in srgb, var(--panel-2) 72%, transparent);
 }
 
@@ -2324,13 +2329,11 @@ h1 {
 }
 
 .month-events {
-  position: relative;
   z-index: 2;
   grid-auto-rows: 20px;
   align-items: start;
   gap: 2px 0;
-  margin-top: -80px;
-  padding: 0 0 7px;
+  padding: 30px 0 8px;
   pointer-events: none;
 }
 
@@ -6064,6 +6067,21 @@ h1 {
     position: static;
   }
 
+  .project-mode-tools {
+    justify-content: space-between;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+
+  .project-mode-tools .immersive-menu-button {
+    margin-right: auto;
+  }
+
+  .project-mode-tools .immersive-top-actions {
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+
   .project-menu-button {
     display: grid;
   }
@@ -6381,8 +6399,8 @@ h1 {
   }
 
   .project-mode-tools {
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    flex-wrap: nowrap;
     gap: 8px;
   }
 
