@@ -6281,6 +6281,15 @@ h1 {
 }
 
 @media (max-width: 720px) {
+  .modal-backdrop {
+    align-items: center;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+  }
+
+  .modal-card {
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  }
+
   .page-head {
     align-items: flex-start;
     flex-direction: column;

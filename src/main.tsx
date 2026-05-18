@@ -4237,7 +4237,7 @@ function App() {
         onTouchStart={handleWorkspaceTouchStart}
         onTouchMove={handleWorkspaceTouchMove}
         onTouchEnd={handleWorkspaceTouchEnd}
-        style={{ transform: `translateX(${swipeOffset}px)` }}
+        style={swipeOffset !== 0 ? { transform: `translateX(${swipeOffset}px)` } : undefined}
       >
         <Topbar
           currentUser={currentUser}
