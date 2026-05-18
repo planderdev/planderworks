@@ -4315,6 +4315,7 @@ function App() {
           <MeetingMinutesPage
             {...immersiveChromeProps}
             categories={meetingMinuteCategories}
+            employees={employees}
             minutes={meetingMinutes}
             projects={projects}
             onCreateMinute={addMeetingMinute}
@@ -7040,6 +7041,7 @@ function ReportsPage({
 function MeetingMinutesPage({
   categories,
   currentUser,
+  employees,
   minutes,
   projects,
   pushEnabled,
@@ -7058,6 +7060,7 @@ function MeetingMinutesPage({
   onThemeChange,
 }: ImmersiveChromeProps & {
   categories: string[];
+  employees: Employee[];
   minutes: MeetingMinute[];
   projects: Project[];
   onCreateMinute: MeetingMinuteSubmitHandler;
@@ -7164,10 +7167,6 @@ function MeetingMinutesPage({
                           <dt>참석자</dt>
                           <dd>{minute.attendees || '미기재'}</dd>
                         </div>
-                        <div>
-                          <dt>출처</dt>
-                          <dd>{minute.sourceApp || 'PlanderWorks'}</dd>
-                        </div>
                       </dl>
                       {minute.summary ? (
                         <section>
@@ -7213,7 +7212,7 @@ function MeetingMinutesPage({
                 <X size={18} />
               </button>
             </div>
-            <MeetingMinuteForm categories={categories} projects={projects} onSubmitMinute={onCreateMinute} onSuccess={() => setComposeOpen(false)} />
+            <MeetingMinuteForm categories={categories} employees={employees} projects={projects} onSubmitMinute={onCreateMinute} onSuccess={() => setComposeOpen(false)} />
           </article>
         </div>
       ) : null}
@@ -7231,6 +7230,7 @@ function MeetingMinutesPage({
             </div>
             <MeetingMinuteForm
               categories={categories}
+              employees={employees}
               minute={editingMinute}
               projects={projects}
               submitLabel="회의록 수정"
@@ -7246,6 +7246,7 @@ function MeetingMinutesPage({
 
 function MeetingMinuteForm({
   categories,
+  employees,
   minute,
   projects,
   submitLabel = '회의록 등록',
@@ -7253,6 +7254,7 @@ function MeetingMinuteForm({
   onSuccess,
 }: {
   categories: string[];
+  employees: Employee[];
   minute?: MeetingMinute;
   projects: Project[];
   submitLabel?: string;
@@ -7260,6 +7262,10 @@ function MeetingMinuteForm({
   onSuccess: () => void;
 }) {
   const defaultCategory = categories[0] || fallbackMeetingMinuteCategories[0];
+  const getAttendeeIdsFromNames = (value: string) => {
+    const names = value.split(',').map((name) => name.trim()).filter(Boolean);
+    return employees.filter((employee) => names.includes(employee.name)).map((employee) => employee.id);
+  };
   const [form, setForm] = useState<MeetingMinuteDraft>({
     category: minute?.category || defaultCategory,
     title: minute?.title || '',
@@ -7271,6 +7277,7 @@ function MeetingMinuteForm({
     projectId: minute?.category === '신규브리핑' ? '' : minute?.projectId || '',
     heldAt: minute?.heldAt ? toDateTimeLocalValue(parseTaskDate(minute.heldAt) || new Date()) : toDateTimeLocalValue(new Date()),
   });
+  const [attendeeIds, setAttendeeIds] = useState<string[]>(() => getAttendeeIdsFromNames(minute?.attendees || ''));
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const isNewBriefing = form.category === '신규브리핑';
@@ -7287,8 +7294,9 @@ function MeetingMinuteForm({
       projectId: minute?.category === '신규브리핑' ? '' : minute?.projectId || '',
       heldAt: minute?.heldAt ? toDateTimeLocalValue(parseTaskDate(minute.heldAt) || new Date()) : toDateTimeLocalValue(new Date()),
     });
+    setAttendeeIds(getAttendeeIdsFromNames(minute?.attendees || ''));
     setStatus('');
-  }, [defaultCategory, minute?.id]);
+  }, [defaultCategory, employees, minute?.id]);
 
   const changeCategory = (category: string) => {
     setForm((current) => ({
@@ -7300,6 +7308,16 @@ function MeetingMinuteForm({
       actionItems: category === '신규브리핑' ? '' : current.actionItems,
       attendees: category === '신규브리핑' ? '' : current.attendees,
     }));
+    if (category === '신규브리핑') setAttendeeIds([]);
+  };
+
+  const toggleAttendee = (employeeId: string) => {
+    setAttendeeIds((current) => {
+      const nextIds = current.includes(employeeId) ? current.filter((id) => id !== employeeId) : [...current, employeeId];
+      const attendees = employees.filter((employee) => nextIds.includes(employee.id)).map((employee) => employee.name).join(', ');
+      setForm((formValue) => ({ ...formValue, attendees }));
+      return nextIds;
+    });
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -7350,7 +7368,19 @@ function MeetingMinuteForm({
         <>
           <label>
             참석자
-            <input value={form.attendees} onChange={(event) => setForm({ ...form, attendees: event.target.value })} placeholder="이동욱, 이인성, 한정원" />
+            <div className="multi-picker compact meeting-attendee-picker">
+              {employees.map((employee) => (
+                <button
+                  className="select-chip"
+                  data-selected={attendeeIds.includes(employee.id)}
+                  key={employee.id}
+                  onClick={() => toggleAttendee(employee.id)}
+                  type="button"
+                >
+                  {employee.name}
+                </button>
+              ))}
+            </div>
           </label>
           <label>
             요약
@@ -7858,15 +7888,42 @@ function CalendarPage({
       })
       .filter((item): item is { id: string; title: string; kind: string; onClick: () => void; start: Date; end: Date; days: number; columnStart: number; span: number; firstDay: number; lastDay: number } => Boolean(item));
 
-    return segments.map((segment, index) => ({ ...segment, row: index + 1 }));
+    const occupiedRowsByColumn = Array.from({ length: 7 }, () => new Set<number>());
+
+    return segments.map((segment) => {
+      const startColumnIndex = segment.columnStart - 1;
+      const endColumnIndex = Math.min(6, startColumnIndex + segment.span - 1);
+      let row = 1;
+
+      while (
+        Array.from({ length: endColumnIndex - startColumnIndex + 1 }, (_, index) => startColumnIndex + index)
+          .some((columnIndex) => occupiedRowsByColumn[columnIndex].has(row))
+      ) {
+        row += 1;
+      }
+
+      for (let columnIndex = startColumnIndex; columnIndex <= endColumnIndex; columnIndex += 1) {
+        occupiedRowsByColumn[columnIndex].add(row);
+      }
+
+      return { ...segment, row };
+    });
   };
   const eventTimeLabel = (event: CalendarEventItem) => {
-    if (event.allDay) return '날짜만';
-    if (event.days > 1) {
+    if (event.allDay || event.days > 1) {
       return `${event.start.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}~${event.end.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}`;
     }
     return `${event.start.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}~${event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`;
   };
+  const monthEventMetaLabel = (event: CalendarEventItem) => {
+    if (event.allDay) return event.days > 1 ? `${event.firstDay}~${event.lastDay}일차` : '';
+    if (event.days > 1) return `${event.firstDay}~${event.lastDay}일차`;
+    return event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  };
+  const eventTimeRangeLines = (event: CalendarEventItem) => ({
+    start: event.start.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+    end: event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }),
+  });
   const eventsForDateStack = (day: Date) => eventsForDay(day).filter((event) => event.allDay || event.days > 1);
   const timedEventsForDay = (day: Date) => eventsForDay(day).filter((event) => !event.allDay && event.days <= 1);
   const layoutTimedEvents = (day: Date) => {
@@ -8036,7 +8093,7 @@ function CalendarPage({
                       type="button"
                     >
                       <span>{event.title}</span>
-                      <small>{event.allDay ? '날짜만' : event.days > 1 ? `${event.firstDay}~${event.lastDay}일차` : event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</small>
+                      {monthEventMetaLabel(event) ? <small>{monthEventMetaLabel(event)}</small> : null}
                     </button>
                   ))}
                 </div>
@@ -8072,7 +8129,10 @@ function CalendarPage({
                       type="button"
                     >
                       <span>{event.title}</span>
-                      <small>{eventTimeLabel(event)}</small>
+                      <small className="calendar-time-range">
+                        <span>{eventTimeRangeLines(event).start}</span>
+                        <span>{eventTimeRangeLines(event).end}</span>
+                      </small>
                     </button>
                   ))}
                 </div>
@@ -8107,7 +8167,10 @@ function CalendarPage({
                     type="button"
                   >
                     <span>{event.title}</span>
-                    <small>{eventTimeLabel(event)}</small>
+                    <small className="calendar-time-range">
+                      <span>{eventTimeRangeLines(event).start}</span>
+                      <span>{eventTimeRangeLines(event).end}</span>
+                    </small>
                   </button>
                 ))}
               </div>
@@ -8143,6 +8206,17 @@ function ScheduleCreateModal({
   });
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(false);
+  const normalizeScheduleDates = (next: typeof form) => {
+    const startDate = next.allDay ? parseDateOnlyLocalValue(next.startAt) : parseDateTimeLocalValue(next.startAt);
+    const endDate = next.allDay ? parseDateOnlyLocalValue(next.endAt, true) : parseDateTimeLocalValue(next.endAt);
+    if (startDate && endDate && endDate.getTime() < startDate.getTime()) {
+      return { ...next, endAt: next.startAt };
+    }
+    return next;
+  };
+  const updateForm = (updates: Partial<typeof form>) => {
+    setForm((current) => normalizeScheduleDates({ ...current, ...updates }));
+  };
 
   useEffect(() => {
     setForm({
@@ -8195,12 +8269,11 @@ function ScheduleCreateModal({
             checked={form.allDay}
             onChange={(event) => {
               const allDay = event.target.checked;
-              setForm((current) => ({
-                ...current,
+              updateForm({
                 allDay,
-                startAt: allDay ? (current.startAt ? formatDateInputValue(parseDateTimeLocalValue(current.startAt) || new Date()) : formatDateInputValue(new Date())) : toDateTimeLocalValue(parseDateOnlyLocalValue(current.startAt) || new Date()),
-                endAt: allDay ? (current.endAt ? formatDateInputValue(parseDateTimeLocalValue(current.endAt) || new Date()) : formatDateInputValue(defaultEndDate)) : toDateTimeLocalValue(parseDateOnlyLocalValue(current.endAt) || defaultEndDate),
-              }));
+                startAt: allDay ? (form.startAt ? formatDateInputValue(parseDateTimeLocalValue(form.startAt) || new Date()) : formatDateInputValue(new Date())) : toDateTimeLocalValue(parseDateOnlyLocalValue(form.startAt) || new Date()),
+                endAt: allDay ? (form.endAt ? formatDateInputValue(parseDateTimeLocalValue(form.endAt) || new Date()) : formatDateInputValue(defaultEndDate)) : toDateTimeLocalValue(parseDateOnlyLocalValue(form.endAt) || defaultEndDate),
+              });
             }}
             type="checkbox"
           />
@@ -8212,17 +8285,17 @@ function ScheduleCreateModal({
         <label>
           시작일
           {form.allDay ? (
-            <input required type="date" value={form.startAt} onChange={(event) => setForm({ ...form, startAt: event.target.value })} />
+            <input required type="date" value={form.startAt} onChange={(event) => updateForm({ startAt: event.target.value })} />
           ) : (
-            <DateTimeConfirmField required value={form.startAt} onChange={(startAt) => setForm({ ...form, startAt })} />
+            <DateTimeConfirmField required value={form.startAt} onChange={(startAt) => updateForm({ startAt })} />
           )}
         </label>
         <label>
           종료일
           {form.allDay ? (
-            <input required type="date" value={form.endAt} onChange={(event) => setForm({ ...form, endAt: event.target.value })} />
+            <input required type="date" value={form.endAt} onChange={(event) => updateForm({ endAt: event.target.value })} />
           ) : (
-            <DateTimeConfirmField required value={form.endAt} onChange={(endAt) => setForm({ ...form, endAt })} />
+            <DateTimeConfirmField required value={form.endAt} onChange={(endAt) => updateForm({ endAt })} />
           )}
         </label>
         <label>

@@ -2503,10 +2503,28 @@ h1 {
   white-space: nowrap;
 }
 
+.calendar-time-block > span {
+  display: block;
+}
+
 .calendar-time-block small {
   color: var(--muted);
   font-size: 0.62rem;
   font-weight: 850;
+}
+
+.calendar-time-block .calendar-time-range {
+  display: grid;
+  gap: 1px;
+  line-height: 1.05;
+  white-space: normal;
+}
+
+.calendar-time-block .calendar-time-range span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .time-row {
