@@ -387,6 +387,7 @@ type ProjectStatusHandler = (project: Project, status: string) => Promise<string
 type ProjectPermanentDeleteHandler = (project: Project) => Promise<string>;
 type WorkScheduleSubmitHandler = (schedule: WorkScheduleDraft) => Promise<string>;
 type WorkScheduleUpdateHandler = (scheduleId: string, schedule: WorkScheduleDraft) => Promise<string>;
+type WorkScheduleDeleteHandler = (schedule: WorkSchedule) => Promise<string>;
 type JobTypeSubmitHandler = (name: string) => Promise<string>;
 type JobTypeDeleteHandler = (name: string) => Promise<string>;
 type TaskTypeSubmitHandler = (name: string) => Promise<string>;
@@ -2954,6 +2955,25 @@ function App() {
     return '스케줄이 수정되었습니다.';
   };
 
+  const deleteWorkSchedule: WorkScheduleDeleteHandler = async (schedule) => {
+    if (supabase && currentUser && !currentUser.isPrototype) {
+      const { error } = await supabase.from('calendar_schedules').delete().eq('id', schedule.id);
+
+      if (error) {
+        const message = `스케줄 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      await loadBackendData();
+      setBackendStatus('스케줄이 삭제되었습니다.');
+      return '스케줄이 삭제되었습니다.';
+    }
+
+    setWorkSchedules((current) => current.filter((item) => item.id !== schedule.id));
+    return '스케줄이 삭제되었습니다.';
+  };
+
   const markProjectMessagesRead = async (messageIds: string[]) => {
     const uniqueMessageIds = Array.from(new Set(messageIds.filter(Boolean)));
     if (!uniqueMessageIds.length || !currentUser) return;
@@ -4374,6 +4394,7 @@ function App() {
             operations={isAdmin ? operations : []}
             schedules={workSchedules}
             onAddSchedule={addWorkSchedule}
+            onDeleteSchedule={deleteWorkSchedule}
             onUpdateSchedule={updateWorkSchedule}
             onOpenOperations={() => navigateTo('operations')}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
@@ -7709,6 +7730,7 @@ function CalendarPage({
   onRegisterPush,
   onThemeChange,
   onAddSchedule,
+  onDeleteSchedule,
   onUpdateSchedule,
   onOpenTask,
   onOpenOperations,
@@ -7718,6 +7740,7 @@ function CalendarPage({
   operations: OperationItem[];
   schedules: WorkSchedule[];
   onAddSchedule: WorkScheduleSubmitHandler;
+  onDeleteSchedule: WorkScheduleDeleteHandler;
   onUpdateSchedule: WorkScheduleUpdateHandler;
   onOpenTask: (task: Task) => void;
   onOpenOperations: () => void;
@@ -7961,6 +7984,12 @@ function CalendarPage({
           canEdit={selectedSchedule.createdBy === currentUser.id || currentUser.accountRole === 'admin' || currentUser.isPrototype}
           schedule={selectedSchedule}
           onClose={() => setSelectedSchedule(null)}
+          onDelete={async () => {
+            if (!(await requestActionConfirm('스케줄을 삭제하시겠습니까?'))) return;
+            const message = await onDeleteSchedule(selectedSchedule);
+            showActionPopup(message);
+            if (!message.includes('실패')) setSelectedSchedule(null);
+          }}
           onEdit={() => {
             setEditingSchedule(selectedSchedule);
             setSelectedSchedule(null);
@@ -8206,11 +8235,13 @@ function ScheduleDetailModal({
   canEdit,
   schedule,
   onClose,
+  onDelete,
   onEdit,
 }: {
   canEdit: boolean;
   schedule: WorkSchedule;
   onClose: () => void;
+  onDelete: () => void;
   onEdit: () => void;
 }) {
   return (
@@ -8223,10 +8254,16 @@ function ScheduleDetailModal({
           </div>
           <div className="modal-head-actions">
             {canEdit ? (
-              <button className="secondary-action" onClick={onEdit} type="button">
-                <Pencil size={17} />
-                수정
-              </button>
+              <>
+                <button className="secondary-action" onClick={onEdit} type="button">
+                  <Pencil size={17} />
+                  수정
+                </button>
+                <button className="secondary-action danger-action" onClick={onDelete} type="button">
+                  <Trash2 size={17} />
+                  삭제
+                </button>
+              </>
             ) : null}
             <button className="icon-button" aria-label="닫기" onClick={onClose} type="button">
               <X size={18} />
