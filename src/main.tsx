@@ -6291,7 +6291,25 @@ function ProjectPage({
   };
 
   return (
-    <section className="page-shell project-mode-shell">
+    <>
+      <ImmersiveTopControls
+        currentUser={currentUser}
+        pushEnabled={pushEnabled}
+        pushLoading={pushLoading}
+        pushStatus={pushStatus}
+        searchLabel="프로젝트 검색"
+        searchPlaceholder="업무, 프로젝트, 담당자 검색"
+        showThemeSwitcher={showThemeSwitcher}
+        themeMode={themeMode}
+        onLogout={onLogout}
+        onMenuClick={onMenuClick}
+        onNavigate={onNavigate}
+        onOpenProfile={onOpenProfile}
+        onRegisterPush={onRegisterPush}
+        onThemeChange={onThemeChange}
+      />
+
+      <section className="page-shell project-mode-shell">
       <div className="project-folder-tabs" role="tablist" aria-label="프로젝트 선택">
         {visibleProjects.map((item) => (
           <button
@@ -6320,23 +6338,6 @@ function ProjectPage({
       </div>
 
       <div className="project-mode-canvas">
-        <ImmersiveTopControls
-          currentUser={currentUser}
-          pushEnabled={pushEnabled}
-          pushLoading={pushLoading}
-          pushStatus={pushStatus}
-          searchLabel="프로젝트 검색"
-          searchPlaceholder="업무, 프로젝트, 담당자 검색"
-          showThemeSwitcher={showThemeSwitcher}
-          themeMode={themeMode}
-          onLogout={onLogout}
-          onMenuClick={onMenuClick}
-          onNavigate={onNavigate}
-          onOpenProfile={onOpenProfile}
-          onRegisterPush={onRegisterPush}
-          onThemeChange={onThemeChange}
-        />
-
         <div className="page-head project-page-head project-mode-head">
           <div>
             <div className="project-title-row">
@@ -6523,7 +6524,8 @@ function ProjectPage({
           ) : null}
         </div>
       </div>
-    </section>
+      </section>
+    </>
   );
 }
 

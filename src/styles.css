@@ -4460,6 +4460,7 @@ h1 {
   justify-content: flex-end;
   gap: 12px;
   flex-wrap: wrap;
+  margin-bottom: 10px;
 }
 
 .project-search-pill {
