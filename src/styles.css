@@ -1671,6 +1671,18 @@ h1 {
   line-height: 1.5;
 }
 
+.inline-select-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 8px;
+  align-items: center;
+}
+
+.inline-select-action .icon-button {
+  align-self: stretch;
+  height: auto;
+}
+
 .avatar-upload-field input[type='file'] {
   min-height: 44px;
   display: flex;
@@ -2933,6 +2945,10 @@ h1 {
   background: rgba(0, 0, 0, 0.58);
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+
+.nested-modal-backdrop {
+  z-index: 96;
 }
 
 .modal-card {

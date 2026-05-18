@@ -4234,6 +4234,7 @@ function App() {
           currentUser={currentUser}
           employees={employees}
           onClose={() => setProjectCreateOpen(false)}
+          onAddClient={addClient}
           onCreateProject={createProject}
           onUpdateProject={updateProject}
         />
@@ -4245,6 +4246,7 @@ function App() {
           currentUser={currentUser}
           employees={employees}
           onClose={() => setEditingProjectId(null)}
+          onAddClient={addClient}
           onCreateProject={createProject}
           onUpdateProject={updateProject}
           project={editingProject}
@@ -4607,6 +4609,7 @@ function ProjectCreateModal({
   currentUser,
   employees,
   onClose,
+  onAddClient,
   onCreateProject,
   onUpdateProject,
   project,
@@ -4615,15 +4618,29 @@ function ProjectCreateModal({
   currentUser: AppUser;
   employees: Employee[];
   onClose: () => void;
+  onAddClient: ClientSubmitHandler;
   onCreateProject: ProjectSubmitHandler;
   onUpdateProject?: ProjectUpdateHandler;
   project?: Project | null;
 }) {
+  const defaultManager = employees[0]?.name || '';
   const [form, setForm] = useState<ProjectDraft>({
     name: project?.name || '',
     clientId: project?.clientId || clients[0]?.id || '',
     memberIds: project?.memberIds?.length ? project.memberIds : [currentUser.id],
   });
+  const [regions, setRegions] = useState(['서울', '경기', '제주', '부산', '대구', '평택']);
+  const [newRegion, setNewRegion] = useState('');
+  const [clientCreateOpen, setClientCreateOpen] = useState(false);
+  const [clientForm, setClientForm] = useState<Omit<Client, 'id'>>({
+    name: '',
+    manager: defaultManager,
+    phone: '',
+    region: regions[0],
+    memo: '',
+  });
+  const [clientLoading, setClientLoading] = useState(false);
+  const [pendingClientName, setPendingClientName] = useState('');
   const [loading, setLoading] = useState(false);
   const [completeLoading, setCompleteLoading] = useState(false);
   const isEdit = Boolean(project);
@@ -4633,7 +4650,19 @@ function ProjectCreateModal({
     if (!form.clientId && clients[0]?.id) {
       setForm((current) => ({ ...current, clientId: clients[0].id }));
     }
-  }, [clients, form.clientId]);
+    if (pendingClientName) {
+      const nextClient = clients.find((client) => client.name === pendingClientName);
+      if (nextClient) {
+        setForm((current) => ({ ...current, clientId: nextClient.id }));
+        setPendingClientName('');
+      }
+    }
+  }, [clients, form.clientId, pendingClientName]);
+
+  useEffect(() => {
+    if (!employees.length) return;
+    setClientForm((current) => (employees.some((employee) => employee.name === current.manager) ? current : { ...current, manager: employees[0].name }));
+  }, [employees]);
 
   useEffect(() => {
     setForm({
@@ -4651,6 +4680,43 @@ function ProjectCreateModal({
         memberIds: selected ? current.memberIds.filter((id) => id !== employeeId) : [...current.memberIds, employeeId],
       };
     });
+  };
+
+  const addRegion = () => {
+    const nextRegion = newRegion.trim();
+    if (!nextRegion || regions.includes(nextRegion)) return;
+    setRegions((current) => [...current, nextRegion]);
+    setClientForm((current) => ({ ...current, region: nextRegion }));
+    setNewRegion('');
+  };
+
+  const deleteRegion = (region: string) => {
+    setRegions((current) => {
+      const nextRegions = current.filter((item) => item !== region);
+      const fallbackRegion = nextRegions[0] || '';
+      setClientForm((formCurrent) => ({ ...formCurrent, region: formCurrent.region === region ? fallbackRegion : formCurrent.region }));
+      return nextRegions;
+    });
+  };
+
+  const submitClient = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (clientLoading) return;
+    if (!clientForm.name.trim() || !clientForm.manager) {
+      showActionPopup('업체명과 담당자를 입력해주세요.');
+      return;
+    }
+
+    setClientLoading(true);
+    const nextClientName = clientForm.name.trim();
+    const message = await onAddClient({ ...clientForm, name: nextClientName });
+    setClientLoading(false);
+    showActionPopup(message);
+    if (!message.includes('실패')) {
+      setPendingClientName(nextClientName);
+      setClientForm({ name: '', manager: employees[0]?.name || '', phone: '', region: regions[0] || '', memo: '' });
+      setClientCreateOpen(false);
+    }
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -4722,17 +4788,22 @@ function ProjectCreateModal({
         </label>
         <label>
           연결 업체
-          <select value={form.clientId} onChange={(event) => setForm((current) => ({ ...current, clientId: event.target.value }))}>
-            {clients.length ? (
-              clients.map((client) => (
-                <option key={client.id} value={client.id}>
-                  {client.name}
-                </option>
-              ))
-            ) : (
-              <option value="">등록된 업체가 없습니다</option>
-            )}
-          </select>
+          <div className="inline-select-action">
+            <select value={form.clientId} onChange={(event) => setForm((current) => ({ ...current, clientId: event.target.value }))}>
+              {clients.length ? (
+                clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))
+              ) : (
+                <option value="">등록된 업체가 없습니다</option>
+              )}
+            </select>
+            <button className="icon-button" aria-label="업체 추가" onClick={() => setClientCreateOpen(true)} type="button">
+              <Plus size={18} />
+            </button>
+          </div>
         </label>
         <div className="field-block">
           <span>참여 직원</span>
@@ -4761,6 +4832,71 @@ function ProjectCreateModal({
           </button>
         ) : null}
       </form>
+      {clientCreateOpen ? (
+        <div
+          className="modal-backdrop nested-modal-backdrop"
+          role="presentation"
+          onClick={(event) => {
+            event.stopPropagation();
+            setClientCreateOpen(false);
+          }}
+        >
+          <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={submitClient}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">New Client</p>
+                <h2>업체 추가</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setClientCreateOpen(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <label>
+              업체명
+              <input autoFocus value={clientForm.name} onChange={(event) => setClientForm({ ...clientForm, name: event.target.value })} />
+            </label>
+            <label>
+              담당자
+              <select value={clientForm.manager} onChange={(event) => setClientForm({ ...clientForm, manager: event.target.value })}>
+                {employees.length ? (
+                  employees.map((employee) => <option key={employee.id} value={employee.name}>{employee.name}</option>)
+                ) : (
+                  <option value="">직원 없음</option>
+                )}
+              </select>
+            </label>
+            <label>
+              전화번호
+              <input
+                inputMode="numeric"
+                maxLength={13}
+                value={clientForm.phone}
+                onChange={(event) => setClientForm({ ...clientForm, phone: formatMobilePhone(event.target.value) })}
+              />
+            </label>
+            <label>
+              지역
+              <RegionEditor
+                regions={regions}
+                selectedRegion={clientForm.region}
+                newRegion={newRegion}
+                onAdd={addRegion}
+                onChangeNewRegion={setNewRegion}
+                onDelete={deleteRegion}
+                onSelect={(region) => setClientForm({ ...clientForm, region })}
+              />
+            </label>
+            <label>
+              메모
+              <textarea value={clientForm.memo} onChange={(event) => setClientForm({ ...clientForm, memo: event.target.value })} />
+            </label>
+            <button className="primary-action wide" disabled={clientLoading} type="submit">
+              <Plus size={17} />
+              {clientLoading ? '진행중...' : '업체 추가'}
+            </button>
+          </form>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -7802,7 +7938,7 @@ function CalendarPage({
       return range
         ? {
             id: `task-${task.id}`,
-            title: task.title,
+            title: `${task.to || '담당자 미지정'} - ${task.title}`,
             start: range.start,
             end: range.end,
             days: range.days,
