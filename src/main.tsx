@@ -4188,7 +4188,7 @@ function App() {
     onRegisterPush: handleRegisterPush,
     onThemeChange: changeThemeMode,
   };
-  const isImmersiveView = ['project', 'reports', 'weeklyReports', 'allTasks', 'inbox', 'sent', 'clients', 'operations', 'calendar'].includes(activeView);
+  const isImmersiveView = ['project', 'reports', 'weeklyReports', 'allTasks', 'inbox', 'sent', 'clients', 'operations', 'calendar', 'meetingMinutes'].includes(activeView);
 
   return (
     <div className="app">
