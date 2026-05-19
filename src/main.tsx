@@ -74,6 +74,8 @@ const MAX_TASK_FILE_SIZE_LABEL = '10MB';
 const MAX_AVATAR_FILE_SIZE = 1024 * 1024;
 const MAX_AVATAR_FILE_SIZE_LABEL = '1MB';
 const AVATAR_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const LOGIN_PREFS_STORAGE_KEY = 'plander-login-preferences';
+const SKIP_AUTO_LOGIN_SESSION_KEY = 'plander-skip-auto-login';
 const colorThemeOptions: Array<{ value: ColorTheme; label: string; description: string; swatches: string[] }> = [
   { value: 'default', label: '플랜더 기본', description: '블랙/모노화이트 기본 모드', swatches: ['#050506', '#f7f7f4', '#cfd3da'] },
   { value: 'metal-silver', label: '메탈 실버', description: '은색 카드와 차콜 라인', swatches: ['#eef0f3', '#b9c0ca', '#32363d'] },
@@ -2327,6 +2329,7 @@ function App() {
   };
 
   const handleLogout = async () => {
+    window.sessionStorage.setItem(SKIP_AUTO_LOGIN_SESSION_KEY, '1');
     if (currentUser?.isPrototype) {
       setCurrentUser(null);
       return;
@@ -4181,6 +4184,7 @@ function App() {
     pushStatus,
     themeMode,
     showThemeSwitcher: canControlThemeMode,
+    onClosePage: navigateBack,
     onLogout: handleLogout,
     onMenuClick: () => setSidebarOpen(true),
     onNavigate: navigateTo,
@@ -4519,18 +4523,46 @@ function LoginScreen({
   onThemeChange: (mode: ThemeMode) => void;
   onPrototypeLogin: () => void;
 }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const storedLoginPrefs = useMemo(() => {
+    try {
+      return JSON.parse(window.localStorage.getItem(LOGIN_PREFS_STORAGE_KEY) || '{}') as {
+        email?: string;
+        password?: string;
+        rememberCredentials?: boolean;
+        autoLogin?: boolean;
+      };
+    } catch {
+      return {};
+    }
+  }, []);
+  const [email, setEmail] = useState(storedLoginPrefs.email || '');
+  const [password, setPassword] = useState(storedLoginPrefs.password || '');
+  const [rememberCredentials, setRememberCredentials] = useState(Boolean(storedLoginPrefs.rememberCredentials));
+  const [autoLogin, setAutoLogin] = useState(Boolean(storedLoginPrefs.autoLogin && storedLoginPrefs.email && storedLoginPrefs.password));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const autoLoginAttempted = useRef(false);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const persistLoginPreferences = (nextEmail: string, nextPassword: string, remember: boolean, auto: boolean) => {
+    if (!remember && !auto) {
+      window.localStorage.removeItem(LOGIN_PREFS_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(LOGIN_PREFS_STORAGE_KEY, JSON.stringify({
+      email: nextEmail,
+      password: nextPassword,
+      rememberCredentials: true,
+      autoLogin: auto,
+    }));
+  };
+
+  const submitLogin = async (isAutomatic = false) => {
     setError('');
 
     if (!supabase) {
       setError('Supabase 환경변수가 아직 설정되지 않았습니다.');
-      return;
+      return false;
     }
 
     setLoading(true);
@@ -4542,6 +4574,31 @@ function LoginScreen({
 
     if (loginError) {
       setError('이메일 또는 비밀번호를 확인해주세요.');
+      return false;
+    }
+
+    if (!isAutomatic) persistLoginPreferences(email, password, rememberCredentials || autoLogin, autoLogin);
+    window.sessionStorage.removeItem(SKIP_AUTO_LOGIN_SESSION_KEY);
+    return true;
+  };
+
+  useEffect(() => {
+    if (autoLoginAttempted.current || !autoLogin || !email || !password) return;
+    if (window.sessionStorage.getItem(SKIP_AUTO_LOGIN_SESSION_KEY) === '1') return;
+    autoLoginAttempted.current = true;
+    void submitLogin(true);
+  }, [autoLogin, email, password]);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await submitLogin(false);
+  };
+
+  const toggleRememberCredentials = (checked: boolean) => {
+    setRememberCredentials(checked);
+    if (!checked) {
+      setAutoLogin(false);
+      window.localStorage.removeItem(LOGIN_PREFS_STORAGE_KEY);
     }
   };
 
@@ -4589,6 +4646,28 @@ function LoginScreen({
               value={password}
             />
           </label>
+          <div className="login-options">
+            <label>
+              <input
+                checked={rememberCredentials}
+                onChange={(event) => toggleRememberCredentials(event.target.checked)}
+                type="checkbox"
+              />
+              <span>아이디/비밀번호 기억하기</span>
+            </label>
+            <label>
+              <input
+                checked={autoLogin}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setAutoLogin(checked);
+                  if (checked) setRememberCredentials(true);
+                }}
+                type="checkbox"
+              />
+              <span>자동로그인</span>
+            </label>
+          </div>
           {error ? <p className="auth-error">{error}</p> : null}
           <button className="primary-action wide" disabled={loading} type="submit">
             <ShieldCheck size={17} />
@@ -5356,6 +5435,7 @@ function ImmersiveTopControls({
   searchPlaceholder: string;
   showThemeSwitcher: boolean;
   themeMode: ThemeMode;
+  onClosePage: () => void;
   onLogout: () => void;
   onMenuClick: () => void;
   onNavigate: (view: ActiveView) => void;
@@ -5454,6 +5534,7 @@ function ImmersivePageFrame({
   searchLabel,
   searchPlaceholder,
   subheading,
+  onClosePage,
   ...chrome
 }: ImmersiveChromeProps & {
   action?: React.ReactNode;
@@ -5476,7 +5557,7 @@ function ImmersivePageFrame({
 
       <section className={`page-shell project-mode-shell ${className}`.trim()}>
         <div className="project-folder-tabs" role="tablist" aria-label={folderLabel}>
-          <button aria-selected="true" data-active="true" role="tab" type="button">
+          <button aria-selected="true" data-active="true" onClick={onClosePage} role="tab" type="button">
             <FolderIcon size={19} />
             <span>{folderLabel}</span>
             <X size={15} />
