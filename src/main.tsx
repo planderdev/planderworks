@@ -7636,9 +7636,16 @@ function WeeklyReportsPage({
   const [drafts, setDrafts] = useState<Record<string, WeeklyReportDraft>>({});
   const [loadingKey, setLoadingKey] = useState('');
   const [showReviewedReports, setShowReviewedReports] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('전체');
   const selectedStartDate = parseTaskDate(weekStart) || currentRange.start;
   const selectedRange = getWeekRange(selectedStartDate);
   const isAdmin = currentUser.accountRole === 'admin';
+  const selectedEmployee = employees.find((employee) => employee.id === selectedEmployeeId);
+  const matchesSelectedEmployee = (report: WeeklyReport) => (
+    !selectedEmployee ||
+    report.userId === selectedEmployee.id ||
+    report.userName === selectedEmployee.name
+  );
   const sortedReports = [...reports].sort((first, second) => {
     const firstTime = parseTaskDate(first.submittedAt || first.updatedAt || first.createdAt)?.getTime() || 0;
     const secondTime = parseTaskDate(second.submittedAt || second.updatedAt || second.createdAt)?.getTime() || 0;
@@ -7646,10 +7653,12 @@ function WeeklyReportsPage({
   });
   const weekReports = reports
     .filter((report) => report.weekStart === selectedRange.weekStart)
+    .filter(matchesSelectedEmployee)
     .sort((first, second) => first.userName.localeCompare(second.userName, 'ko'));
-  const pendingAdminReports = sortedReports.filter((report) => report.status === 'submitted');
-  const reviewedAdminReports = sortedReports.filter((report) => report.status === 'reviewed');
-  const missingEmployees = employees.filter(
+  const pendingAdminReports = sortedReports.filter((report) => report.status === 'submitted').filter(matchesSelectedEmployee);
+  const reviewedAdminReports = sortedReports.filter((report) => report.status === 'reviewed').filter(matchesSelectedEmployee);
+  const weeklyReportEmployees = selectedEmployee ? [selectedEmployee] : employees;
+  const missingEmployees = weeklyReportEmployees.filter(
     (employee) => !weekReports.some((report) => report.userId === employee.id || report.userName === employee.name),
   );
   const visibleReports = isAdmin
@@ -7659,6 +7668,13 @@ function WeeklyReportsPage({
     : weekReports.filter((report) => report.userId === currentUser.id);
   const myReports = weekReports.filter((report) => report.userId === currentUser.id || report.userName === currentUser.name);
   const myWeekTasks = tasks.filter((task) => isTaskParticipantById(task, currentUser.id) && isDateWithinRange(getTaskActivityDate(task), selectedRange.start, selectedRange.end));
+  const visibleTitle = isAdmin
+    ? selectedEmployee
+      ? `${selectedEmployee.name} 보고서`
+      : showReviewedReports
+        ? '지난 보고서'
+        : '확인 대기 보고서'
+    : '보고서 목록';
 
   const getReportDraft = (report: WeeklyReport): WeeklyReportDraft => drafts[report.id] || {
     thisWeekDone: report.thisWeekDone,
@@ -7701,6 +7717,20 @@ function WeeklyReportsPage({
             value={selectedRange.weekStart}
             onChange={(event) => setWeekStart(event.target.value)}
           />
+          {isAdmin ? (
+            <select
+              aria-label="주간보고 직원 선택"
+              value={selectedEmployeeId}
+              onChange={(event) => setSelectedEmployeeId(event.target.value)}
+            >
+              <option value="전체">직원 전체</option>
+              {employees.map((employee) => (
+                <option key={employee.id} value={employee.id}>
+                  {employee.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
           {!isAdmin ? (
             <button
               className="primary-action"
@@ -7725,7 +7755,7 @@ function WeeklyReportsPage({
       searchLabel="주간업무보고 검색"
       searchPlaceholder="직원, 보고내용 검색"
       showThemeSwitcher={showThemeSwitcher}
-      subheading={`${formatWeekLabel(selectedRange.weekStart, selectedRange.weekEnd)} · 보고서 ${weekReports.length}건 · 내 관련 업무 ${myWeekTasks.length}건`}
+      subheading={`${formatWeekLabel(selectedRange.weekStart, selectedRange.weekEnd)} · ${selectedEmployee ? `${selectedEmployee.name} ` : ''}보고서 ${weekReports.length}건 · 내 관련 업무 ${myWeekTasks.length}건`}
       themeMode={themeMode}
       onLogout={onLogout}
       onMenuClick={onMenuClick}
@@ -7755,7 +7785,7 @@ function WeeklyReportsPage({
         <section className="weekly-report-list list-surface">
           <div className="project-board-toolbar">
             <div>
-              <h2>{isAdmin ? (showReviewedReports ? '지난 보고서' : '확인 대기 보고서') : '보고서 목록'}</h2>
+              <h2>{visibleTitle}</h2>
               <span>{visibleReports.length}</span>
             </div>
             {isAdmin ? (

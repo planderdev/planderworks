@@ -4256,7 +4256,8 @@ h1 {
   flex-wrap: wrap;
 }
 
-.weekly-report-actions input {
+.weekly-report-actions input,
+.weekly-report-actions select {
   min-height: 42px;
   border: 1px solid var(--project-line);
   border-radius: 9px;
