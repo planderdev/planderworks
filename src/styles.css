@@ -1301,6 +1301,7 @@ h1 {
 
 .dashboard-flow-row span {
   overflow: hidden;
+  color: var(--text);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1309,6 +1310,19 @@ h1 {
 .mini-empty {
   color: var(--muted);
   font-size: 0.78rem;
+}
+
+.dashboard-flow-row small {
+  color: #4f5b6b;
+  font-weight: 800;
+}
+
+:root[data-theme='dark'] .dashboard-flow-row span {
+  color: #f3f6fb;
+}
+
+:root[data-theme='dark'] .dashboard-flow-row small {
+  color: #d2d8e3;
 }
 
 .content-grid {
@@ -3716,35 +3730,76 @@ h1 {
 
 .task-card,
 .dashboard-flow-row {
-  border: 1px solid var(--card-line) !important;
-  border-radius: 8px !important;
-  background: var(--card-bg) !important;
   --status-line: #5b6472;
-}
-
-.task-card,
-.dashboard-flow-row {
+  --status-card-bg: var(--card-bg);
+  --status-card-border: var(--card-line);
+  border: 1px solid var(--status-card-border) !important;
+  border-radius: 8px !important;
+  background: var(--status-card-bg) !important;
   box-shadow: inset 4px 0 0 var(--status-line);
 }
 
 .task-card[data-status-tone='blue'],
 .dashboard-flow-row[data-status-tone='blue'] {
   --status-line: #4b8ef7;
+  --status-card-bg: #f3f8ff;
+  --status-card-border: #cfe0f8;
 }
 
 .task-card[data-status-tone='amber'],
 .dashboard-flow-row[data-status-tone='amber'] {
   --status-line: #d69731;
+  --status-card-bg: #fff8eb;
+  --status-card-border: #efd7ac;
 }
 
 .task-card[data-status-tone='red'],
 .dashboard-flow-row[data-status-tone='red'] {
   --status-line: #df5f5f;
+  --status-card-bg: #fff5f5;
+  --status-card-border: #efcaca;
 }
 
 .task-card[data-status-tone='green'],
 .dashboard-flow-row[data-status-tone='green'] {
   --status-line: #39a86b;
+  --status-card-bg: #f1fbf5;
+  --status-card-border: #c6e7d2;
+}
+
+:root[data-theme='dark'] .task-card,
+:root[data-theme='dark'] .dashboard-flow-row {
+  --status-line: #8b95a4;
+  --status-card-bg: var(--card-bg);
+  --status-card-border: var(--card-line);
+}
+
+:root[data-theme='dark'] .task-card[data-status-tone='blue'],
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='blue'] {
+  --status-line: #70a7ff;
+  --status-card-bg: #111a28;
+  --status-card-border: #28486f;
+}
+
+:root[data-theme='dark'] .task-card[data-status-tone='amber'],
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='amber'] {
+  --status-line: #e5ad4f;
+  --status-card-bg: #231b0f;
+  --status-card-border: #5a421b;
+}
+
+:root[data-theme='dark'] .task-card[data-status-tone='red'],
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='red'] {
+  --status-line: #ff8585;
+  --status-card-bg: #241414;
+  --status-card-border: #623535;
+}
+
+:root[data-theme='dark'] .task-card[data-status-tone='green'],
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='green'] {
+  --status-line: #60c98a;
+  --status-card-bg: #102016;
+  --status-card-border: #27573b;
 }
 
 .task-card[data-attention='true']::after,
