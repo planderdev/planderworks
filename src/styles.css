@@ -2965,6 +2965,7 @@ h1 {
   background: rgba(0, 0, 0, 0.58);
   overflow-y: auto;
   overscroll-behavior: contain;
+  touch-action: pan-y;
 }
 
 .nested-modal-backdrop {
@@ -4257,6 +4258,18 @@ h1 {
   max-height: calc(100dvh - 48px);
   resize: both;
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+.meeting-modal-backdrop {
+  overscroll-behavior: none;
+}
+
+.modal-scroll-field {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .meeting-minute-form textarea {

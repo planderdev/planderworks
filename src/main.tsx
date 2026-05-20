@@ -7418,8 +7418,17 @@ function MeetingMinutesPage({
         </div>
       </div>
       {composeOpen ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setComposeOpen(false)}>
-          <article className="modal-card meeting-compose-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop meeting-modal-backdrop" role="presentation" onClick={(event) => {
+          if (event.target === event.currentTarget) setComposeOpen(false);
+        }}>
+          <article
+            className="modal-card meeting-compose-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+            onTouchMove={(event) => event.stopPropagation()}
+            onWheel={(event) => event.stopPropagation()}
+          >
             <div className="modal-head">
               <div>
                 <p className="eyebrow">Meeting Minutes</p>
@@ -7434,8 +7443,17 @@ function MeetingMinutesPage({
         </div>
       ) : null}
       {editingMinute ? (
-        <div className="modal-backdrop" role="presentation" onClick={() => setEditingMinuteId(null)}>
-          <article className="modal-card meeting-compose-modal" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
+        <div className="modal-backdrop meeting-modal-backdrop" role="presentation" onClick={(event) => {
+          if (event.target === event.currentTarget) setEditingMinuteId(null);
+        }}>
+          <article
+            className="modal-card meeting-compose-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+            onTouchMove={(event) => event.stopPropagation()}
+            onWheel={(event) => event.stopPropagation()}
+          >
             <div className="modal-head">
               <div>
                 <p className="eyebrow">Edit Meeting</p>
@@ -7491,7 +7509,7 @@ function MeetingMinuteForm({
     decisions: minute?.decisions || '',
     actionItems: minute?.actionItems || '',
     attendees: minute?.attendees || '',
-    projectId: minute?.category === '신규브리핑' ? '' : minute?.projectId || '',
+    projectId: minute?.projectId || '',
     heldAt: minute?.heldAt ? toDateTimeLocalValue(parseTaskDate(minute.heldAt) || new Date()) : toDateTimeLocalValue(new Date()),
   });
   const [attendeeIds, setAttendeeIds] = useState<string[]>(() => getAttendeeIdsFromNames(minute?.attendees || ''));
@@ -7508,7 +7526,7 @@ function MeetingMinuteForm({
       decisions: minute?.decisions || '',
       actionItems: minute?.actionItems || '',
       attendees: minute?.attendees || '',
-      projectId: minute?.category === '신규브리핑' ? '' : minute?.projectId || '',
+      projectId: minute?.projectId || '',
       heldAt: minute?.heldAt ? toDateTimeLocalValue(parseTaskDate(minute.heldAt) || new Date()) : toDateTimeLocalValue(new Date()),
     });
     setAttendeeIds(getAttendeeIdsFromNames(minute?.attendees || ''));
@@ -7519,13 +7537,7 @@ function MeetingMinuteForm({
     setForm((current) => ({
       ...current,
       category,
-      projectId: category === '신규브리핑' ? '' : current.projectId,
-      summary: category === '신규브리핑' ? '' : current.summary,
-      decisions: category === '신규브리핑' ? '' : current.decisions,
-      actionItems: category === '신규브리핑' ? '' : current.actionItems,
-      attendees: category === '신규브리핑' ? '' : current.attendees,
     }));
-    if (category === '신규브리핑') setAttendeeIds([]);
   };
 
   const toggleAttendee = (employeeId: string) => {
@@ -7561,7 +7573,7 @@ function MeetingMinuteForm({
         </label>
         <label>
           프로젝트
-          <select disabled={isNewBriefing} value={form.projectId || ''} onChange={(event) => setForm({ ...form, projectId: event.target.value })}>
+          <select value={form.projectId || ''} onChange={(event) => setForm({ ...form, projectId: event.target.value })}>
             <option value="">프로젝트 미지정</option>
             {projects.filter((project) => project.status !== 'deleted').map((project) => (
               <option key={project.id} value={project.id}>{project.name}</option>
@@ -7579,37 +7591,37 @@ function MeetingMinuteForm({
       </label>
       <label>
         회의 내용
-        <textarea required value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} rows={7} />
+        <textarea className="modal-scroll-field" required value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} rows={7} />
+      </label>
+      <label>
+        {isNewBriefing ? '참가자' : '참석자'}
+        <div className="multi-picker compact meeting-attendee-picker modal-scroll-field">
+          {employees.map((employee) => (
+            <button
+              className="select-chip"
+              data-selected={attendeeIds.includes(employee.id)}
+              key={employee.id}
+              onClick={() => toggleAttendee(employee.id)}
+              type="button"
+            >
+              {employee.name}
+            </button>
+          ))}
+        </div>
       </label>
       {!isNewBriefing ? (
         <>
           <label>
-            참석자
-            <div className="multi-picker compact meeting-attendee-picker">
-              {employees.map((employee) => (
-                <button
-                  className="select-chip"
-                  data-selected={attendeeIds.includes(employee.id)}
-                  key={employee.id}
-                  onClick={() => toggleAttendee(employee.id)}
-                  type="button"
-                >
-                  {employee.name}
-                </button>
-              ))}
-            </div>
-          </label>
-          <label>
             요약
-            <textarea value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} rows={3} />
+            <textarea className="modal-scroll-field" value={form.summary} onChange={(event) => setForm({ ...form, summary: event.target.value })} rows={3} />
           </label>
           <label>
             결정사항
-            <textarea value={form.decisions} onChange={(event) => setForm({ ...form, decisions: event.target.value })} rows={3} />
+            <textarea className="modal-scroll-field" value={form.decisions} onChange={(event) => setForm({ ...form, decisions: event.target.value })} rows={3} />
           </label>
           <label>
             액션아이템
-            <textarea value={form.actionItems} onChange={(event) => setForm({ ...form, actionItems: event.target.value })} rows={3} />
+            <textarea className="modal-scroll-field" value={form.actionItems} onChange={(event) => setForm({ ...form, actionItems: event.target.value })} rows={3} />
           </label>
         </>
       ) : null}
