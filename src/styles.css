@@ -5024,6 +5024,22 @@ h1 {
   padding: 0 18px 18px;
 }
 
+.project-task-expanded .project-inspector-card {
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 14px 0 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.project-task-expanded .project-inspector-summary {
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
 .project-task-row[data-attention='true']::after {
   content: '';
   position: absolute;
