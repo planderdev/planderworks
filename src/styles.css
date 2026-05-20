@@ -3728,6 +3728,103 @@ h1 {
   box-shadow: none !important;
 }
 
+.stat-card {
+  --stat-line: #9ca3af;
+  --stat-card-bg: #f7f8fb;
+  --stat-card-border: #d6dbe4;
+  border-color: var(--stat-card-border) !important;
+  background: var(--stat-card-bg) !important;
+  box-shadow: inset 4px 0 0 var(--stat-line) !important;
+}
+
+.stat-card[data-tone='silver'] {
+  --stat-line: #9ca3af;
+  --stat-card-bg: #f7f8fb;
+  --stat-card-border: #d6dbe4;
+}
+
+.stat-card[data-tone='blue'] {
+  --stat-line: #4b8ef7;
+  --stat-card-bg: #eef6ff;
+  --stat-card-border: #c9defb;
+}
+
+.stat-card[data-tone='amber'] {
+  --stat-line: #d69731;
+  --stat-card-bg: #fff5df;
+  --stat-card-border: #e7c98e;
+}
+
+.stat-card[data-tone='red'] {
+  --stat-line: #df5f5f;
+  --stat-card-bg: #fff0f0;
+  --stat-card-border: #eec2c2;
+}
+
+.stat-card[data-tone='green'] {
+  --stat-line: #39a86b;
+  --stat-card-bg: #eefaf3;
+  --stat-card-border: #c2e4cf;
+}
+
+.stat-card:hover {
+  filter: saturate(1.06) brightness(0.99);
+}
+
+.stat-card span,
+.stat-card small {
+  color: #5f6876;
+}
+
+.stat-card strong {
+  color: #11141c;
+}
+
+:root[data-theme='dark'] .stat-card {
+  --stat-line: #8b95a4;
+  --stat-card-bg: #15171d;
+  --stat-card-border: #2e3540;
+}
+
+:root[data-theme='dark'] .stat-card[data-tone='silver'] {
+  --stat-line: #9ca3af;
+  --stat-card-bg: #171a21;
+  --stat-card-border: #343b46;
+}
+
+:root[data-theme='dark'] .stat-card[data-tone='blue'] {
+  --stat-line: #70a7ff;
+  --stat-card-bg: #101b2b;
+  --stat-card-border: #27466d;
+}
+
+:root[data-theme='dark'] .stat-card[data-tone='amber'] {
+  --stat-line: #e5ad4f;
+  --stat-card-bg: #21190d;
+  --stat-card-border: #59421a;
+}
+
+:root[data-theme='dark'] .stat-card[data-tone='red'] {
+  --stat-line: #ff8585;
+  --stat-card-bg: #251414;
+  --stat-card-border: #633535;
+}
+
+:root[data-theme='dark'] .stat-card[data-tone='green'] {
+  --stat-line: #60c98a;
+  --stat-card-bg: #102016;
+  --stat-card-border: #27573b;
+}
+
+:root[data-theme='dark'] .stat-card span,
+:root[data-theme='dark'] .stat-card small {
+  color: #cbd3df;
+}
+
+:root[data-theme='dark'] .stat-card strong {
+  color: #f4f7fb;
+}
+
 .task-card,
 .dashboard-flow-row {
   --status-line: #5b6472;
