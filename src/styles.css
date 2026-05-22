@@ -7847,7 +7847,7 @@ h4,
 @media (min-width: 1080px) {
   :root[data-theme='dark'] {
     --admin-sidebar-w: 445px;
-    --admin-content-x: 112px;
+    --admin-content-x: 72px;
     --admin-content-y: 82px;
     --admin-line: #292929;
     --admin-panel: #101010;
@@ -8239,6 +8239,45 @@ h4,
   :root[data-theme='dark'] .dashboard-flow-row:hover {
     border-color: #3a3a3a !important;
     filter: brightness(1.08);
+  }
+
+  :root[data-theme='dark'] .team-panel .people-list {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+    gap: 14px !important;
+  }
+
+  :root[data-theme='dark'] .team-panel .person-row {
+    min-height: 76px !important;
+    align-items: center !important;
+    padding: 18px 20px !important;
+    background: #0b0b0b !important;
+    border: 1px solid var(--admin-line) !important;
+  }
+
+  :root[data-theme='dark'] .team-panel .person-row strong,
+  :root[data-theme='dark'] .team-panel .person-row span {
+    font-family: var(--font-body) !important;
+    letter-spacing: -0.01em !important;
+    white-space: nowrap !important;
+    word-break: keep-all !important;
+  }
+
+  :root[data-theme='dark'] .team-panel .person-row strong {
+    color: #cccccc !important;
+    font-size: 1rem !important;
+    font-weight: 500 !important;
+  }
+
+  :root[data-theme='dark'] .team-panel .person-row span {
+    color: #777777 !important;
+    font-size: 0.84rem !important;
+    font-weight: 400 !important;
+  }
+
+  :root[data-theme='dark'] .team-panel .person-row small {
+    min-width: 44px !important;
+    font-family: var(--font-mono) !important;
+    letter-spacing: 0.12em !important;
   }
 
   :root[data-theme='dark'] .type-chip,
