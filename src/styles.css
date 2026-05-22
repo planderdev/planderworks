@@ -7846,9 +7846,9 @@ h4,
 /* Plander ADMIN visual reference layer: editorial dark console. */
 @media (min-width: 1080px) {
   :root[data-theme='dark'] {
-    --admin-sidebar-w: 445px;
-    --admin-content-x: 72px;
-    --admin-content-y: 82px;
+    --admin-sidebar-w: 320px;
+    --admin-content-x: 40px;
+    --admin-content-y: 34px;
     --admin-line: #292929;
     --admin-panel: #101010;
     --admin-panel-subtle: #0b0b0b;
@@ -7858,7 +7858,7 @@ h4,
 
   :root[data-theme='dark'] .sidebar {
     width: var(--admin-sidebar-w) !important;
-    padding: 40px 26px 38px !important;
+    padding: 28px 20px 24px !important;
     background: #000000 !important;
     border-right: 1px solid var(--admin-line) !important;
   }
@@ -7870,30 +7870,30 @@ h4,
   }
 
   :root[data-theme='dark'] .brand-row {
-    min-height: 76px;
+    min-height: 52px;
     flex-direction: row !important;
     align-items: center !important;
-    gap: 18px !important;
-    padding: 0 0 42px !important;
+    gap: 14px !important;
+    padding: 0 0 26px !important;
     border-bottom: 0 !important;
   }
 
   :root[data-theme='dark'] .brand-logo {
-    width: 180px !important;
+    width: 146px !important;
   }
 
   :root[data-theme='dark'] .brand-subtitle {
     margin: 9px 0 0 !important;
     color: #777777 !important;
     font-family: var(--font-mono) !important;
-    font-size: 0.72rem !important;
+    font-size: 0.68rem !important;
     font-weight: 400 !important;
-    letter-spacing: 0.34em !important;
+    letter-spacing: 0.16em !important;
     text-transform: uppercase;
   }
 
   :root[data-theme='dark'] .sidebar-nav {
-    gap: 18px !important;
+    gap: 8px !important;
     padding: 0 !important;
   }
 
@@ -7910,16 +7910,16 @@ h4,
   :root[data-theme='dark'] .sidebar-project-title,
   :root[data-theme='dark'] .completed-project-year-button,
   :root[data-theme='dark'] .project-trash-row {
-    min-height: 72px !important;
+    min-height: 44px !important;
     grid-template-columns: minmax(0, 1fr) auto !important;
-    padding: 0 20px !important;
+    padding: 0 14px !important;
     border: 1px solid transparent !important;
     color: #8a8a8a !important;
     background: transparent !important;
     font-family: var(--font-mono) !important;
-    font-size: 1.45rem !important;
+    font-size: 0.98rem !important;
     font-weight: 400 !important;
-    letter-spacing: 0.12em !important;
+    letter-spacing: 0.08em !important;
     line-height: 1 !important;
   }
 
@@ -7966,18 +7966,18 @@ h4,
   }
 
   :root[data-theme='dark'] .sidebar-bottom-layer {
-    gap: 24px !important;
+    gap: 14px !important;
   }
 
   :root[data-theme='dark'] .sidebar-install-button,
   :root[data-theme='dark'] .profile-card,
   :root[data-theme='dark'] .logout-button {
-    min-height: 72px !important;
+    min-height: 44px !important;
     border: 1px solid var(--admin-line) !important;
     background: transparent !important;
     color: #777777 !important;
     font-family: var(--font-mono) !important;
-    font-size: 1rem !important;
+    font-size: 0.78rem !important;
     font-weight: 400 !important;
     letter-spacing: 0.26em !important;
     text-transform: uppercase;
@@ -7985,7 +7985,7 @@ h4,
 
   :root[data-theme='dark'] .profile-card {
     grid-template-columns: minmax(0, 1fr) auto !important;
-    padding: 18px 20px !important;
+    padding: 12px 14px !important;
   }
 
   :root[data-theme='dark'] .profile-card .avatar,
@@ -8011,7 +8011,7 @@ h4,
   :root[data-theme='dark'] .project-mode-tools {
     min-height: 28px !important;
     justify-content: flex-end !important;
-    margin: 0 0 44px !important;
+    margin: 0 0 22px !important;
     padding: 0 !important;
     border-bottom: 0 !important;
   }
@@ -8037,7 +8037,7 @@ h4,
   :root[data-theme='dark'] .page-shell,
   :root[data-theme='dark'] .project-mode-shell {
     max-width: none !important;
-    gap: 56px !important;
+    gap: 16px !important;
     padding: 0 !important;
     border: 0 !important;
     background: #000000 !important;
@@ -8047,10 +8047,10 @@ h4,
   :root[data-theme='dark'] .project-page-head,
   :root[data-theme='dark'] .board-head,
   :root[data-theme='dark'] .section-head {
-    min-height: 98px !important;
+    min-height: 58px !important;
     align-items: flex-start !important;
-    padding: 0 0 48px !important;
-    margin: 0 0 56px !important;
+    padding: 0 0 22px !important;
+    margin: 0 0 28px !important;
     border-bottom: 1px solid var(--admin-line) !important;
   }
 
@@ -8060,7 +8060,7 @@ h4,
   :root[data-theme='dark'] .board-head h1 {
     color: #cccccc !important;
     font-family: var(--font-display) !important;
-    font-size: clamp(3.8rem, 4.5vw, 5.4rem) !important;
+    font-size: clamp(2.1rem, 3vw, 3.2rem) !important;
     font-weight: 400 !important;
     letter-spacing: 0.04em !important;
     line-height: 0.95 !important;
@@ -8078,21 +8078,21 @@ h4,
   :root[data-theme='dark'] .meeting-minute-meta dt {
     color: #777777 !important;
     font-family: var(--font-mono) !important;
-    font-size: 0.92rem !important;
+    font-size: 0.74rem !important;
     font-weight: 400 !important;
-    letter-spacing: 0.28em !important;
+    letter-spacing: 0.16em !important;
     text-transform: uppercase;
   }
 
   :root[data-theme='dark'] .stats-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
-    gap: 28px !important;
-    margin-bottom: 64px !important;
+    gap: 16px !important;
+    margin-bottom: 28px !important;
   }
 
   :root[data-theme='dark'] .stat-card {
-    min-height: 240px !important;
-    padding: 48px 44px 44px !important;
+    min-height: 128px !important;
+    padding: 22px 24px !important;
     background: #101010 !important;
     border: 1px solid var(--admin-line) !important;
   }
@@ -8100,7 +8100,7 @@ h4,
   :root[data-theme='dark'] .stat-card strong {
     color: #cccccc !important;
     font-family: var(--font-display) !important;
-    font-size: clamp(4rem, 4.4vw, 5.3rem) !important;
+    font-size: clamp(2.2rem, 3vw, 3.2rem) !important;
     font-weight: 400 !important;
     letter-spacing: -0.02em !important;
   }
@@ -8110,7 +8110,7 @@ h4,
   :root[data-theme='dark'] .split-layout,
   :root[data-theme='dark'] .project-detail-grid,
   :root[data-theme='dark'] .reports-mode-layout {
-    gap: 40px !important;
+    gap: 22px !important;
   }
 
   :root[data-theme='dark'] .auth-card,
@@ -8133,7 +8133,7 @@ h4,
   :root[data-theme='dark'] .project-mode-shell .calendar-panel,
   :root[data-theme='dark'] .project-mode-shell .project-chat-panel,
   :root[data-theme='dark'] .project-mode-shell .project-task-board {
-    padding: 48px !important;
+    padding: 24px !important;
     background: #101010 !important;
     border: 1px solid var(--admin-line) !important;
     box-shadow: none !important;
@@ -8146,23 +8146,23 @@ h4,
   :root[data-theme='dark'] .date-time-confirm-field,
   :root[data-theme='dark'] .search-input,
   :root[data-theme='dark'] .calendar-visibility-row {
-    min-height: 72px !important;
-    padding: 0 24px !important;
+    min-height: 46px !important;
+    padding: 0 14px !important;
     color: #cccccc !important;
     background: #101010 !important;
     border: 1px solid var(--admin-line) !important;
-    font-size: 1.25rem !important;
+    font-size: 0.95rem !important;
     font-weight: 400 !important;
   }
 
   :root[data-theme='dark'] textarea {
-    min-height: 180px !important;
-    padding: 24px !important;
+    min-height: 108px !important;
+    padding: 14px !important;
   }
 
   :root[data-theme='dark'] .form-grid,
   :root[data-theme='dark'] .form-stack {
-    gap: 28px !important;
+    gap: 16px !important;
   }
 
   :root[data-theme='dark'] .primary-action,
@@ -8170,12 +8170,12 @@ h4,
   :root[data-theme='dark'] .ghost-action,
   :root[data-theme='dark'] .file-action,
   :root[data-theme='dark'] .reply-action {
-    min-height: 78px !important;
-    padding: 0 42px !important;
+    min-height: 46px !important;
+    padding: 0 22px !important;
     font-family: var(--font-mono) !important;
-    font-size: 1rem !important;
+    font-size: 0.9rem !important;
     font-weight: 400 !important;
-    letter-spacing: 0.28em !important;
+    letter-spacing: 0.16em !important;
     text-transform: uppercase;
   }
 
@@ -8185,8 +8185,8 @@ h4,
   :root[data-theme='dark'] .meeting-minute-card,
   :root[data-theme='dark'] .file-row,
   :root[data-theme='dark'] .type-row {
-    min-height: 92px !important;
-    padding: 24px 30px !important;
+    min-height: 62px !important;
+    padding: 14px 18px !important;
     background: #000000 !important;
     border-color: var(--admin-line) !important;
   }
@@ -8264,9 +8264,9 @@ h4,
   }
 
   :root[data-theme='dark'] .team-panel .person-row {
-    min-height: 76px !important;
+    min-height: 56px !important;
     align-items: center !important;
-    padding: 18px 20px !important;
+    padding: 12px 14px !important;
     background: #0b0b0b !important;
     border: 1px solid var(--admin-line) !important;
   }
@@ -8281,7 +8281,7 @@ h4,
 
   :root[data-theme='dark'] .team-panel .person-row strong {
     color: #cccccc !important;
-    font-size: 1rem !important;
+    font-size: 0.9rem !important;
     font-weight: 500 !important;
   }
 
@@ -8294,7 +8294,7 @@ h4,
   :root[data-theme='dark'] .team-panel .person-row small {
     min-width: 44px !important;
     font-family: var(--font-mono) !important;
-    letter-spacing: 0.12em !important;
+    letter-spacing: 0.08em !important;
   }
 
   :root[data-theme='dark'] .type-chip,
@@ -8308,8 +8308,8 @@ h4,
   :root[data-theme='dark'] .filter-chip,
   :root[data-theme='dark'] .calendar-filter-chip,
   :root[data-theme='dark'] .month-event {
-    min-height: 36px !important;
-    padding: 7px 14px !important;
+    min-height: 28px !important;
+    padding: 5px 10px !important;
     font-family: var(--font-mono) !important;
     font-size: 0.78rem !important;
     font-weight: 400 !important;

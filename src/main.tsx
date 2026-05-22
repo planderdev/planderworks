@@ -5247,7 +5247,7 @@ function Sidebar({
     <aside className="sidebar" data-open={open}>
       <div className="brand-row">
         <img className="brand-logo" src="/logo.svg" alt="Plander" />
-        <span className="brand-subtitle">Works</span>
+        <span className="brand-subtitle">Admin</span>
         <button className="icon-button close-sidebar" aria-label="메뉴 닫기" onClick={onClose}>
           <X size={18} />
         </button>
