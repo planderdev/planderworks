@@ -62,7 +62,7 @@ type ActiveView =
   | 'operations'
   | 'settings';
 type TaskStatus = '대기' | '진행중' | '완료 요청' | '보류' | '완료';
-type TaskListFilter = '전체' | TaskStatus;
+type TaskListFilter = '전체' | '마감 임박' | TaskStatus;
 type Priority = '높음' | '보통' | '낮음';
 type TaskType = string;
 
@@ -76,7 +76,7 @@ const MAX_AVATAR_FILE_SIZE_LABEL = '1MB';
 const AVATAR_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const LOGIN_PREFS_STORAGE_KEY = 'plander-login-preferences';
 const SKIP_AUTO_LOGIN_SESSION_KEY = 'plander-skip-auto-login';
-const PLANDER_RECORDER_APP_URL = 'https://duly-sulfite-thirty.ngrok-free.dev';
+
 const colorThemeOptions: Array<{ value: ColorTheme; label: string; description: string; swatches: string[] }> = [
   { value: 'default', label: '플랜더 기본', description: '블랙/모노화이트 기본 모드', swatches: ['#050506', '#f7f7f4', '#cfd3da'] },
   { value: 'metal-silver', label: '메탈 실버', description: '은색 카드와 차콜 라인', swatches: ['#eef0f3', '#b9c0ca', '#32363d'] },
@@ -963,7 +963,8 @@ const hasValidMobilePhoneLength = (value: string) => {
 
 const isUuid = (value: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 const isActiveView = (value: unknown): value is ActiveView => typeof value === 'string' && appViews.includes(value as ActiveView);
-const urlPattern = /((?:https?:\/\/|www\.)[^\s<]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<]*)?)/gi;
+const urlPattern = /((?:https?:\/\/|www\.)[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]+|(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]*)?)/gi;
+const trailingUrlPunctuationPattern = /[.,!?;:，。！？；：、)\]}〉》」』]+$/g;
 const taskCardSummaryLimit = 52;
 
 function truncateText(value: string, limit = taskCardSummaryLimit) {
@@ -987,7 +988,7 @@ function renderLinkedText(text: string) {
   text.replace(urlPattern, (match, _url, offset: number) => {
     if (offset > lastIndex) nodes.push(text.slice(lastIndex, offset));
 
-    const trimmedUrl = match.replace(/[.,!?;:)\]}]+$/g, '');
+    const trimmedUrl = match.replace(trailingUrlPunctuationPattern, '');
     const trailingText = match.slice(trimmedUrl.length);
     const href = /^https?:\/\//i.test(trimmedUrl) ? trimmedUrl : `https://${trimmedUrl}`;
 
@@ -2372,7 +2373,7 @@ function App() {
       { label: '받은 업무', value: inboxTasks.length, hint: '내 담당 기준', tone: 'silver', target: 'inbox' as ActiveView },
       { label: '진행중', value: inboxTasks.filter((task) => task.status === '진행중').length, hint: '담당자 확인중', tone: 'blue', target: 'inbox' as ActiveView, filter: '진행중' as TaskListFilter },
       { label: '완료 요청', value: inboxTasks.filter((task) => task.status === '완료 요청').length, hint: '검토 필요', tone: 'amber', target: 'inbox' as ActiveView, filter: '완료 요청' as TaskListFilter },
-      { label: '마감 임박', value: dueSoonTasks.length, hint: '마감일 입력 기준', tone: 'red', target: 'calendar' as ActiveView },
+      { label: '마감 임박', value: dueSoonTasks.length, hint: '마감일 입력 기준', tone: 'red', target: 'inbox' as ActiveView, filter: '마감 임박' as TaskListFilter },
     ],
     [dueSoonTasks.length, inboxTasks],
   );
@@ -4201,18 +4202,6 @@ function App() {
       return '이 브라우저는 웹푸시를 지원하지 않습니다.';
     }
 
-    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
-
-    if (!vapidPublicKey) {
-      return 'VAPID public key가 설정되지 않았습니다.';
-    }
-
-    const permission = await Notification.requestPermission();
-
-    if (permission !== 'granted') {
-      return '브라우저 알림 권한이 허용되지 않았습니다.';
-    }
-
     const registration = await registerPlanderServiceWorker();
     const existingSubscription = await registration.pushManager.getSubscription();
 
@@ -4228,6 +4217,18 @@ function App() {
 
       setPushEnabled(false);
       return '이 기기 업무 푸시알림이 꺼졌습니다.';
+    }
+
+    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
+
+    if (!vapidPublicKey) {
+      return 'VAPID public key가 설정되지 않았습니다.';
+    }
+
+    const permission = await Notification.requestPermission();
+
+    if (permission !== 'granted') {
+      return '브라우저 알림 권한이 허용되지 않았습니다.';
     }
 
     const subscription = await registration.pushManager.subscribe({
@@ -5246,15 +5247,6 @@ function Sidebar({
     showActionPopup(message);
   };
 
-  const openRecorderApp = async () => {
-    try {
-      await navigator.clipboard?.writeText(PLANDER_RECORDER_APP_URL);
-      showActionPopup('녹음앱 주소를 복사했습니다. 브라우저 주소창에 붙여넣고, ngrok 안내가 보이면 Visit Site를 누른 뒤 홈 화면에 추가해 주세요.');
-    } catch {
-      showActionPopup(`녹음앱 주소: ${PLANDER_RECORDER_APP_URL}`);
-    }
-  };
-
   return (
     <aside className="sidebar" data-open={open}>
       <div className="brand-row">
@@ -5270,7 +5262,6 @@ function Sidebar({
           .filter((item) => (showAdmin ? true : item.id !== 'operations'))
           .map((item) => {
           const Icon = item.icon;
-          const badge = badges[item.id] || 0;
           const unreadBadge = unreadBadges[item.id] || 0;
           return (
             <button className="nav-button" data-active={activeView === item.id} data-featured={item.id === 'create'} key={item.id} onClick={() => onNavigate(item.id)}>
@@ -5278,7 +5269,6 @@ function Sidebar({
               <span>{item.label}</span>
               <span className="nav-badges">
                 {unreadBadge > 0 ? <small className="nav-unread-badge">{unreadBadge}</small> : null}
-                {badge > 0 ? <small>{badge}</small> : null}
               </span>
             </button>
           );
@@ -5418,11 +5408,6 @@ function Sidebar({
             <span>앱 다운로드</span>
           </button>
         ) : null}
-
-        <button className="sidebar-install-button recorder-install-button" onClick={openRecorderApp} type="button">
-          <Download size={17} />
-          <span>녹음앱 홈화면 추가</span>
-        </button>
 
         <div className="profile-card">
           <button className="profile-card-main" onClick={() => setAdminOpen((open) => !open)} type="button">
@@ -5735,13 +5720,13 @@ function ImmersivePageFrame({
       />
 
       <section className={`page-shell project-mode-shell ${className}`.trim()}>
-        <div className="project-folder-tabs" role="tablist" aria-label={folderLabel}>
+        <DraggableFolderTabs label={folderLabel}>
           <button aria-selected="true" data-active="true" onClick={onClosePage} role="tab" type="button">
             <FolderIcon size={19} />
             <span>{folderLabel}</span>
             <X size={15} />
           </button>
-        </div>
+        </DraggableFolderTabs>
 
         <div className="project-mode-canvas">
           <div className="page-head project-page-head project-mode-head">
@@ -5758,6 +5743,72 @@ function ImmersivePageFrame({
         </div>
       </section>
     </>
+  );
+}
+
+function DraggableFolderTabs({ children, label }: { children: React.ReactNode; label: string }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const dragState = useRef<{ dragging: boolean; pointerId: number | null; startX: number; scrollLeft: number; moved: boolean }>({
+    dragging: false,
+    pointerId: null,
+    startX: 0,
+    scrollLeft: 0,
+    moved: false,
+  });
+
+  const endDrag = () => {
+    const node = scrollRef.current;
+    if (node && dragState.current.pointerId !== null) {
+      try {
+        node.releasePointerCapture(dragState.current.pointerId);
+      } catch {
+        // Pointer capture can already be released by the browser.
+      }
+    }
+    dragState.current.dragging = false;
+    dragState.current.pointerId = null;
+  };
+
+  return (
+    <div
+      className="project-folder-tabs"
+      ref={scrollRef}
+      role="tablist"
+      aria-label={label}
+      onClickCapture={(event) => {
+        if (!dragState.current.moved) return;
+        event.preventDefault();
+        event.stopPropagation();
+        dragState.current.moved = false;
+      }}
+      onPointerDown={(event) => {
+        if (event.button !== 0) return;
+        const node = scrollRef.current;
+        if (!node) return;
+        dragState.current = {
+          dragging: true,
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          scrollLeft: node.scrollLeft,
+          moved: false,
+        };
+        node.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={(event) => {
+        const node = scrollRef.current;
+        if (!node || !dragState.current.dragging) return;
+        const deltaX = event.clientX - dragState.current.startX;
+        if (Math.abs(deltaX) > 4) dragState.current.moved = true;
+        node.scrollLeft = dragState.current.scrollLeft - deltaX;
+      }}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onPointerLeave={() => {
+        if (dragState.current.dragging) endDrag();
+      }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -6410,7 +6461,11 @@ function TaskListPage({
   const [status, setStatus] = useState<TaskListFilter>(initialStatus);
   const [employeeId, setEmployeeId] = useState('전체');
   const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
-  const statusFilteredTasks = status === '전체' ? tasks : tasks.filter((task) => task.status === status);
+  const statusFilteredTasks = status === '전체'
+    ? tasks
+    : status === '마감 임박'
+      ? tasks.filter((task) => task.due !== '미정' && task.due !== '검토 대기' && task.status !== '완료')
+      : tasks.filter((task) => task.status === status);
   const filteredTasks =
     !employees.length || employeeId === '전체'
       ? statusFilteredTasks
@@ -6461,7 +6516,7 @@ function TaskListPage({
               ))}
             </select>
           ) : null}
-          {(['전체', '대기', '진행중', '완료 요청', '보류', '완료'] as Array<'전체' | TaskStatus>).map((item) => (
+          {(['전체', '마감 임박', '대기', '진행중', '완료 요청', '보류', '완료'] as TaskListFilter[]).map((item) => (
             <button data-active={status === item} key={item} onClick={() => setStatus(item)}>
               {item}
             </button>
@@ -6707,7 +6762,7 @@ function ProjectPage({
       />
 
       <section className="page-shell project-mode-shell">
-      <div className="project-folder-tabs" role="tablist" aria-label="프로젝트 선택">
+      <DraggableFolderTabs label="프로젝트 선택">
         {visibleProjects.map((item) => (
           <button
             aria-selected={project?.id === item.id}
@@ -6732,7 +6787,7 @@ function ProjectPage({
         <button className="project-folder-add" aria-label="프로젝트 추가" onClick={onCreateProject} type="button">
           <Plus size={18} />
         </button>
-      </div>
+      </DraggableFolderTabs>
 
       <div className="project-mode-canvas">
         <div className="page-head project-page-head project-mode-head">

@@ -8817,3 +8817,278 @@ h4,
 .sidebar .close-sidebar {
   display: none !important;
 }
+
+
+/* 2026-05 requested polish: neutral stats, unread-only nav, modal/meeting/chat rhythm. */
+.stat-card {
+  --stat-card-bg: var(--panel) !important;
+  --stat-card-border: var(--border, var(--line)) !important;
+  border-color: var(--stat-card-border) !important;
+  background: var(--stat-card-bg) !important;
+  box-shadow: inset 4px 0 0 var(--stat-line) !important;
+}
+
+.stat-card[data-tone='silver'],
+.stat-card[data-tone='blue'],
+.stat-card[data-tone='amber'],
+.stat-card[data-tone='red'],
+.stat-card[data-tone='green'] {
+  --stat-card-bg: var(--panel) !important;
+  --stat-card-border: var(--border, var(--line)) !important;
+}
+
+:root[data-theme='light'] .stat-card {
+  --stat-card-bg: #ffffff !important;
+  --stat-card-border: #d8d4ca !important;
+}
+
+:root[data-theme='dark'] .stat-card {
+  --stat-card-bg: #101010 !important;
+  --stat-card-border: #292929 !important;
+}
+
+.stat-card:hover {
+  border-color: var(--border-strong, var(--stat-card-border)) !important;
+  background: var(--soft) !important;
+  filter: none !important;
+}
+
+:root[data-theme='dark'] .stat-card:hover {
+  background: #171717 !important;
+}
+
+.project-create-member-field,
+.modal-card .field-block {
+  margin-top: 4px;
+  margin-bottom: 18px;
+}
+
+.modal-card .field-block > span {
+  margin-bottom: 2px;
+}
+
+.modal-card .multi-picker.compact {
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.select-chip[data-selected='true'] {
+  border-color: var(--border-strong, #4a4a4a) !important;
+  color: var(--text) !important;
+  background: var(--soft) !important;
+}
+
+:root[data-theme='dark'] .select-chip[data-selected='true'] {
+  border-color: #4a4a4a !important;
+  color: #cccccc !important;
+  background: #171717 !important;
+}
+
+:root[data-theme='dark'] .project-chat-panel,
+:root[data-theme='dark'] .project-message,
+:root[data-theme='dark'] .project-message p,
+:root[data-theme='dark'] .project-message-readers,
+:root[data-theme='dark'] .project-message small {
+  color: #aaaaaa !important;
+}
+
+:root[data-theme='dark'] .project-message[data-own='true'] {
+  color: #cccccc !important;
+  background: #171717 !important;
+}
+
+:root[data-theme='dark'] .project-message[data-own='true'] small,
+:root[data-theme='dark'] .project-message[data-own='true'] .project-message-readers {
+  color: #aaaaaa !important;
+}
+
+:root[data-theme='dark'] .project-mode-shell .project-chat-panel {
+  padding: 16px !important;
+}
+
+:root[data-theme='dark'] .project-mode-shell .project-task-board {
+  padding: 0 !important;
+}
+
+.meeting-filter-row {
+  gap: 10px;
+  padding-bottom: 18px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--border, var(--line));
+}
+
+.meeting-filter-row .filter-chip {
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: 0 !important;
+  padding: 0 18px;
+  color: var(--muted);
+  background: transparent;
+  font-family: var(--font-mono) !important;
+  font-size: 0.86rem;
+  font-weight: 500 !important;
+  letter-spacing: 0.08em;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.meeting-filter-row .filter-chip:hover {
+  border-color: var(--border-strong, var(--border));
+  color: var(--text);
+  background: var(--soft);
+}
+
+.meeting-filter-row .filter-chip[data-active='true'] {
+  border-color: #8bbdff;
+  color: var(--text);
+  background: rgba(139, 189, 255, 0.12);
+}
+
+:root[data-theme='dark'] .meeting-filter-row {
+  border-bottom-color: #292929;
+}
+
+:root[data-theme='dark'] .meeting-filter-row .filter-chip {
+  color: #aaaaaa;
+}
+
+:root[data-theme='dark'] .meeting-filter-row .filter-chip:hover {
+  border-color: #4a4a4a;
+  color: #cccccc;
+  background: #171717;
+}
+
+:root[data-theme='dark'] .meeting-filter-row .filter-chip[data-active='true'] {
+  border-color: #8bbdff;
+  color: #cccccc;
+  background: rgba(139, 189, 255, 0.11);
+}
+
+
+/* 2026-05 folder tabs: horizontal drag, no reserved scrollbar gutter. */
+.project-folder-tabs {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scrollbar-gutter: auto !important;
+  cursor: grab;
+  touch-action: pan-x;
+  user-select: none;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0 !important;
+}
+
+.project-folder-tabs:active {
+  cursor: grabbing;
+}
+
+.project-folder-tabs::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.project-folder-tabs:hover {
+  scrollbar-width: thin;
+}
+
+.project-folder-tabs:hover::-webkit-scrollbar {
+  height: 6px;
+}
+
+.project-folder-tabs:hover::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.project-folder-tabs:hover::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(128, 128, 128, 0.42);
+}
+
+.project-folder-tabs button {
+  flex: 0 0 auto;
+}
+
+/* 2026-05 sidebar project buttons: light-mode hover/active requested mapping. */
+:root[data-theme='light'] .sidebar .project-nav-button:hover {
+  color: #000000 !important;
+  background: rgba(0, 0, 0, 0.035) !important;
+  border-color: rgba(0, 0, 0, 0.16) !important;
+}
+
+:root[data-theme='light'] .sidebar .project-nav-button:hover span,
+:root[data-theme='light'] .sidebar .project-nav-button:hover small,
+:root[data-theme='light'] .sidebar .project-nav-button:hover svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+}
+
+:root[data-theme='light'] .sidebar .project-nav-button[data-active='true'],
+:root[data-theme='light'] .sidebar .project-nav-button[data-active='true']:hover {
+  color: #cccccc !important;
+  background: #333333 !important;
+  border-color: #4a4a4a !important;
+}
+
+:root[data-theme='light'] .sidebar .project-nav-button[data-active='true'] span,
+:root[data-theme='light'] .sidebar .project-nav-button[data-active='true'] small,
+:root[data-theme='light'] .sidebar .project-nav-button[data-active='true'] svg,
+:root[data-theme='light'] .sidebar .project-nav-button[data-active='true']:hover span,
+:root[data-theme='light'] .sidebar .project-nav-button[data-active='true']:hover small,
+:root[data-theme='light'] .sidebar .project-nav-button[data-active='true']:hover svg {
+  color: #cccccc !important;
+  stroke: #cccccc !important;
+}
+
+:root[data-theme='light'] .sidebar .project-nav-button[data-active='true']::before {
+  background: #cccccc !important;
+}
+
+
+/* 2026-05 expanded task body: keep list status surface, remove body surface. */
+.project-task-expanded .project-inspector-card,
+.project-task-expanded .project-inspector-summary,
+.project-task-expanded .project-inspector-meta,
+.project-task-expanded .project-inspector-people {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.project-task-expanded .project-inspector-summary {
+  border-color: transparent !important;
+}
+
+.project-task-expanded .project-inspector-meta,
+.project-task-expanded .project-inspector-people {
+  border-color: var(--border, var(--line)) !important;
+}
+
+:root[data-theme='dark'] .project-task-expanded .project-inspector-card,
+:root[data-theme='dark'] .project-task-expanded .project-inspector-summary,
+:root[data-theme='dark'] .project-task-expanded .project-inspector-meta,
+:root[data-theme='dark'] .project-task-expanded .project-inspector-people {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme='dark'] .project-task-expanded .project-inspector-summary {
+  border-color: transparent !important;
+}
+
+:root[data-theme='dark'] .project-task-expanded .project-inspector-meta,
+:root[data-theme='dark'] .project-task-expanded .project-inspector-people {
+  border-color: #292929 !important;
+}
+
+/* Keep attachment/comment cards as cards even when the expanded body is flattened. */
+.project-task-expanded .project-inspector-files,
+.project-task-expanded .project-inspector-comments,
+.project-task-expanded .project-file-grid button {
+  background: rgba(255, 255, 255, 0.38) !important;
+  border-color: rgba(8, 8, 8, 0.13) !important;
+}
+
+:root[data-theme='dark'] .project-task-expanded .project-inspector-files,
+:root[data-theme='dark'] .project-task-expanded .project-inspector-comments,
+:root[data-theme='dark'] .project-task-expanded .project-file-grid button {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: #292929 !important;
+}
