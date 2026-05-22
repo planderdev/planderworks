@@ -8241,6 +8241,23 @@ h4,
     filter: brightness(1.08);
   }
 
+  :root[data-theme='dark'] .stat-card span,
+  :root[data-theme='dark'] .stat-card small {
+    font-family: var(--font-body) !important;
+    letter-spacing: 0.02em !important;
+    text-transform: none !important;
+    word-break: keep-all !important;
+    overflow-wrap: normal !important;
+  }
+
+  :root[data-theme='dark'] .stat-card span {
+    white-space: nowrap !important;
+  }
+
+  :root[data-theme='dark'] .stat-card small {
+    line-height: 1.45 !important;
+  }
+
   :root[data-theme='dark'] .team-panel .people-list {
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
     gap: 14px !important;
