@@ -4194,66 +4194,72 @@ function App() {
   };
 
   const registerPushNotifications = async () => {
-    if (!supabase || !currentUser || currentUser.isPrototype) {
-      return '실제 로그인 후 푸시알림을 켤 수 있습니다.';
-    }
-
-    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-      return '이 브라우저는 웹푸시를 지원하지 않습니다.';
-    }
-
-    const registration = await registerPlanderServiceWorker();
-    const existingSubscription = await registration.pushManager.getSubscription();
-
-    if (existingSubscription) {
-      const endpoint = existingSubscription.endpoint;
-      await existingSubscription.unsubscribe();
-
-      const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
-
-      if (error) {
-        return `푸시 구독 해제 실패: ${error.message}`;
+    try {
+      if (!supabase || !currentUser || currentUser.isPrototype) {
+        return '실제 로그인 후 푸시알림을 켤 수 있습니다.';
       }
 
-      setPushEnabled(false);
-      return '이 기기 업무 푸시알림이 꺼졌습니다.';
+      if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+        return '이 브라우저는 웹푸시를 지원하지 않습니다.';
+      }
+
+      const registration = await registerPlanderServiceWorker();
+      const existingSubscription = await registration.pushManager.getSubscription();
+
+      if (existingSubscription) {
+        const endpoint = existingSubscription.endpoint;
+        await existingSubscription.unsubscribe();
+
+        const { error } = await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+
+        if (error) {
+          return `푸시 구독 해제 실패: ${error.message}`;
+        }
+
+        setPushEnabled(false);
+        return '이 기기 업무 푸시알림이 꺼졌습니다.';
+      }
+
+      const vapidPublicKey = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined)?.trim();
+
+      if (!vapidPublicKey || vapidPublicKey.length < 80) {
+        return '푸시알림 키가 배포 환경에 설정되지 않았습니다.';
+      }
+
+      const permission = await Notification.requestPermission();
+
+      if (permission !== 'granted') {
+        return '브라우저 알림 권한이 허용되지 않았습니다.';
+      }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+      const subscriptionJson = subscription.toJSON();
+
+      const { error } = await supabase.from('push_subscriptions').upsert(
+        {
+          user_id: currentUser.id,
+          endpoint: subscriptionJson.endpoint,
+          p256dh: subscriptionJson.keys?.p256dh,
+          auth: subscriptionJson.keys?.auth,
+          user_agent: navigator.userAgent,
+        },
+        { onConflict: 'endpoint' },
+      );
+
+      if (error) {
+        await subscription.unsubscribe().catch(() => undefined);
+        return `푸시 구독 저장 실패: ${error.message}`;
+      }
+
+      setPushEnabled(true);
+      return '이 기기에서 업무 푸시알림이 켜졌습니다.';
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return `푸시알림 설정 실패: ${message}`;
     }
-
-    const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined;
-
-    if (!vapidPublicKey) {
-      return 'VAPID public key가 설정되지 않았습니다.';
-    }
-
-    const permission = await Notification.requestPermission();
-
-    if (permission !== 'granted') {
-      return '브라우저 알림 권한이 허용되지 않았습니다.';
-    }
-
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-    });
-    const subscriptionJson = subscription.toJSON();
-
-    const { error } = await supabase.from('push_subscriptions').upsert(
-      {
-        user_id: currentUser.id,
-        endpoint: subscriptionJson.endpoint,
-        p256dh: subscriptionJson.keys?.p256dh,
-        auth: subscriptionJson.keys?.auth,
-        user_agent: navigator.userAgent,
-      },
-      { onConflict: 'endpoint' },
-    );
-
-    if (error) {
-      return `푸시 구독 저장 실패: ${error.message}`;
-    }
-
-    setPushEnabled(true);
-    return '이 기기에서 업무 푸시알림이 켜졌습니다.';
   };
 
   const handleRegisterPush = async () => {
