@@ -9355,3 +9355,131 @@ h4,
   background: rgba(255, 255, 255, 0.035) !important;
   border-color: #292929 !important;
 }
+
+/* 2026-05 light-mode border cleanup: use the dashboard KPI border tone everywhere. */
+:root[data-theme='light'] {
+  --works-light-border: #d8d4ca;
+  --works-light-border-soft: #e5e1d8;
+  --works-light-border-strong: #c8c1b4;
+  --line: var(--works-light-border) !important;
+  --card-line: var(--works-light-border) !important;
+  --border: var(--works-light-border) !important;
+  --border-soft: var(--works-light-border-soft) !important;
+  --border-strong: var(--works-light-border-strong) !important;
+}
+
+:root[data-theme='light'] .stat-card {
+  --stat-card-border: var(--works-light-border) !important;
+}
+
+:root[data-theme='light'] .project-mode-shell,
+:root[data-theme='light'] .reports-mode-shell,
+:root[data-theme='light'] .all-tasks-mode-shell,
+:root[data-theme='light'] .meeting-mode-shell,
+:root[data-theme='light'] .operations-mode-shell {
+  --project-line: var(--works-light-border) !important;
+}
+
+:root[data-theme='light'] .auth-card,
+:root[data-theme='light'] .stat-card,
+:root[data-theme='light'] .task-board,
+:root[data-theme='light'] .compose-panel,
+:root[data-theme='light'] .team-panel,
+:root[data-theme='light'] .dashboard-flow-section,
+:root[data-theme='light'] .dashboard-flow-row,
+:root[data-theme='light'] .page-card,
+:root[data-theme='light'] .client-card,
+:root[data-theme='light'] .month-cell,
+:root[data-theme='light'] .table-row,
+:root[data-theme='light'] .modal-card,
+:root[data-theme='light'] .action-popup,
+:root[data-theme='light'] .job-type-card,
+:root[data-theme='light'] .type-row,
+:root[data-theme='light'] .empty-state,
+:root[data-theme='light'] .file-row,
+:root[data-theme='light'] .person-row,
+:root[data-theme='light'] .task-card,
+:root[data-theme='light'] .project-mode-shell,
+:root[data-theme='light'] .project-mode-canvas,
+:root[data-theme='light'] .project-task-board,
+:root[data-theme='light'] .project-task-row,
+:root[data-theme='light'] .project-task-item,
+:root[data-theme='light'] .project-task-columns,
+:root[data-theme='light'] .project-board-toolbar,
+:root[data-theme='light'] .project-chat-panel,
+:root[data-theme='light'] .project-message,
+:root[data-theme='light'] .project-inspector-card,
+:root[data-theme='light'] .project-inspector-summary,
+:root[data-theme='light'] .project-inspector-meta,
+:root[data-theme='light'] .project-inspector-people,
+:root[data-theme='light'] .project-inspector-comments,
+:root[data-theme='light'] .project-inspector-files,
+:root[data-theme='light'] .project-file-grid button,
+:root[data-theme='light'] .project-folder-tabs button,
+:root[data-theme='light'] .project-search-pill,
+:root[data-theme='light'] .project-filter-strip,
+:root[data-theme='light'] .project-member-strip,
+:root[data-theme='light'] .calendar-panel,
+:root[data-theme='light'] .calendar-week-grid,
+:root[data-theme='light'] .calendar-day-column,
+:root[data-theme='light'] .calendar-time-block,
+:root[data-theme='light'] .operations-urgent-card,
+:root[data-theme='light'] .meeting-minute-card,
+:root[data-theme='light'] .meeting-minute-export-popover,
+:root[data-theme='light'] .weekly-report-summary,
+:root[data-theme='light'] .weekly-report-list,
+:root[data-theme='light'] .weekly-report-card,
+:root[data-theme='light'] .weekly-report-status-grid div,
+:root[data-theme='light'] .report-compose-card,
+:root[data-theme='light'] .comment-item,
+:root[data-theme='light'] .admin-note,
+:root[data-theme='light'] input,
+:root[data-theme='light'] select,
+:root[data-theme='light'] textarea,
+:root[data-theme='light'] .primary-action,
+:root[data-theme='light'] .secondary-action,
+:root[data-theme='light'] .icon-button,
+:root[data-theme='light'] .filter-chip,
+:root[data-theme='light'] .select-chip {
+  border-color: var(--works-light-border) !important;
+}
+
+:root[data-theme='light'] .project-mode-head,
+:root[data-theme='light'] .project-board-toolbar,
+:root[data-theme='light'] .project-task-columns,
+:root[data-theme='light'] .project-task-item,
+:root[data-theme='light'] .project-inspector-people,
+:root[data-theme='light'] .project-inspector-meta,
+:root[data-theme='light'] .meeting-filter-row,
+:root[data-theme='light'] .modal-card .modal-head,
+:root[data-theme='light'] .calendar-day-column > strong,
+:root[data-theme='light'] .calendar-day-stack,
+:root[data-theme='light'] .time-row,
+:root[data-theme='light'] .time-slot,
+:root[data-theme='light'] .weekly-report-card {
+  border-color: var(--works-light-border) !important;
+  border-bottom-color: var(--works-light-border) !important;
+  border-left-color: var(--works-light-border) !important;
+  border-right-color: var(--works-light-border) !important;
+  border-top-color: var(--works-light-border) !important;
+}
+
+:root[data-theme='light'] .project-mode-head {
+  border-bottom-color: var(--works-light-border) !important;
+}
+
+:root[data-theme='light'] .project-task-row,
+:root[data-theme='light'] .task-card,
+:root[data-theme='light'] .dashboard-flow-row {
+  border-color: var(--works-light-border) !important;
+}
+
+:root[data-theme='light'] .project-task-row[data-selected='true'],
+:root[data-theme='light'] .project-task-row:hover,
+:root[data-theme='light'] .task-card:hover,
+:root[data-theme='light'] .dashboard-flow-row:hover,
+:root[data-theme='light'] .filter-chip:hover,
+:root[data-theme='light'] .secondary-action:hover,
+:root[data-theme='light'] .icon-button:hover {
+  border-color: var(--works-light-border-strong) !important;
+}
