@@ -7371,6 +7371,7 @@ function MeetingMinutesPage({
   const [editingMinuteId, setEditingMinuteId] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('전체');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [exportMenuId, setExportMenuId] = useState<string | null>(null);
   const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
   const visibleMinutes = minutes.filter((minute) => categoryFilter === '전체' || minute.category === categoryFilter);
   const editingMinute = minutes.find((minute) => minute.id === editingMinuteId) || null;
@@ -7450,32 +7451,42 @@ function MeetingMinutesPage({
                   </button>
                   {expanded ? (
                     <div className="meeting-minute-detail">
-                      {canManageMinute ? (
-                        <div className="meeting-minute-detail-actions">
-                          <button className="secondary-action" onClick={() => setEditingMinuteId(minute.id)} type="button">
-                            <Pencil size={16} />
-                            수정
+                      <div className="meeting-minute-detail-actions">
+                        <div className="meeting-minute-export-menu">
+                          <button
+                            aria-label="회의록 다운로드"
+                            className="secondary-action icon-only-action"
+                            onClick={() => setExportMenuId((current) => (current === minute.id ? null : minute.id))}
+                            title="회의록 다운로드"
+                            type="button"
+                          >
+                            <Download size={16} />
                           </button>
-                          <button className="secondary-action danger-action" disabled={deleteLoadingId === minute.id} onClick={() => deleteMinute(minute)} type="button">
-                            <Trash2 size={16} />
-                            {deleteLoadingId === minute.id ? '진행중...' : '삭제'}
-                          </button>
+                          {exportMenuId === minute.id ? (
+                            <div className="meeting-minute-export-popover">
+                              <button onClick={() => { exportMeetingMinute(minute, 'pdf'); setExportMenuId(null); }} type="button">PDF</button>
+                              <button onClick={() => { exportMeetingMinute(minute, 'xls'); setExportMenuId(null); }} type="button">Excel</button>
+                              <button onClick={() => { exportMeetingMinute(minute, 'hwp'); setExportMenuId(null); }} type="button">HWP</button>
+                            </div>
+                          ) : null}
                         </div>
-                      ) : null}
-                      <div className="meeting-minute-export-actions" aria-label="회의록 저장">
-                        <span>회의록 저장</span>
-                        <button className="secondary-action" onClick={() => exportMeetingMinute(minute, 'pdf')} type="button">
-                          <Download size={15} />
-                          PDF
-                        </button>
-                        <button className="secondary-action" onClick={() => exportMeetingMinute(minute, 'xls')} type="button">
-                          <Download size={15} />
-                          Excel
-                        </button>
-                        <button className="secondary-action" onClick={() => exportMeetingMinute(minute, 'hwp')} type="button">
-                          <Download size={15} />
-                          HWP
-                        </button>
+                        {canManageMinute ? (
+                          <>
+                            <button aria-label="회의록 수정" className="secondary-action icon-only-action" onClick={() => setEditingMinuteId(minute.id)} title="수정" type="button">
+                              <Pencil size={16} />
+                            </button>
+                            <button
+                              aria-label="회의록 삭제"
+                              className="secondary-action danger-action icon-only-action"
+                              disabled={deleteLoadingId === minute.id}
+                              onClick={() => deleteMinute(minute)}
+                              title="삭제"
+                              type="button"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </>
+                        ) : null}
                       </div>
                       <dl className="meeting-minute-meta">
                         <div>

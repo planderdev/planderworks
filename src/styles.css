@@ -4366,27 +4366,51 @@ h1 {
   animation: detailSlide 180ms ease-out;
 }
 
-.meeting-minute-detail-actions,
-.meeting-minute-export-actions {
+.meeting-minute-detail-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.meeting-minute-export-actions {
-  align-items: center;
-  justify-content: flex-start;
-  padding: 10px;
-  border-radius: 14px;
-  background: var(--soft);
+.icon-only-action {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  padding: 0 !important;
 }
 
-.meeting-minute-export-actions > span {
-  margin-right: auto;
-  color: var(--muted);
-  font-size: 0.82rem;
-  font-weight: 900;
+.meeting-minute-export-menu {
+  position: relative;
+}
+
+.meeting-minute-export-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  min-width: 112px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.meeting-minute-export-popover button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text);
+  background: transparent;
+  font-weight: 800;
+  text-align: left;
+}
+
+.meeting-minute-export-popover button:hover {
+  background: var(--soft);
 }
 
 .meeting-minute-meta {
