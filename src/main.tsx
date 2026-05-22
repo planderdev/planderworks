@@ -7692,10 +7692,19 @@ function MeetingMinuteForm({
   onSuccess: () => void;
 }) {
   const defaultCategory = categories[0] || fallbackMeetingMinuteCategories[0];
+  const attendeeNameParts = (value: string) => value.split(',').map((name) => name.trim()).filter(Boolean);
   const getAttendeeIdsFromNames = (value: string) => {
-    const names = value.split(',').map((name) => name.trim()).filter(Boolean);
+    const names = attendeeNameParts(value);
     return employees.filter((employee) => names.includes(employee.name)).map((employee) => employee.id);
   };
+  const getExternalAttendeesFromNames = (value: string) => {
+    const employeeNames = new Set(employees.map((employee) => employee.name));
+    return attendeeNameParts(value).filter((name) => !employeeNames.has(name)).join(', ');
+  };
+  const buildAttendees = (employeeIds: string[], externalAttendees: string) => [
+    ...employees.filter((employee) => employeeIds.includes(employee.id)).map((employee) => employee.name),
+    ...attendeeNameParts(externalAttendees),
+  ].join(', ');
   const [form, setForm] = useState<MeetingMinuteDraft>({
     category: minute?.category || defaultCategory,
     title: minute?.title || '',
@@ -7708,6 +7717,7 @@ function MeetingMinuteForm({
     heldAt: minute?.heldAt ? toDateTimeLocalValue(parseTaskDate(minute.heldAt) || new Date()) : toDateTimeLocalValue(new Date()),
   });
   const [attendeeIds, setAttendeeIds] = useState<string[]>(() => getAttendeeIdsFromNames(minute?.attendees || ''));
+  const [externalAttendees, setExternalAttendees] = useState(() => getExternalAttendeesFromNames(minute?.attendees || ''));
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
   const isNewBriefing = form.category === '신규브리핑';
@@ -7725,6 +7735,7 @@ function MeetingMinuteForm({
       heldAt: minute?.heldAt ? toDateTimeLocalValue(parseTaskDate(minute.heldAt) || new Date()) : toDateTimeLocalValue(new Date()),
     });
     setAttendeeIds(getAttendeeIdsFromNames(minute?.attendees || ''));
+    setExternalAttendees(getExternalAttendeesFromNames(minute?.attendees || ''));
     setStatus('');
   }, [defaultCategory, employees, minute?.id]);
 
@@ -7738,17 +7749,21 @@ function MeetingMinuteForm({
   const toggleAttendee = (employeeId: string) => {
     setAttendeeIds((current) => {
       const nextIds = current.includes(employeeId) ? current.filter((id) => id !== employeeId) : [...current, employeeId];
-      const attendees = employees.filter((employee) => nextIds.includes(employee.id)).map((employee) => employee.name).join(', ');
-      setForm((formValue) => ({ ...formValue, attendees }));
+      setForm((formValue) => ({ ...formValue, attendees: buildAttendees(nextIds, externalAttendees) }));
       return nextIds;
     });
+  };
+
+  const changeExternalAttendees = (value: string) => {
+    setExternalAttendees(value);
+    setForm((formValue) => ({ ...formValue, attendees: buildAttendees(attendeeIds, value) }));
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading) return;
     setLoading(true);
-    const message = await onSubmitMinute(form);
+    const message = await onSubmitMinute({ ...form, attendees: buildAttendees(attendeeIds, externalAttendees) });
     setLoading(false);
     setStatus(message);
     showActionPopup(message);
@@ -7803,6 +7818,14 @@ function MeetingMinuteForm({
             </button>
           ))}
         </div>
+      </label>
+      <label>
+        외부 참가자
+        <input
+          value={externalAttendees}
+          onChange={(event) => changeExternalAttendees(event.target.value)}
+          placeholder="직원이 아닌 참가자 이름을 입력하세요"
+        />
       </label>
       {!isNewBriefing ? (
         <>
