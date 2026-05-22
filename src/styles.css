@@ -6848,10 +6848,10 @@ h1 {
   --radius-none: 0px;
   --radius-subtle: 2px;
   --radius-pill: 9999px;
-  --success: #138a43;
-  --warning: #b7791f;
-  --danger: #c0392b;
-  --info: #2457a6;
+  --success: #46c36b;
+  --warning: #e0a93b;
+  --danger: #eb5a5f;
+  --info: #5ba4e6;
   --sidebar-bg: #090909;
   --sidebar-soft: #151515;
   --sidebar-border: #090909;
@@ -6880,17 +6880,26 @@ h1 {
 
 :root[data-theme='dark'] {
   --bg: #000000;
+  --bg-subtle: #0a0a0a;
   --panel: #101010;
   --panel-2: #171717;
   --card-bg: #101010;
   --card-line: #292929;
   --surface: #101010;
+  --surface-raised: #171717;
   --surface-2: #171717;
+  --border-subtle: #1b1b1b;
   --border: #292929;
   --border-soft: #1b1b1b;
   --border-strong: #4a4a4a;
   --text: #f2f2f2;
+  --text-secondary: #c9c9c9;
+  --text-muted: #8a8a8a;
+  --text-disabled: #565656;
   --muted: #8a8a8a;
+  --accent-fg: #000000;
+  --steel: #9ba3ab;
+  --chrome: #d9e0e8;
   --soft: #0a0a0a;
   --line: #292929;
   --shadow: none;
@@ -7727,5 +7736,110 @@ textarea:focus {
 :root[data-theme='dark'] .badge.warning,
 :root[data-theme='dark'] .badge.danger {
   color: #090909 !important;
+}
+
+/* PlanderWorks final square-off: remove every rounded UI shape except folder tabs. */
+*:not(.project-folder-tabs):not(.project-folder-tabs *) {
+  border-radius: 0 !important;
+}
+
+.project-folder-tabs button {
+  border-radius: 18px 18px 0 0 !important;
+}
+
+.project-folder-tabs button * {
+  border-radius: inherit;
+}
+
+/* Korean/UI type tune: keep Montserrat KPI/display strong, reduce Pretendard heaviness. */
+body,
+button,
+input,
+select,
+textarea,
+.nav-button,
+.project-nav-button,
+.sidebar-project-title,
+.completed-project-year-button,
+.sidebar-install-button,
+.profile-card,
+.account-button,
+.primary-action,
+.secondary-action,
+.ghost-action,
+.icon-button,
+.task-title-button,
+.dashboard-flow-row,
+.table-row,
+.project-task-row,
+.meeting-minute-summary,
+.client-card,
+.page-card,
+.modal-card,
+.form-grid label,
+.form-stack label,
+.calendar-visibility-row span,
+.project-member-pill,
+.project-chip,
+.type-chip,
+.priority-chip,
+.status-chip,
+.meeting-category-chip,
+.select-chip,
+.filter-chip,
+.task-status,
+.badge,
+.week-label,
+.date,
+.task-meta {
+  font-weight: 500 !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+.page-title,
+.board-head h1,
+.section-head h2,
+.panel-head h2,
+.modal-head h2,
+.meeting-minute-summary strong,
+.project-task-row-title,
+.client-card strong,
+.weekly-report-card strong,
+.task-title-button {
+  font-weight: 600 !important;
+}
+
+.eyebrow,
+.cap,
+.stat-card span,
+.stat-card small,
+.dashboard-flow-section > span,
+.dashboard-flow-section header span,
+.admin-note,
+.table-head,
+.meeting-minute-meta dt,
+.brand-subtitle,
+.sidebar-section p,
+.profile-card span,
+.person-row span,
+.task-card small,
+.dashboard-flow-row small {
+  font-weight: 400 !important;
+}
+
+.stat-card strong,
+.kpi .val {
+  font-weight: 900 !important;
+}
+
+.project-folder-tabs span {
+  font-weight: 700 !important;
+}
+
+.project-folder-tabs small {
+  font-weight: 500 !important;
 }
 

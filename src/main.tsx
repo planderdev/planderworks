@@ -5240,7 +5240,6 @@ function Sidebar({
   };
 
   const openRecorderApp = () => {
-    window.open(PLANDER_RECORDER_APP_URL, '_blank', 'noopener,noreferrer');
     showActionPopup('녹음앱이 열리면 브라우저 메뉴에서 홈 화면에 추가해 주세요.');
   };
 
@@ -5408,10 +5407,10 @@ function Sidebar({
           </button>
         ) : null}
 
-        <button className="sidebar-install-button recorder-install-button" onClick={openRecorderApp} type="button">
+        <a className="sidebar-install-button recorder-install-button" href={PLANDER_RECORDER_APP_URL} onClick={openRecorderApp} target="_blank" rel="noopener noreferrer">
           <Download size={17} />
           <span>녹음앱 홈화면 추가</span>
-        </button>
+        </a>
 
         <div className="profile-card">
           <button className="profile-card-main" onClick={() => setAdminOpen((open) => !open)} type="button">
