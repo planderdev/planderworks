@@ -9187,3 +9187,171 @@ h4,
     grid-template-columns: 1fr;
   }
 }
+
+/* 2026-05 visual correction: reduce heavy weights, neutral borders, clear body surfaces. */
+.meeting-minute-list {
+  gap: 3px !important;
+  padding: 0 3px 3px !important;
+}
+
+.meeting-minute-card,
+.meeting-minute-card:first-child {
+  border: 1px solid var(--border, var(--line)) !important;
+}
+
+:root[data-theme='dark'] .meeting-minute-card,
+:root[data-theme='dark'] .meeting-minute-card:first-child {
+  border-color: #292929 !important;
+}
+
+.operations-mode-shell .stat-card strong {
+  font-family: var(--font-body) !important;
+  font-size: clamp(2.1rem, 5vw, 3.8rem) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.055em !important;
+  line-height: 0.98 !important;
+}
+
+.operations-mode-shell .stat-card span,
+.operations-mode-shell .stat-card small,
+.operations-mode-shell .operations-row strong,
+.operations-mode-shell .operations-row span,
+.operations-mode-shell .operations-row small,
+.operations-mode-shell .operations-urgent-card strong,
+.operations-mode-shell .operations-urgent-card span,
+.operations-mode-shell .operations-urgent-card small {
+  font-weight: 600 !important;
+}
+
+.operations-mode-shell .operations-cell-main > strong,
+.operations-mode-shell .operations-cell-date > strong,
+.operations-mode-shell .operations-cell-amount > strong,
+.operations-mode-shell .operations-urgent-card > strong {
+  font-weight: 650 !important;
+}
+
+.project-task-row,
+.task-card,
+.dashboard-flow-row {
+  border: 1px solid rgba(128, 128, 128, 0.30) !important;
+  border-left-color: rgba(128, 128, 128, 0.30) !important;
+  border-right-color: rgba(128, 128, 128, 0.30) !important;
+  border-top-color: rgba(128, 128, 128, 0.30) !important;
+  border-bottom-color: rgba(128, 128, 128, 0.30) !important;
+}
+
+.project-task-row[data-selected='true'],
+.project-task-row:hover {
+  border-color: rgba(128, 128, 128, 0.42) !important;
+}
+
+.project-task-row[data-status-tone='gray'] {
+  background: rgba(148, 163, 184, 0.08) !important;
+}
+
+.project-task-row[data-status-tone='blue'] {
+  background: rgba(75, 142, 247, 0.10) !important;
+}
+
+.project-task-row[data-status-tone='amber'] {
+  background: rgba(214, 151, 49, 0.11) !important;
+}
+
+.project-task-row[data-status-tone='red'] {
+  background: rgba(223, 95, 95, 0.10) !important;
+}
+
+.project-task-row[data-status-tone='green'] {
+  background: rgba(57, 168, 107, 0.10) !important;
+}
+
+.project-task-expanded,
+.project-task-expanded[data-open='true'],
+.project-task-expanded-inner,
+.project-task-expanded .project-inspector-card,
+.project-task-expanded .project-inspector-summary,
+.project-task-expanded .project-inspector-meta,
+.project-task-expanded .project-inspector-people {
+  background: transparent !important;
+}
+
+.project-task-expanded-inner {
+  padding: 0 14px 18px !important;
+}
+
+.project-task-expanded .project-inspector-card {
+  padding-top: 16px !important;
+}
+
+.project-task-expanded .project-inspector-summary {
+  padding: 0 !important;
+}
+
+.project-task-expanded .project-inspector-files,
+.project-task-expanded .project-inspector-comments,
+.project-task-expanded .project-file-grid button {
+  background: rgba(255, 255, 255, 0.42) !important;
+  border-color: rgba(128, 128, 128, 0.24) !important;
+}
+
+.project-task-columns,
+.operations-table-columns {
+  align-items: center !important;
+}
+
+.project-task-columns span,
+.operations-table-columns span {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+.project-task-columns span:first-child,
+.operations-table-columns span:first-child {
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+
+.project-task-row > .status,
+.project-task-row > .project-task-assignees,
+.project-task-row > .project-task-due,
+.project-task-row > .project-task-read,
+.operations-row > .operations-cell:not(.operations-cell-main),
+.operations-reminders,
+.operations-actions {
+  justify-self: center !important;
+  text-align: center !important;
+}
+
+.project-task-row > .project-task-assignees,
+.operations-reminders,
+.operations-actions {
+  justify-content: center !important;
+}
+
+.operations-cell-date,
+.operations-cell-amount,
+.operations-reminders-wrap,
+.operations-actions-wrap {
+  align-content: center !important;
+  justify-items: center !important;
+}
+
+:root[data-theme='dark'] .project-task-row,
+:root[data-theme='dark'] .task-card,
+:root[data-theme='dark'] .dashboard-flow-row {
+  border-color: #292929 !important;
+}
+
+:root[data-theme='dark'] .project-task-row[data-selected='true'],
+:root[data-theme='dark'] .project-task-row:hover {
+  border-color: #4a4a4a !important;
+}
+
+:root[data-theme='dark'] .project-task-expanded .project-inspector-files,
+:root[data-theme='dark'] .project-task-expanded .project-inspector-comments,
+:root[data-theme='dark'] .project-task-expanded .project-file-grid button {
+  background: rgba(255, 255, 255, 0.035) !important;
+  border-color: #292929 !important;
+}
