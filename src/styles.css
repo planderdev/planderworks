@@ -7843,3 +7843,421 @@ h4,
   font-weight: 500 !important;
 }
 
+/* Plander ADMIN visual reference layer: editorial dark console. */
+@media (min-width: 1080px) {
+  :root[data-theme='dark'] {
+    --admin-sidebar-w: 445px;
+    --admin-content-x: 112px;
+    --admin-content-y: 82px;
+    --admin-line: #292929;
+    --admin-panel: #101010;
+    --admin-panel-subtle: #0b0b0b;
+    --admin-text: #cccccc;
+    --admin-muted: #777777;
+  }
+
+  :root[data-theme='dark'] .sidebar {
+    width: var(--admin-sidebar-w) !important;
+    padding: 40px 26px 38px !important;
+    background: #000000 !important;
+    border-right: 1px solid var(--admin-line) !important;
+  }
+
+  :root[data-theme='dark'] .workspace {
+    margin-left: var(--admin-sidebar-w) !important;
+    padding: var(--admin-content-y) var(--admin-content-x) 96px !important;
+    background: #000000 !important;
+  }
+
+  :root[data-theme='dark'] .brand-row {
+    min-height: 76px;
+    flex-direction: row !important;
+    align-items: center !important;
+    gap: 18px !important;
+    padding: 0 0 42px !important;
+    border-bottom: 0 !important;
+  }
+
+  :root[data-theme='dark'] .brand-logo {
+    width: 180px !important;
+  }
+
+  :root[data-theme='dark'] .brand-subtitle {
+    margin: 9px 0 0 !important;
+    color: #777777 !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.72rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.34em !important;
+    text-transform: uppercase;
+  }
+
+  :root[data-theme='dark'] .sidebar-nav {
+    gap: 18px !important;
+    padding: 0 !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-nav svg,
+  :root[data-theme='dark'] .nav-button svg,
+  :root[data-theme='dark'] .project-nav-button svg,
+  :root[data-theme='dark'] .sidebar-project-title svg,
+  :root[data-theme='dark'] .completed-project-year-button svg {
+    display: none !important;
+  }
+
+  :root[data-theme='dark'] .nav-button,
+  :root[data-theme='dark'] .project-nav-button,
+  :root[data-theme='dark'] .sidebar-project-title,
+  :root[data-theme='dark'] .completed-project-year-button,
+  :root[data-theme='dark'] .project-trash-row {
+    min-height: 72px !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    padding: 0 20px !important;
+    border: 1px solid transparent !important;
+    color: #8a8a8a !important;
+    background: transparent !important;
+    font-family: var(--font-mono) !important;
+    font-size: 1.45rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.12em !important;
+    line-height: 1 !important;
+  }
+
+  :root[data-theme='dark'] .nav-button span,
+  :root[data-theme='dark'] .project-nav-button span,
+  :root[data-theme='dark'] .sidebar-project-title span,
+  :root[data-theme='dark'] .completed-project-year-button span,
+  :root[data-theme='dark'] .project-trash-row span {
+    color: currentColor !important;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    font-weight: 400 !important;
+    letter-spacing: inherit !important;
+  }
+
+  :root[data-theme='dark'] .nav-button:hover:not([data-active='true']),
+  :root[data-theme='dark'] .project-nav-button:hover:not([data-active='true']),
+  :root[data-theme='dark'] .sidebar-project-title:hover,
+  :root[data-theme='dark'] .completed-project-year-button:hover,
+  :root[data-theme='dark'] .project-trash-row:hover {
+    color: #cccccc !important;
+    background: #101010 !important;
+    border-color: transparent !important;
+  }
+
+  :root[data-theme='dark'] .nav-button[data-active='true'],
+  :root[data-theme='dark'] .project-nav-button[data-active='true'] {
+    color: #000000 !important;
+    background: #e5e5e5 !important;
+    border-color: #e5e5e5 !important;
+  }
+
+  :root[data-theme='dark'] .nav-button[data-active='true'] span,
+  :root[data-theme='dark'] .project-nav-button[data-active='true'] span {
+    color: #000000 !important;
+  }
+
+  :root[data-theme='dark'] .nav-button[data-featured='true'],
+  :root[data-theme='dark'] .create-split-button,
+  :root[data-theme='dark'] .sidebar-projects,
+  :root[data-theme='dark'] .sidebar-projects-secondary {
+    border-color: transparent !important;
+    background: transparent !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-bottom-layer {
+    gap: 24px !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-install-button,
+  :root[data-theme='dark'] .profile-card,
+  :root[data-theme='dark'] .logout-button {
+    min-height: 72px !important;
+    border: 1px solid var(--admin-line) !important;
+    background: transparent !important;
+    color: #777777 !important;
+    font-family: var(--font-mono) !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.26em !important;
+    text-transform: uppercase;
+  }
+
+  :root[data-theme='dark'] .profile-card {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    padding: 18px 20px !important;
+  }
+
+  :root[data-theme='dark'] .profile-card .avatar,
+  :root[data-theme='dark'] .profile-card-main > span:first-child {
+    display: none !important;
+  }
+
+  :root[data-theme='dark'] .profile-card strong {
+    color: #cccccc !important;
+    font-size: 0.9rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.14em !important;
+  }
+
+  :root[data-theme='dark'] .profile-card span {
+    color: #777777 !important;
+    font-size: 0.72rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.16em !important;
+  }
+
+  :root[data-theme='dark'] .topbar,
+  :root[data-theme='dark'] .project-mode-tools {
+    min-height: 28px !important;
+    justify-content: flex-end !important;
+    margin: 0 0 44px !important;
+    padding: 0 !important;
+    border-bottom: 0 !important;
+  }
+
+  :root[data-theme='dark'] .search-box,
+  :root[data-theme='dark'] .project-search-pill {
+    display: none !important;
+  }
+
+  :root[data-theme='dark'] .top-actions,
+  :root[data-theme='dark'] .immersive-top-actions {
+    gap: 10px !important;
+  }
+
+  :root[data-theme='dark'] .theme-switcher,
+  :root[data-theme='dark'] .icon-button,
+  :root[data-theme='dark'] .account-button {
+    min-height: 40px !important;
+    border-color: var(--admin-line) !important;
+    background: transparent !important;
+  }
+
+  :root[data-theme='dark'] .page-shell,
+  :root[data-theme='dark'] .project-mode-shell {
+    max-width: none !important;
+    gap: 56px !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: #000000 !important;
+  }
+
+  :root[data-theme='dark'] .page-head,
+  :root[data-theme='dark'] .project-page-head,
+  :root[data-theme='dark'] .board-head,
+  :root[data-theme='dark'] .section-head {
+    min-height: 98px !important;
+    align-items: flex-start !important;
+    padding: 0 0 48px !important;
+    margin: 0 0 56px !important;
+    border-bottom: 1px solid var(--admin-line) !important;
+  }
+
+  :root[data-theme='dark'] h1,
+  :root[data-theme='dark'] .page-head h1,
+  :root[data-theme='dark'] .project-mode-head h1,
+  :root[data-theme='dark'] .board-head h1 {
+    color: #cccccc !important;
+    font-family: var(--font-display) !important;
+    font-size: clamp(3.8rem, 4.5vw, 5.4rem) !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.04em !important;
+    line-height: 0.95 !important;
+  }
+
+  :root[data-theme='dark'] .eyebrow,
+  :root[data-theme='dark'] .page-kicker,
+  :root[data-theme='dark'] .stat-card span,
+  :root[data-theme='dark'] .stat-card small,
+  :root[data-theme='dark'] label,
+  :root[data-theme='dark'] .table-head,
+  :root[data-theme='dark'] .dashboard-flow-section > span,
+  :root[data-theme='dark'] .dashboard-flow-section header span,
+  :root[data-theme='dark'] .admin-note,
+  :root[data-theme='dark'] .meeting-minute-meta dt {
+    color: #777777 !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.92rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.28em !important;
+    text-transform: uppercase;
+  }
+
+  :root[data-theme='dark'] .stats-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 28px !important;
+    margin-bottom: 64px !important;
+  }
+
+  :root[data-theme='dark'] .stat-card {
+    min-height: 240px !important;
+    padding: 48px 44px 44px !important;
+    background: #101010 !important;
+    border: 1px solid var(--admin-line) !important;
+  }
+
+  :root[data-theme='dark'] .stat-card strong {
+    color: #cccccc !important;
+    font-family: var(--font-display) !important;
+    font-size: clamp(4rem, 4.4vw, 5.3rem) !important;
+    font-weight: 400 !important;
+    letter-spacing: -0.02em !important;
+  }
+
+  :root[data-theme='dark'] .dashboard-flow,
+  :root[data-theme='dark'] .side-panel,
+  :root[data-theme='dark'] .split-layout,
+  :root[data-theme='dark'] .project-detail-grid,
+  :root[data-theme='dark'] .reports-mode-layout {
+    gap: 40px !important;
+  }
+
+  :root[data-theme='dark'] .auth-card,
+  :root[data-theme='dark'] .task-board,
+  :root[data-theme='dark'] .compose-panel,
+  :root[data-theme='dark'] .team-panel,
+  :root[data-theme='dark'] .dashboard-flow-section,
+  :root[data-theme='dark'] .page-card,
+  :root[data-theme='dark'] .client-card,
+  :root[data-theme='dark'] .modal-card,
+  :root[data-theme='dark'] .action-popup,
+  :root[data-theme='dark'] .job-type-card,
+  :root[data-theme='dark'] .weekly-report-card,
+  :root[data-theme='dark'] .project-inspector-card,
+  :root[data-theme='dark'] .settings-card,
+  :root[data-theme='dark'] .admin-card,
+  :root[data-theme='dark'] .project-mode-canvas,
+  :root[data-theme='dark'] .project-mode-shell .page-card,
+  :root[data-theme='dark'] .project-mode-shell .task-board.list-surface,
+  :root[data-theme='dark'] .project-mode-shell .calendar-panel,
+  :root[data-theme='dark'] .project-mode-shell .project-chat-panel,
+  :root[data-theme='dark'] .project-mode-shell .project-task-board {
+    padding: 48px !important;
+    background: #101010 !important;
+    border: 1px solid var(--admin-line) !important;
+    box-shadow: none !important;
+  }
+
+  :root[data-theme='dark'] input,
+  :root[data-theme='dark'] select,
+  :root[data-theme='dark'] textarea,
+  :root[data-theme='dark'] .multi-picker,
+  :root[data-theme='dark'] .date-time-confirm-field,
+  :root[data-theme='dark'] .search-input,
+  :root[data-theme='dark'] .calendar-visibility-row {
+    min-height: 72px !important;
+    padding: 0 24px !important;
+    color: #cccccc !important;
+    background: #101010 !important;
+    border: 1px solid var(--admin-line) !important;
+    font-size: 1.25rem !important;
+    font-weight: 400 !important;
+  }
+
+  :root[data-theme='dark'] textarea {
+    min-height: 180px !important;
+    padding: 24px !important;
+  }
+
+  :root[data-theme='dark'] .form-grid,
+  :root[data-theme='dark'] .form-stack {
+    gap: 28px !important;
+  }
+
+  :root[data-theme='dark'] .primary-action,
+  :root[data-theme='dark'] .secondary-action,
+  :root[data-theme='dark'] .ghost-action,
+  :root[data-theme='dark'] .file-action,
+  :root[data-theme='dark'] .reply-action {
+    min-height: 78px !important;
+    padding: 0 42px !important;
+    font-family: var(--font-mono) !important;
+    font-size: 1rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.28em !important;
+    text-transform: uppercase;
+  }
+
+  :root[data-theme='dark'] .table-row,
+  :root[data-theme='dark'] .dashboard-flow-row,
+  :root[data-theme='dark'] .project-task-row,
+  :root[data-theme='dark'] .meeting-minute-card,
+  :root[data-theme='dark'] .file-row,
+  :root[data-theme='dark'] .type-row {
+    min-height: 92px !important;
+    padding: 24px 30px !important;
+    background: #000000 !important;
+    border-color: var(--admin-line) !important;
+  }
+
+  :root[data-theme='dark'] .task-card,
+  :root[data-theme='dark'] .project-task-row,
+  :root[data-theme='dark'] .dashboard-flow-row,
+  :root[data-theme='dark'] .project-inspector-card {
+    border-color: var(--admin-line) !important;
+    background: rgba(204, 204, 204, 0.035) !important;
+  }
+
+  :root[data-theme='dark'] .task-card[data-status-tone='blue'],
+  :root[data-theme='dark'] .project-task-row[data-status-tone='blue'],
+  :root[data-theme='dark'] .dashboard-flow-row[data-status-tone='blue'],
+  :root[data-theme='dark'] .project-inspector-card[data-status-tone='blue'] {
+    background: rgba(67, 136, 214, 0.105) !important;
+  }
+
+  :root[data-theme='dark'] .task-card[data-status-tone='amber'],
+  :root[data-theme='dark'] .project-task-row[data-status-tone='amber'],
+  :root[data-theme='dark'] .dashboard-flow-row[data-status-tone='amber'],
+  :root[data-theme='dark'] .project-inspector-card[data-status-tone='amber'] {
+    background: rgba(214, 157, 67, 0.11) !important;
+  }
+
+  :root[data-theme='dark'] .task-card[data-status-tone='red'],
+  :root[data-theme='dark'] .project-task-row[data-status-tone='red'],
+  :root[data-theme='dark'] .dashboard-flow-row[data-status-tone='red'],
+  :root[data-theme='dark'] .project-inspector-card[data-status-tone='red'] {
+    background: rgba(214, 76, 76, 0.095) !important;
+  }
+
+  :root[data-theme='dark'] .task-card[data-status-tone='green'],
+  :root[data-theme='dark'] .project-task-row[data-status-tone='green'],
+  :root[data-theme='dark'] .dashboard-flow-row[data-status-tone='green'],
+  :root[data-theme='dark'] .project-inspector-card[data-status-tone='green'] {
+    background: rgba(70, 164, 104, 0.105) !important;
+  }
+
+  :root[data-theme='dark'] .task-card[data-status-tone='gray'],
+  :root[data-theme='dark'] .project-task-row[data-status-tone='gray'],
+  :root[data-theme='dark'] .dashboard-flow-row[data-status-tone='gray'],
+  :root[data-theme='dark'] .project-inspector-card[data-status-tone='gray'] {
+    background: rgba(204, 204, 204, 0.045) !important;
+  }
+
+  :root[data-theme='dark'] .task-card:hover,
+  :root[data-theme='dark'] .project-task-row:hover,
+  :root[data-theme='dark'] .dashboard-flow-row:hover {
+    border-color: #3a3a3a !important;
+    filter: brightness(1.08);
+  }
+
+  :root[data-theme='dark'] .type-chip,
+  :root[data-theme='dark'] .project-chip,
+  :root[data-theme='dark'] .status-chip,
+  :root[data-theme='dark'] .priority-chip,
+  :root[data-theme='dark'] .meeting-category-chip,
+  :root[data-theme='dark'] .task-status,
+  :root[data-theme='dark'] .badge,
+  :root[data-theme='dark'] .select-chip,
+  :root[data-theme='dark'] .filter-chip,
+  :root[data-theme='dark'] .calendar-filter-chip,
+  :root[data-theme='dark'] .month-event {
+    min-height: 36px !important;
+    padding: 7px 14px !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.78rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0.18em !important;
+  }
+}
+
