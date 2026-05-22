@@ -9191,7 +9191,7 @@ h4,
 /* 2026-05 visual correction: reduce heavy weights, neutral borders, clear body surfaces. */
 .meeting-minute-list {
   gap: 3px !important;
-  padding: 0 3px 3px !important;
+  padding: 3px 0 !important;
 }
 
 .meeting-minute-card,
@@ -9526,4 +9526,28 @@ h4,
 
 .all-tasks-task-board .project-task-expanded-inner {
   padding: 0 18px 18px;
+}
+
+/* 2026-05 meeting minutes: remove the wrapping board, keep only minute cards. */
+.meeting-board.task-board.list-surface,
+:root[data-theme='light'] .meeting-board.task-board.list-surface,
+:root[data-theme='dark'] .meeting-board.task-board.list-surface {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.meeting-board .project-board-toolbar {
+  display: none !important;
+}
+
+.meeting-board .meeting-minute-list {
+  padding: 3px 0 !important;
+  background: transparent !important;
+}
+
+.meeting-board .meeting-minute-card,
+.meeting-board .meeting-minute-card:first-child {
+  border-radius: 0 !important;
 }
