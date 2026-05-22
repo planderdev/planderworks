@@ -8529,5 +8529,56 @@ h4,
     letter-spacing: 0 !important;
   }
 
+
+  /* Project sidebar active state: keep section headers and selected projects dark. */
+  :root[data-theme='dark'] .sidebar-project-title[data-active='true'],
+  :root[data-theme='dark'] .sidebar-project-title[data-active='true']:hover,
+  :root[data-theme='dark'] .completed-project-year-button,
+  :root[data-theme='dark'] .completed-project-year-button:hover {
+    color: rgba(238, 241, 245, 0.9) !important;
+    background: transparent !important;
+    border-color: transparent !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-project-title[data-active='true'] span,
+  :root[data-theme='dark'] .completed-project-year-button span {
+    color: inherit !important;
+  }
+
+  :root[data-theme='dark'] .project-nav-button[data-active='true'],
+  :root[data-theme='dark'] .project-nav-button[data-active='true']:hover {
+    color: #cccccc !important;
+    background: transparent !important;
+    border-color: transparent !important;
+    filter: none !important;
+  }
+
+  :root[data-theme='dark'] .project-nav-button[data-active='true'] span,
+  :root[data-theme='dark'] .project-nav-button[data-active='true'] small,
+  :root[data-theme='dark'] .project-nav-button[data-active='true'] svg {
+    color: #cccccc !important;
+  }
+
+  :root[data-theme='dark'] .project-nav-button[data-active='true']::before {
+    display: none !important;
+  }
+
+  /* Prevent bold Korean glyph clipping in project folder tabs. */
+  :root[data-theme='dark'] .project-folder-tabs button,
+  :root[data-theme='dark'] .project-folder-tabs button[data-active='true'] {
+    overflow: visible !important;
+    padding-left: 28px !important;
+    padding-top: 2px !important;
+  }
+
+  :root[data-theme='dark'] .project-folder-tabs span {
+    overflow: visible !important;
+    line-height: 1.35 !important;
+    padding: 2px 1px 2px 2px !important;
+    margin-left: -1px !important;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+
 }
 
