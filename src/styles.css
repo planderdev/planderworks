@@ -7501,3 +7501,104 @@ textarea:focus {
   background: var(--soft) !important;
 }
 
+/* Plander design-system button hover mapping
+   DS source:
+   - primary: background/border move from accent to accent-hover
+   - secondary: border only moves to text
+   - ghost/nav: text or bg-subtle only
+   No inverted hover blocks, lifts, glow, or brightness filters. */
+:root {
+  --accent-hover: #c9c9c9;
+}
+
+:root[data-theme='light'] {
+  --accent-hover: #292929;
+}
+
+.primary-action:hover,
+.create-split-button:hover:not([data-active='true']) {
+  color: var(--accent-fg, var(--panel)) !important;
+  background: var(--accent-hover) !important;
+  border-color: var(--accent-hover) !important;
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+.secondary-action:hover,
+.icon-button:hover,
+.account-button:hover,
+.theme-switcher button:hover,
+.modal-card button:hover:not(:disabled),
+.task-menu-popover button:hover:not(:disabled),
+.meeting-minute-export-popover button:hover,
+.file-action:hover,
+.reply-action:hover,
+.pager button:hover {
+  color: var(--text) !important;
+  background: transparent !important;
+  border-color: var(--text) !important;
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+.ghost-action:hover,
+.account-popover button:hover,
+.project-tool-button:hover,
+.project-folder-close:hover,
+.profile-toggle:hover,
+.sidebar-install-button:hover,
+.sidebar-project-add:hover {
+  color: var(--text) !important;
+  background: var(--bg-subtle, var(--soft)) !important;
+  border-color: var(--border) !important;
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+.nav-button:hover:not([data-active='true']),
+.project-nav-button:hover:not([data-active='true']),
+.sidebar-project-title:hover,
+.completed-project-year-button:hover,
+.project-trash-row:hover {
+  color: #f2f2f2 !important;
+  background: #101010 !important;
+  border-color: #292929 !important;
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+.nav-button[data-active='true']:hover,
+.project-nav-button[data-active='true']:hover {
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+:root[data-theme='light'] .nav-button:hover:not([data-active='true']),
+:root[data-theme='light'] .project-nav-button:hover:not([data-active='true']),
+:root[data-theme='light'] .sidebar-project-title:hover,
+:root[data-theme='light'] .completed-project-year-button:hover,
+:root[data-theme='light'] .project-trash-row:hover {
+  color: #111111 !important;
+  background: #ebe8df !important;
+  border-color: rgba(17, 17, 17, 0.18) !important;
+}
+
+.task-title-button:hover,
+.inline-link:hover,
+.x-btn:hover,
+.crumb a:hover,
+.side-link:hover,
+.nav-links a:hover {
+  color: var(--text) !important;
+  background: transparent !important;
+  text-decoration: none !important;
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
