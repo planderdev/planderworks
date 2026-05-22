@@ -7078,7 +7078,7 @@ h3,
 .icon-button:hover,
 .account-button:hover,
 .theme-switcher button:hover {
-  transform: translateY(-1px);
+  transform: none !important;
 }
 
 .auth-card,
@@ -7408,7 +7408,7 @@ textarea:focus {
 :root[data-theme='dark'] .task-card:hover,
 :root[data-theme='dark'] .dashboard-flow-row:hover {
   border-color: #3a3a3a !important;
-  filter: brightness(1.08);
+  filter: none !important;
 }
 
 /* PlanderWorks task boxes: apply status surface after global card reset */
@@ -7420,5 +7420,84 @@ textarea:focus {
 .task-card:hover,
 .dashboard-flow-row:hover {
   background: var(--status-card-bg) !important;
+}
+
+/* PlanderWorks folder-mode cards: square shells, keep only folder tabs rounded */
+.project-mode-shell,
+.project-mode-canvas,
+.project-mode-shell .page-card,
+.project-mode-shell .task-board.list-surface,
+.project-mode-shell .operations-urgent-panel,
+.project-mode-shell .calendar-panel,
+.project-mode-shell .project-chat-panel,
+.project-mode-shell .project-task-board,
+.project-mode-shell .project-task-row,
+.project-mode-shell .project-search-pill,
+.project-mode-shell .project-tool-button,
+.project-mode-shell .theme-switcher,
+.project-mode-shell .theme-switcher button,
+.project-mode-shell .account-button,
+.project-mode-shell .account-popover,
+.project-mode-shell .project-chat-send-button,
+.project-mode-shell .project-folder-close {
+  border-radius: var(--radius-none) !important;
+}
+
+.project-mode-shell,
+.project-mode-canvas {
+  box-shadow: none !important;
+}
+
+.project-mode-shell {
+  border-color: var(--border) !important;
+  background: var(--bg) !important;
+}
+
+.project-mode-canvas {
+  border-color: var(--border) !important;
+  background: var(--panel) !important;
+}
+
+.project-mode-shell .page-card,
+.project-mode-shell .task-board.list-surface,
+.project-mode-shell .operations-urgent-panel,
+.project-mode-shell .calendar-panel,
+.project-mode-shell .project-chat-panel,
+.project-mode-shell .project-task-board {
+  border-color: var(--border) !important;
+  background: var(--panel) !important;
+}
+
+/* Plander design-system interaction: no lift/glow, only flat surface swap */
+.primary-action:hover,
+.secondary-action:hover,
+.ghost-action:hover,
+.icon-button:hover,
+.account-button:hover,
+.theme-switcher button:hover,
+.stat-card:hover,
+.table-row:hover,
+.task-card:hover,
+.dashboard-flow-row:hover,
+.meeting-minute-card:hover,
+.client-card:hover,
+.project-mode-shell .project-tool-button:hover,
+.project-mode-shell .project-task-row:hover,
+.project-mode-shell .page-card:hover,
+.project-mode-shell .task-board.list-surface:hover {
+  transform: none !important;
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+.secondary-action:hover,
+.ghost-action:hover,
+.icon-button:hover,
+.account-button:hover,
+.theme-switcher button:hover,
+.project-mode-shell .project-tool-button:hover,
+.project-mode-shell .project-task-row:hover {
+  border-color: var(--border-strong, var(--border)) !important;
+  background: var(--soft) !important;
 }
 
