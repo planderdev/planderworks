@@ -456,8 +456,9 @@ function meetingMinuteHtml(minute: MeetingMinute) {
 </html>`;
 }
 
-function downloadTextFile(filename: string, mimeType: string, content: string) {
-  const blobUrl = URL.createObjectURL(new Blob([content], { type: mimeType }));
+function downloadBlobFile(filename: string, mimeType: string, content: BlobPart | BlobPart[]) {
+  const parts = Array.isArray(content) ? content : [content];
+  const blobUrl = URL.createObjectURL(new Blob(parts, { type: mimeType }));
   const link = document.createElement('a');
   link.href = blobUrl;
   link.download = filename;
@@ -465,6 +466,91 @@ function downloadTextFile(filename: string, mimeType: string, content: string) {
   link.click();
   link.remove();
   window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+}
+
+function downloadTextFile(filename: string, mimeType: string, content: string) {
+  downloadBlobFile(filename, mimeType, content);
+}
+
+function toPdfUtf16Hex(text: string) {
+  return Array.from(text.replace(/[\uD800-\uDFFF]/g, ''))
+    .map((char) => char.charCodeAt(0).toString(16).padStart(4, '0'))
+    .join('');
+}
+
+function wrapPdfLine(line: string, maxChars = 42) {
+  const chars = Array.from(line || ' ');
+  const wrapped: string[] = [];
+  for (let index = 0; index < chars.length; index += maxChars) {
+    wrapped.push(chars.slice(index, index + maxChars).join(''));
+  }
+  return wrapped.length ? wrapped : [' '];
+}
+
+function createMeetingMinutePdf(minute: MeetingMinute) {
+  const title = minute.title || '회의록';
+  const lines = meetingMinutePlainText(minute)
+    .split('\n')
+    .flatMap((line) => wrapPdfLine(line));
+  const linesPerPage = 34;
+  const pages: string[][] = [];
+  for (let index = 0; index < lines.length; index += linesPerPage) {
+    pages.push(lines.slice(index, index + linesPerPage));
+  }
+  if (!pages.length) pages.push(['내용 없음']);
+
+  const objects: string[] = [];
+  const addObject = (body: string) => {
+    objects.push(body);
+    return objects.length;
+  };
+
+  const catalogId = addObject('');
+  const pagesId = addObject('');
+  const fontId = addObject('');
+  const cidFontId = addObject('');
+  const fontDescriptorId = addObject('');
+  const pageIds: number[] = [];
+  const contentIds: number[] = [];
+
+  pages.forEach((pageLines, pageIndex) => {
+    const content = [
+      'BT',
+      '/F1 17 Tf',
+      `1 0 0 1 50 790 Tm <${toPdfUtf16Hex(title)}> Tj`,
+      '/F1 11 Tf',
+      ...pageLines.map((line, lineIndex) => `1 0 0 1 50 ${750 - lineIndex * 20} Tm <${toPdfUtf16Hex(line)}> Tj`),
+      '/F1 9 Tf',
+      `1 0 0 1 520 28 Tm <${toPdfUtf16Hex(`${pageIndex + 1} / ${pages.length}`)}> Tj`,
+      'ET',
+    ].join('\n');
+    contentIds.push(addObject(`<< /Length ${content.length} >>\nstream\n${content}\nendstream`));
+    pageIds.push(addObject(''));
+  });
+
+  objects[catalogId - 1] = `<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
+  objects[pagesId - 1] = `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(' ')}] /Count ${pageIds.length} >>`;
+  objects[fontId - 1] = `<< /Type /Font /Subtype /Type0 /BaseFont /HYGoThic-Medium /Encoding /UniKS-UCS2-H /DescendantFonts [${cidFontId} 0 R] >>`;
+  objects[cidFontId - 1] = `<< /Type /Font /Subtype /CIDFontType0 /BaseFont /HYGoThic-Medium /CIDSystemInfo << /Registry (Adobe) /Ordering (Korea1) /Supplement 2 >> /FontDescriptor ${fontDescriptorId} 0 R /DW 1000 >>`;
+  objects[fontDescriptorId - 1] = '<< /Type /FontDescriptor /FontName /HYGoThic-Medium /Flags 4 /FontBBox [-1000 -1000 1000 1000] /ItalicAngle 0 /Ascent 880 /Descent -120 /CapHeight 880 /StemV 80 >>';
+  pageIds.forEach((pageId, index) => {
+    objects[pageId - 1] = `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentIds[index]} 0 R >>`;
+  });
+
+  let pdf = '%PDF-1.4\n';
+  const offsets = [0];
+  objects.forEach((body, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${offset.toString().padStart(10, '0')} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root ${catalogId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+  return pdf;
 }
 
 function exportMeetingMinute(minute: MeetingMinute, format: MeetingMinuteExportFormat) {
@@ -484,18 +570,7 @@ function exportMeetingMinute(minute: MeetingMinute, format: MeetingMinuteExportF
     return;
   }
 
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer');
-  if (!printWindow) {
-    showActionPopup('팝업 차단을 해제하면 PDF 저장창을 열 수 있습니다.');
-    return;
-  }
-  printWindow.document.open();
-  printWindow.document.write(meetingMinuteHtml(minute));
-  printWindow.document.close();
-  printWindow.setTimeout(() => {
-    printWindow.focus();
-    printWindow.print();
-  }, 250);
+  downloadTextFile(`${safeTitle}.pdf`, 'application/pdf;charset=utf-8', createMeetingMinutePdf(minute));
 }
 
 let confirmRequestId = 0;
