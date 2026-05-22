@@ -44,7 +44,7 @@ type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 };
 
-type ThemeMode = 'system' | 'light' | 'dark';
+type ThemeMode = 'light' | 'dark';
 type ColorTheme = 'default' | 'metal-silver' | 'british-green' | 'navy' | 'orange' | 'pastel-pink';
 type ActiveView =
   | 'dashboard'
@@ -864,12 +864,12 @@ async function syncEventsToGoogleCalendar(settings: GoogleCalendarSettings, even
 
 function getInitialTheme(): ThemeMode {
   const saved = localStorage.getItem('plander-theme');
-  if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
-  return 'system';
+  if (saved === 'light' || saved === 'dark') return saved;
+  return 'dark';
 }
 
 function normalizeThemeMode(value: unknown): ThemeMode {
-  return value === 'light' || value === 'dark' || value === 'system' ? value : 'system';
+  return value === 'light' || value === 'dark' ? value : 'dark';
 }
 
 function getInitialColorTheme(): ColorTheme {
@@ -877,7 +877,7 @@ function getInitialColorTheme(): ColorTheme {
 }
 
 function normalizeColorTheme(value: unknown): ColorTheme {
-  return colorThemeOptions.some((option) => option.value === value) ? value as ColorTheme : 'default';
+  return 'default';
 }
 
 function getColorThemeBaseMode(colorTheme: ColorTheme): 'light' | 'dark' | null {
@@ -887,10 +887,8 @@ function getColorThemeBaseMode(colorTheme: ColorTheme): 'light' | 'dark' | null 
 }
 
 function applyTheme(mode: ThemeMode, colorTheme: ColorTheme) {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const forcedColorMode = getColorThemeBaseMode(colorTheme);
-  document.documentElement.dataset.theme = forcedColorMode || (mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode);
-  document.documentElement.dataset.colorTheme = colorTheme;
+  document.documentElement.dataset.theme = mode;
+  document.documentElement.dataset.colorTheme = 'default';
 }
 
 function getUserFromSession(session: Session | null): AppUser | null {
@@ -1640,15 +1638,7 @@ function App() {
   useEffect(() => {
     applyTheme(themeMode, colorTheme);
     localStorage.setItem('plander-theme', themeMode);
-    localStorage.setItem('plander-color-theme', colorTheme);
-
-    const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const syncSystemTheme = () => {
-      if (themeMode === 'system') applyTheme('system', colorTheme);
-    };
-
-    media.addEventListener('change', syncSystemTheme);
-    return () => media.removeEventListener('change', syncSystemTheme);
+    localStorage.setItem('plander-color-theme', 'default');
   }, [colorTheme, themeMode]);
 
   useEffect(() => {
@@ -1665,7 +1655,7 @@ function App() {
       if (cancelled || error || !data) return;
 
       setThemeMode(normalizeThemeMode((data as any).theme_mode));
-      setColorTheme(normalizeColorTheme((data as any).color_theme));
+      setColorTheme('default');
     };
 
     void loadThemePreferences();
@@ -2422,6 +2412,26 @@ function App() {
     setActiveView('project');
     if (appHistoryReady.current) {
       window.history.pushState({ plander: true, view: 'project' }, '', getAppHistoryUrl('project'));
+    }
+  };
+
+  const openDashboardTask = (task: Task) => {
+    if (!task.projectId) {
+      setSelectedTaskId(task.id);
+      return;
+    }
+
+    setSelectedProjectId(task.projectId);
+    setSelectedTaskId(task.id);
+    setViewHistory((history) => [...history, activeView].slice(-12));
+    setForwardHistory([]);
+    setActiveView('project');
+    if (appHistoryReady.current) {
+      window.history.pushState(
+        { plander: true, view: 'project', taskId: task.id, projectId: task.projectId },
+        '',
+        `${window.location.pathname}?projectId=${encodeURIComponent(task.projectId)}&taskId=${encodeURIComponent(task.id)}#project`,
+      );
     }
   };
 
@@ -4300,17 +4310,14 @@ function App() {
   };
 
   const changeThemeMode = (mode: ThemeMode) => {
-    if (colorTheme !== 'default') return;
     setThemeMode(mode);
-    void persistThemePreferences(mode, colorTheme);
+    setColorTheme('default');
+    void persistThemePreferences(mode, 'default');
   };
 
-  const changeColorTheme = (nextColorTheme: ColorTheme) => {
-    setColorTheme(nextColorTheme);
-    const forcedMode = getColorThemeBaseMode(nextColorTheme);
-    const nextThemeMode = forcedMode || themeMode;
-    if (forcedMode) setThemeMode(forcedMode);
-    void persistThemePreferences(nextThemeMode, nextColorTheme);
+  const changeColorTheme = (_nextColorTheme: ColorTheme) => {
+    setColorTheme('default');
+    void persistThemePreferences(themeMode, 'default');
   };
 
   if (!authReady) {
@@ -4335,7 +4342,7 @@ function App() {
   }
 
   const isAdmin = currentUser.accountRole === 'admin';
-  const canControlThemeMode = colorTheme === 'default';
+  const canControlThemeMode = true;
   const immersiveChromeProps = {
     currentUser,
     pushEnabled,
@@ -4450,7 +4457,7 @@ function App() {
             clients={clients}
             employees={employees}
             onNavigate={navigateTo}
-            onOpenTask={(task) => setSelectedTaskId(task.id)}
+            onOpenTask={openDashboardTask}
             currentUser={currentUser}
           />
         ) : null}
@@ -5246,8 +5253,8 @@ function Sidebar({
   return (
     <aside className="sidebar" data-open={open}>
       <div className="brand-row">
-        <img className="brand-logo" src="/plander-admin-logo.svg" alt="Plander Admin" />
-        <span className="brand-subtitle">Admin</span>
+        <img className="brand-logo" src="/plander-admin-logo.svg" alt="Plander Works" />
+        <span className="brand-subtitle">Works</span>
         <button className="icon-button close-sidebar" aria-label="메뉴 닫기" onClick={onClose}>
           <X size={18} />
         </button>
@@ -5530,9 +5537,8 @@ function Topbar({
 
 function ThemeSwitcher({ value, onChange }: { value: ThemeMode; onChange: (mode: ThemeMode) => void }) {
   const options: Array<{ value: ThemeMode; icon: React.ElementType; label: string }> = [
-    { value: 'light', icon: Sun, label: '라이트' },
+    { value: 'light', icon: Sun, label: '화이트' },
     { value: 'dark', icon: Moon, label: '다크' },
-    { value: 'system', icon: Settings, label: '시스템' },
   ];
 
   return (
@@ -10180,7 +10186,6 @@ function SettingsPage({
   onColorThemeChange: (theme: ColorTheme) => void;
   onThemeChange: (mode: ThemeMode) => void;
 }) {
-  const canControlThemeMode = colorTheme === 'default';
   const currentEmployee = employees.find((employee) => employee.id === currentUser.id);
   const [profileForm, setProfileForm] = useState({
     name: currentEmployee?.name || currentUser.name,
@@ -10315,13 +10320,8 @@ function SettingsPage({
         <div className="settings-side">
           <div className="page-card settings-card">
             <h2>테마</h2>
-            <p>
-              {canControlThemeMode
-                ? '플랜더 기본 테마에서만 라이트/다크/시스템 모드를 직접 선택합니다.'
-                : '컬러 테마는 가장 어울리는 화면 모드로 자동 고정됩니다.'}
-            </p>
-            {canControlThemeMode ? <ThemeSwitcher value={themeMode} onChange={onThemeChange} /> : null}
-            <ColorThemePicker value={colorTheme} onChange={onColorThemeChange} />
+            <p>다크/화이트 두 가지 화면 모드만 사용합니다.</p>
+            <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
           </div>
           <div className="page-card settings-card">
             <h2>앱 설치</h2>

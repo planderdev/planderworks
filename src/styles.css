@@ -8582,3 +8582,190 @@ h4,
 
 }
 
+
+/* 2026-05 UI refinements: two-mode theme, meeting detail spacing, task status surfaces. */
+.primary-action,
+.secondary-action,
+.icon-button,
+.icon-only-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.primary-action svg,
+.secondary-action svg,
+.icon-button svg,
+.icon-only-action svg {
+  flex: 0 0 auto;
+  display: block;
+}
+
+.meeting-mode-shell .primary-action {
+  min-height: 38px;
+  height: 38px;
+}
+
+.meeting-minute-detail {
+  margin: 0 24px 24px;
+  padding: 12px 8px 2px;
+}
+
+.meeting-minute-detail > section,
+.meeting-minute-meta {
+  padding-inline: 10px;
+}
+
+.meeting-minute-detail-actions {
+  align-items: center;
+  padding-inline: 10px;
+}
+
+.meeting-minute-export-menu {
+  display: inline-flex;
+  align-items: center;
+}
+
+.icon-only-action {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+}
+
+.task-card,
+.dashboard-flow-row,
+.project-task-row,
+.project-inspector-card {
+  border-color: rgba(128, 128, 128, 0.28) !important;
+}
+
+.task-card[data-status-tone='gray'],
+.dashboard-flow-row[data-status-tone='gray'],
+.project-task-row[data-status-tone='gray'] {
+  background: rgba(148, 163, 184, 0.09) !important;
+}
+
+.task-card[data-status-tone='blue'],
+.dashboard-flow-row[data-status-tone='blue'],
+.project-task-row[data-status-tone='blue'],
+.project-inspector-card[data-status-tone='blue'] {
+  background: rgba(75, 142, 247, 0.11) !important;
+}
+
+.task-card[data-status-tone='amber'],
+.dashboard-flow-row[data-status-tone='amber'],
+.project-task-row[data-status-tone='amber'],
+.project-inspector-card[data-status-tone='amber'] {
+  background: rgba(214, 151, 49, 0.12) !important;
+}
+
+.task-card[data-status-tone='red'],
+.dashboard-flow-row[data-status-tone='red'],
+.project-task-row[data-status-tone='red'],
+.project-inspector-card[data-status-tone='red'] {
+  background: rgba(223, 95, 95, 0.11) !important;
+}
+
+.task-card[data-status-tone='green'],
+.dashboard-flow-row[data-status-tone='green'],
+.project-task-row[data-status-tone='green'],
+.project-inspector-card[data-status-tone='green'] {
+  background: rgba(57, 168, 107, 0.11) !important;
+}
+
+:root[data-theme='light'] .task-card,
+:root[data-theme='light'] .dashboard-flow-row,
+:root[data-theme='light'] .project-task-row,
+:root[data-theme='light'] .project-inspector-card {
+  border-color: rgba(118, 118, 118, 0.32) !important;
+}
+
+:root[data-theme='light'] .task-card[data-status-tone='gray'],
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='gray'],
+:root[data-theme='light'] .project-task-row[data-status-tone='gray'] {
+  background: rgba(100, 116, 139, 0.08) !important;
+}
+
+:root[data-theme='light'] .task-card[data-status-tone='blue'],
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='blue'],
+:root[data-theme='light'] .project-task-row[data-status-tone='blue'],
+:root[data-theme='light'] .project-inspector-card[data-status-tone='blue'] {
+  background: rgba(75, 142, 247, 0.10) !important;
+}
+
+:root[data-theme='light'] .task-card[data-status-tone='amber'],
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='amber'],
+:root[data-theme='light'] .project-task-row[data-status-tone='amber'],
+:root[data-theme='light'] .project-inspector-card[data-status-tone='amber'] {
+  background: rgba(214, 151, 49, 0.11) !important;
+}
+
+:root[data-theme='light'] .task-card[data-status-tone='red'],
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='red'],
+:root[data-theme='light'] .project-task-row[data-status-tone='red'],
+:root[data-theme='light'] .project-inspector-card[data-status-tone='red'] {
+  background: rgba(223, 95, 95, 0.10) !important;
+}
+
+:root[data-theme='light'] .task-card[data-status-tone='green'],
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='green'],
+:root[data-theme='light'] .project-task-row[data-status-tone='green'],
+:root[data-theme='light'] .project-inspector-card[data-status-tone='green'] {
+  background: rgba(57, 168, 107, 0.10) !important;
+}
+
+:root[data-theme='light'] .project-nav-button,
+:root[data-theme='light'] .project-nav-button[data-active='true'],
+:root[data-theme='dark'] .project-nav-button,
+:root[data-theme='dark'] .project-nav-button[data-active='true'] {
+  grid-template-columns: 22px minmax(0, 1fr) auto !important;
+  overflow: visible !important;
+}
+
+:root[data-theme='light'] .project-folder-tabs button,
+:root[data-theme='light'] .project-folder-tabs button[data-active='true'],
+:root[data-theme='dark'] .project-folder-tabs button,
+:root[data-theme='dark'] .project-folder-tabs button[data-active='true'] {
+  overflow: visible !important;
+  padding-left: 28px !important;
+  padding-top: 2px !important;
+}
+
+:root[data-theme='light'] .project-folder-tabs span,
+:root[data-theme='dark'] .project-folder-tabs span {
+  overflow: visible !important;
+  line-height: 1.35 !important;
+  padding: 2px 1px 2px 2px !important;
+  margin-left: -1px !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+:root[data-theme='light'] .project-nav-button[data-active='true'],
+:root[data-theme='light'] .project-nav-button[data-active='true']:hover {
+  color: #111111 !important;
+  background: rgba(0, 0, 0, 0.055) !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+}
+
+:root[data-theme='light'] .project-nav-button[data-active='true'] span,
+:root[data-theme='light'] .project-nav-button[data-active='true'] small,
+:root[data-theme='light'] .project-nav-button[data-active='true'] svg {
+  color: #111111 !important;
+}
+
+:root[data-theme='dark'] .project-nav-button[data-active='true'],
+:root[data-theme='dark'] .project-nav-button[data-active='true']:hover {
+  color: #cccccc !important;
+  background: rgba(255, 255, 255, 0.045) !important;
+  border-color: rgba(204, 204, 204, 0.12) !important;
+}
+
+:root[data-theme='dark'] .project-nav-button[data-active='true'] span,
+:root[data-theme='dark'] .project-nav-button[data-active='true'] small,
+:root[data-theme='dark'] .project-nav-button[data-active='true'] svg {
+  color: #cccccc !important;
+}
