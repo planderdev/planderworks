@@ -8315,5 +8315,219 @@ h4,
     font-weight: 400 !important;
     letter-spacing: 0.18em !important;
   }
+
+  /* Sidebar rollback: keep only the newer typography, restore the previous shell. */
+  :root[data-theme='dark'] {
+    --admin-sidebar-w: 280px;
+  }
+
+  :root[data-theme='dark'] .sidebar {
+    width: 280px !important;
+    padding: 24px 18px !important;
+    gap: 20px !important;
+    color: var(--silver-strong) !important;
+    background:
+      radial-gradient(circle at 18% 0%, rgba(255, 255, 255, 0.12), transparent 26%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.055), transparent 42%),
+      var(--sidebar-bg) !important;
+    border-right: 1px solid var(--sidebar-border) !important;
+  }
+
+  :root[data-theme='dark'] .workspace {
+    margin-left: 280px !important;
+  }
+
+  :root[data-theme='dark'] .brand-row {
+    min-height: auto !important;
+    align-items: flex-start !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    padding: 2px 6px 18px !important;
+  }
+
+  :root[data-theme='dark'] .brand-logo {
+    width: 164px !important;
+  }
+
+  :root[data-theme='dark'] .brand-subtitle {
+    display: none !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-nav,
+  :root[data-theme='dark'] .sidebar-section {
+    gap: 6px !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-nav {
+    padding-right: 2px !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-nav svg,
+  :root[data-theme='dark'] .nav-button svg,
+  :root[data-theme='dark'] .project-nav-button svg,
+  :root[data-theme='dark'] .sidebar-project-title svg,
+  :root[data-theme='dark'] .completed-project-year-button svg {
+    display: block !important;
+  }
+
+  :root[data-theme='dark'] .nav-button {
+    min-height: 42px !important;
+    display: grid !important;
+    grid-template-columns: 22px 1fr auto !important;
+    gap: 10px !important;
+    padding: 0 10px !important;
+    border: 1px solid transparent !important;
+    color: rgba(238, 241, 245, 0.86) !important;
+    background: transparent !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  :root[data-theme='dark'] .nav-button span {
+    color: inherit !important;
+    font-family: inherit !important;
+    font-size: inherit !important;
+    font-weight: inherit !important;
+    letter-spacing: inherit !important;
+  }
+
+  :root[data-theme='dark'] .nav-button:hover,
+  :root[data-theme='dark'] .nav-button[data-active='true'] {
+    color: rgba(238, 241, 245, 0.96) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+    background: rgba(255, 255, 255, 0.065) !important;
+  }
+
+  :root[data-theme='dark'] .nav-button[data-featured='true'] {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  :root[data-theme='dark'] .create-split-button {
+    min-height: 46px !important;
+    grid-template-columns: 18px minmax(0, 1fr) !important;
+    gap: 7px !important;
+    padding: 0 10px !important;
+    color: #eef1f5 !important;
+    background: rgba(132, 137, 146, 0.32) !important;
+    border: 1px solid rgba(255, 255, 255, 0.16) !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.76rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-projects {
+    margin-top: 18px !important;
+    padding-top: 18px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.13) !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-projects-secondary {
+    margin-top: 10px !important;
+    padding-top: 12px !important;
+  }
+
+  :root[data-theme='dark'] .project-nav-button {
+    min-height: auto !important;
+    display: grid !important;
+    grid-template-columns: 22px minmax(0, 1fr) auto !important;
+    gap: 10px !important;
+    padding: 10px !important;
+    color: rgba(238, 241, 245, 0.86) !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.78rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  :root[data-theme='dark'] .project-nav-button:hover,
+  :root[data-theme='dark'] .project-nav-button[data-active='true'] {
+    border-color: rgba(255, 255, 255, 0.09) !important;
+    background: rgba(255, 255, 255, 0.075) !important;
+  }
+
+  :root[data-theme='dark'] .project-nav-button[data-active='true']::before {
+    display: block !important;
+    background: #ecff1f !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-project-title {
+    min-height: auto !important;
+    padding: 0 !important;
+    color: rgba(245, 247, 251, 0.96) !important;
+    background: transparent !important;
+    border: 0 !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.8rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  :root[data-theme='dark'] .completed-project-year-button,
+  :root[data-theme='dark'] .project-trash-row {
+    min-height: auto !important;
+    padding: 8px 10px !important;
+    color: rgba(238, 241, 245, 0.9) !important;
+    background: rgba(255, 255, 255, 0.045) !important;
+    border: 0 !important;
+    font-family: var(--font-mono) !important;
+    font-size: 0.76rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.03em !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-bottom-layer {
+    gap: 16px !important;
+  }
+
+  :root[data-theme='dark'] .sidebar-install-button,
+  :root[data-theme='dark'] .profile-card {
+    min-height: 44px !important;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.02)),
+      rgba(10, 11, 13, 0.74) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #f5f7fb !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.84rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+  }
+
+  :root[data-theme='dark'] .profile-card {
+    min-height: 92px !important;
+    display: grid !important;
+    grid-template-columns: auto 1fr auto !important;
+    gap: 12px !important;
+    padding: 14px !important;
+  }
+
+  :root[data-theme='dark'] .profile-card .avatar,
+  :root[data-theme='dark'] .profile-card-main > span:first-child {
+    display: grid !important;
+  }
+
+  :root[data-theme='dark'] .profile-card strong {
+    color: #eef1f5 !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    letter-spacing: 0 !important;
+  }
+
+  :root[data-theme='dark'] .profile-card span {
+    color: var(--accent-dark) !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.82rem !important;
+    font-weight: 400 !important;
+    letter-spacing: 0 !important;
+  }
+
 }
 
