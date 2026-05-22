@@ -9483,3 +9483,47 @@ h4,
 :root[data-theme='light'] .icon-button:hover {
   border-color: var(--works-light-border-strong) !important;
 }
+
+/* 2026-05 all-tasks: remove the wrapping list box, leave only task cards. */
+.all-tasks-task-board.task-board.list-surface,
+:root[data-theme='light'] .all-tasks-task-board.task-board.list-surface,
+:root[data-theme='dark'] .all-tasks-task-board.task-board.list-surface {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+.all-tasks-task-board .project-board-toolbar,
+.all-tasks-task-board .project-task-columns {
+  display: none !important;
+}
+
+.all-tasks-task-board .project-task-list {
+  gap: 12px !important;
+  background: transparent !important;
+}
+
+.all-tasks-task-board .project-task-item {
+  overflow: hidden;
+  border: 1px solid var(--project-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+:root[data-theme='light'] .all-tasks-task-board .project-task-item {
+  border-color: var(--works-light-border, #d8d4ca) !important;
+}
+
+:root[data-theme='dark'] .all-tasks-task-board .project-task-item {
+  border-color: #292929 !important;
+}
+
+.all-tasks-task-board .project-task-row {
+  min-height: 76px;
+  padding: 14px 18px;
+}
+
+.all-tasks-task-board .project-task-expanded-inner {
+  padding: 0 18px 18px;
+}
