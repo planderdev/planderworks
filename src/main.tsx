@@ -5748,6 +5748,9 @@ function ImmersivePageFrame({
 
 function DraggableFolderTabs({ children, label }: { children: React.ReactNode; label: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollTimerRef = useRef<number | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const [scrolling, setScrolling] = useState(false);
   const dragState = useRef<{ dragging: boolean; pointerId: number | null; startX: number; scrollLeft: number; moved: boolean }>({
     dragging: false,
     pointerId: null,
@@ -5755,6 +5758,30 @@ function DraggableFolderTabs({ children, label }: { children: React.ReactNode; l
     scrollLeft: 0,
     moved: false,
   });
+
+  const updateScrollHint = () => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const maxScroll = Math.max(1, node.scrollWidth - node.clientWidth);
+    const thumbWidth = Math.min(100, Math.max(14, (node.clientWidth / Math.max(node.scrollWidth, 1)) * 100));
+    const left = (node.scrollLeft / maxScroll) * (100 - thumbWidth);
+    node.style.setProperty('--folder-scroll-width', `${thumbWidth}%`);
+    node.style.setProperty('--folder-scroll-left', `${left}%`);
+  };
+
+  const showScrollHint = () => {
+    updateScrollHint();
+    setScrolling(true);
+    if (scrollTimerRef.current) window.clearTimeout(scrollTimerRef.current);
+    scrollTimerRef.current = window.setTimeout(() => setScrolling(false), 520);
+  };
+
+  useEffect(() => {
+    updateScrollHint();
+    return () => {
+      if (scrollTimerRef.current) window.clearTimeout(scrollTimerRef.current);
+    };
+  }, [children]);
 
   const endDrag = () => {
     const node = scrollRef.current;
@@ -5767,14 +5794,19 @@ function DraggableFolderTabs({ children, label }: { children: React.ReactNode; l
     }
     dragState.current.dragging = false;
     dragState.current.pointerId = null;
+    setDragging(false);
+    showScrollHint();
   };
 
   return (
     <div
       className="project-folder-tabs"
+      data-dragging={dragging}
+      data-scrolling={scrolling}
       ref={scrollRef}
       role="tablist"
       aria-label={label}
+      onScroll={showScrollHint}
       onClickCapture={(event) => {
         if (!dragState.current.moved) return;
         event.preventDefault();
@@ -5792,6 +5824,8 @@ function DraggableFolderTabs({ children, label }: { children: React.ReactNode; l
           scrollLeft: node.scrollLeft,
           moved: false,
         };
+        setDragging(true);
+        showScrollHint();
         node.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
@@ -5800,6 +5834,7 @@ function DraggableFolderTabs({ children, label }: { children: React.ReactNode; l
         const deltaX = event.clientX - dragState.current.startX;
         if (Math.abs(deltaX) > 4) dragState.current.moved = true;
         node.scrollLeft = dragState.current.scrollLeft - deltaX;
+        updateScrollHint();
       }}
       onPointerUp={endDrag}
       onPointerCancel={endDrag}
@@ -10558,7 +10593,15 @@ function SettingsPage({
                 onChange={(event) => setProfileForm({ ...profileForm, phone: formatMobilePhone(event.target.value) })}
               />
             </label>
-            <AvatarFileField currentUrl={profileForm.avatarUrl} file={profileAvatarFile} onChange={setProfileAvatarFile} />
+            <AvatarFileField
+              currentUrl={profileForm.avatarUrl}
+              file={profileAvatarFile}
+              onChange={setProfileAvatarFile}
+              onRemove={() => {
+                setProfileAvatarFile(null);
+                setProfileForm((current) => ({ ...current, avatarUrl: '' }));
+              }}
+            />
             <label>
               담당업무
               <select value={profileForm.jobType} onChange={(event) => setProfileForm({ ...profileForm, jobType: event.target.value })}>

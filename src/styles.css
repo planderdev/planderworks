@@ -861,6 +861,14 @@ button:disabled {
   display: none;
 }
 
+@media (min-width: 641px) {
+  .workspace .menu-button,
+  .workspace .project-menu-button {
+    display: none !important;
+  }
+}
+
+
 .account-button {
   height: 42px;
   display: flex;
@@ -4980,7 +4988,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 18px 12px;
+  padding: 18px 8px 12px;
   border-bottom: 0;
 }
 
@@ -5017,7 +5025,7 @@ h1 {
   display: grid;
   grid-template-columns: minmax(130px, 1.55fr) 78px minmax(102px, 0.86fr) 74px 48px;
   gap: 9px;
-  padding: 12px 18px;
+  padding: 12px 8px;
   border-bottom: 1px solid rgba(8, 8, 8, 0.14);
   color: rgba(8, 8, 8, 0.68);
   font-size: 0.75rem;
@@ -5052,7 +5060,7 @@ h1 {
   border: 0;
   border-bottom: 0;
   min-height: 58px;
-  padding: 7px 18px;
+  padding: 7px 8px;
   color: var(--project-ink);
   background: transparent;
   text-align: left;
@@ -5081,7 +5089,7 @@ h1 {
 .project-task-expanded-inner {
   min-height: 0;
   overflow: hidden;
-  padding: 0 18px 18px;
+  padding: 0 8px 18px;
 }
 
 .project-task-expanded .project-inspector-card {
@@ -5103,7 +5111,7 @@ h1 {
 .project-task-row[data-attention='true']::after {
   content: '';
   position: absolute;
-  right: 18px;
+  right: 8px;
   top: 50%;
   width: 8px;
   height: 8px;
@@ -6315,7 +6323,7 @@ h1 {
   background: var(--project-soft) !important;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 640px) {
   .sidebar {
     position: fixed;
     transform: translateX(-104%);
@@ -6329,6 +6337,10 @@ h1 {
   .close-sidebar,
   .menu-button {
     display: grid;
+  }
+
+  .sidebar[data-open='true'] ~ .workspace .menu-button {
+    display: none;
   }
 
   .mobile-overlay {
@@ -6613,7 +6625,7 @@ h1 {
   }
 
   .stats-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dashboard-flow {
@@ -9074,4 +9086,104 @@ h4,
 :root[data-theme='dark'] .project-task-expanded .project-file-grid button {
   background: rgba(255, 255, 255, 0.06) !important;
   border-color: #292929 !important;
+}
+
+/* Project folder tabs: smooth drag + overlay scrollbar hint */
+.project-folder-tabs {
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  cursor: grab;
+  user-select: none;
+  position: relative;
+  padding-bottom: 0;
+}
+
+.project-folder-tabs[data-dragging='true'] {
+  cursor: grabbing;
+  scroll-behavior: auto;
+}
+
+.project-folder-tabs::-webkit-scrollbar {
+  height: 0;
+}
+
+.project-folder-tabs::after {
+  content: '';
+  position: absolute;
+  left: var(--folder-scroll-left, 0%);
+  bottom: 3px;
+  z-index: 4;
+  width: var(--folder-scroll-width, 0%);
+  height: 3px;
+  pointer-events: none;
+  background: rgba(158, 232, 240, 0.72);
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.project-folder-tabs[data-scrolling='true']::after,
+.project-folder-tabs[data-dragging='true']::after {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Settings page compact dashboard-style layout */
+.settings-layout {
+  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1fr) minmax(320px, 1fr);
+  gap: 14px;
+}
+
+.settings-side {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-card {
+  align-content: start;
+  min-height: 0;
+  padding: 16px !important;
+}
+
+.settings-card h2 {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+.settings-card > p {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.settings-shortcuts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.settings-backend {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1180px) {
+  .settings-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .settings-side {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .settings-layout,
+  .settings-side {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-shortcuts {
+    grid-template-columns: 1fr;
+  }
 }
