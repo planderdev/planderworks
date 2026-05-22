@@ -4366,11 +4366,27 @@ h1 {
   animation: detailSlide 180ms ease-out;
 }
 
-.meeting-minute-detail-actions {
+.meeting-minute-detail-actions,
+.meeting-minute-export-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.meeting-minute-export-actions {
+  align-items: center;
+  justify-content: flex-start;
+  padding: 10px;
+  border-radius: 14px;
+  background: var(--soft);
+}
+
+.meeting-minute-export-actions > span {
+  margin-right: auto;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
 }
 
 .meeting-minute-meta {

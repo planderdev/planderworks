@@ -410,9 +410,92 @@ type MeetingMinuteUpdateHandler = (minuteId: string, minute: MeetingMinuteDraft)
 type MeetingMinuteDeleteHandler = (minute: MeetingMinute) => Promise<string>;
 type MeetingMinuteCategorySubmitHandler = (name: string) => Promise<string>;
 type MeetingMinuteCategoryDeleteHandler = (name: string) => Promise<string>;
+type MeetingMinuteExportFormat = 'pdf' | 'xls' | 'hwp';
 
 function showActionPopup(message: string) {
   window.dispatchEvent(new CustomEvent('plander-action-complete', { detail: message }));
+}
+
+function meetingMinutePlainText(minute: MeetingMinute) {
+  return [
+    `# ${minute.title}`,
+    '',
+    `카테고리: ${minute.category}`,
+    `프로젝트: ${minute.projectName || '프로젝트 미지정'}`,
+    `작성자: ${minute.author}`,
+    `일시: ${minute.heldAt ? formatDueDate(minute.heldAt) : minute.createdAt ? formatDueDate(minute.createdAt) : '일시 미정'}`,
+    `참석자: ${minute.attendees || '미기재'}`,
+    '',
+    minute.summary ? `## 요약\n${minute.summary}` : '',
+    `## 회의 내용\n${minute.content || '내용 없음'}`,
+    minute.decisions ? `## 결정사항\n${minute.decisions}` : '',
+    minute.actionItems ? `## 액션아이템\n${minute.actionItems}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+function meetingMinuteHtml(minute: MeetingMinute) {
+  const text = meetingMinutePlainText(minute);
+  const body = escapeHtml(text).replace(/\n/g, '<br>');
+  return `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(minute.title)}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: #111; line-height: 1.65; padding: 32px; }
+    h1 { font-size: 24px; margin: 0 0 16px; }
+    .content { font-size: 14px; white-space: normal; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(minute.title)}</h1>
+  <div class="content">${body}</div>
+</body>
+</html>`;
+}
+
+function downloadTextFile(filename: string, mimeType: string, content: string) {
+  const blobUrl = URL.createObjectURL(new Blob([content], { type: mimeType }));
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+}
+
+function exportMeetingMinute(minute: MeetingMinute, format: MeetingMinuteExportFormat) {
+  const safeTitle = (minute.title || '회의록').replace(/[\\/:*?"<>|]/g, '').trim() || '회의록';
+  if (format === 'xls') {
+    const rows = meetingMinutePlainText(minute)
+      .split('\n')
+      .map((line, index) => `<tr><td>${index + 1}</td><td>${escapeHtml(line) || '&nbsp;'}</td></tr>`)
+      .join('');
+    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body><table><tr><th colspan="2">${escapeHtml(minute.title)}</th></tr><tr><th>줄</th><th>내용</th></tr>${rows}</table></body></html>`;
+    downloadTextFile(`${safeTitle}.xls`, 'application/vnd.ms-excel;charset=utf-8', html);
+    return;
+  }
+
+  if (format === 'hwp') {
+    downloadTextFile(`${safeTitle}.hwp`, 'application/x-hwp;charset=utf-8', meetingMinuteHtml(minute));
+    return;
+  }
+
+  const printWindow = window.open('', '_blank', 'noopener,noreferrer');
+  if (!printWindow) {
+    showActionPopup('팝업 차단을 해제하면 PDF 저장창을 열 수 있습니다.');
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(meetingMinuteHtml(minute));
+  printWindow.document.close();
+  printWindow.setTimeout(() => {
+    printWindow.focus();
+    printWindow.print();
+  }, 250);
 }
 
 let confirmRequestId = 0;
@@ -7379,6 +7462,21 @@ function MeetingMinutesPage({
                           </button>
                         </div>
                       ) : null}
+                      <div className="meeting-minute-export-actions" aria-label="회의록 저장">
+                        <span>회의록 저장</span>
+                        <button className="secondary-action" onClick={() => exportMeetingMinute(minute, 'pdf')} type="button">
+                          <Download size={15} />
+                          PDF
+                        </button>
+                        <button className="secondary-action" onClick={() => exportMeetingMinute(minute, 'xls')} type="button">
+                          <Download size={15} />
+                          Excel
+                        </button>
+                        <button className="secondary-action" onClick={() => exportMeetingMinute(minute, 'hwp')} type="button">
+                          <Download size={15} />
+                          HWP
+                        </button>
+                      </div>
                       <dl className="meeting-minute-meta">
                         <div>
                           <dt>참석자</dt>
