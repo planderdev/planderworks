@@ -7602,3 +7602,130 @@ textarea:focus {
   box-shadow: none !important;
 }
 
+/* Dark mode eye-comfort tune: replace pure/off white UI text and button fills with black 20% (#CCCCCC). */
+:root[data-theme='dark'] {
+  --text: #cccccc;
+  --text-secondary: #b8b8b8;
+  --muted: #858585;
+  --accent: #cccccc;
+  --accent-hover: #b8b8b8;
+  --silver: #cccccc;
+  --silver-strong: #cccccc;
+}
+
+:root[data-theme='dark'] body,
+:root[data-theme='dark'] .app,
+:root[data-theme='dark'] .workspace,
+:root[data-theme='dark'] .page-shell,
+:root[data-theme='dark'] .project-mode-shell,
+:root[data-theme='dark'] .project-mode-canvas,
+:root[data-theme='dark'] .auth-card,
+:root[data-theme='dark'] .stat-card,
+:root[data-theme='dark'] .task-board,
+:root[data-theme='dark'] .page-card,
+:root[data-theme='dark'] .client-card,
+:root[data-theme='dark'] .modal-card,
+:root[data-theme='dark'] .meeting-minute-card,
+:root[data-theme='dark'] .weekly-report-card,
+:root[data-theme='dark'] .project-inspector-card,
+:root[data-theme='dark'] .settings-card,
+:root[data-theme='dark'] .admin-card {
+  color: #cccccc !important;
+}
+
+:root[data-theme='dark'] .sidebar,
+:root[data-theme='dark'] .brand-row,
+:root[data-theme='dark'] .nav-button,
+:root[data-theme='dark'] .project-nav-button,
+:root[data-theme='dark'] .sidebar-project-title,
+:root[data-theme='dark'] .completed-project-year-button,
+:root[data-theme='dark'] .project-trash-row,
+:root[data-theme='dark'] .sidebar-install-button,
+:root[data-theme='dark'] .profile-card,
+:root[data-theme='dark'] .profile-card strong {
+  color: #cccccc !important;
+}
+
+:root[data-theme='dark'] .brand-subtitle,
+:root[data-theme='dark'] .sidebar-section p,
+:root[data-theme='dark'] .profile-card span,
+:root[data-theme='dark'] .person-row span,
+:root[data-theme='dark'] .stat-card span,
+:root[data-theme='dark'] .stat-card small,
+:root[data-theme='dark'] .dashboard-flow-section > span,
+:root[data-theme='dark'] .dashboard-flow-section header span,
+:root[data-theme='dark'] .task-card small,
+:root[data-theme='dark'] .dashboard-flow-row small,
+:root[data-theme='dark'] .meeting-minute-summary small,
+:root[data-theme='dark'] .meeting-minute-author,
+:root[data-theme='dark'] .admin-note,
+:root[data-theme='dark'] .date,
+:root[data-theme='dark'] .task-meta {
+  color: #858585 !important;
+}
+
+:root[data-theme='dark'] h1,
+:root[data-theme='dark'] h2,
+:root[data-theme='dark'] h3,
+:root[data-theme='dark'] h4,
+:root[data-theme='dark'] strong,
+:root[data-theme='dark'] .stat-card strong,
+:root[data-theme='dark'] .task-title-button,
+:root[data-theme='dark'] .meeting-minute-summary strong,
+:root[data-theme='dark'] .page-title,
+:root[data-theme='dark'] .board-head h1,
+:root[data-theme='dark'] .section-head h2,
+:root[data-theme='dark'] .panel-head h2,
+:root[data-theme='dark'] .modal-head h2 {
+  color: #cccccc !important;
+}
+
+:root[data-theme='dark'] .primary-action,
+:root[data-theme='dark'] .nav-button[data-active='true'],
+:root[data-theme='dark'] .project-nav-button[data-active='true'],
+:root[data-theme='dark'] .sidebar-project-title[data-active='true'],
+:root[data-theme='dark'] .completed-project-year-button[data-active='true'],
+:root[data-theme='dark'] .theme-switcher button[data-active='true'] {
+  color: #090909 !important;
+  background: #cccccc !important;
+  border-color: #cccccc !important;
+}
+
+:root[data-theme='dark'] .primary-action:hover,
+:root[data-theme='dark'] .nav-button[data-active='true']:hover,
+:root[data-theme='dark'] .project-nav-button[data-active='true']:hover,
+:root[data-theme='dark'] .theme-switcher button[data-active='true']:hover {
+  color: #090909 !important;
+  background: #b8b8b8 !important;
+  border-color: #b8b8b8 !important;
+}
+
+:root[data-theme='dark'] .secondary-action,
+:root[data-theme='dark'] .ghost-action,
+:root[data-theme='dark'] .icon-button,
+:root[data-theme='dark'] .account-button,
+:root[data-theme='dark'] .theme-switcher button,
+:root[data-theme='dark'] .file-action,
+:root[data-theme='dark'] .reply-action {
+  color: #cccccc !important;
+}
+
+:root[data-theme='dark'] .secondary-action:hover,
+:root[data-theme='dark'] .icon-button:hover,
+:root[data-theme='dark'] .account-button:hover,
+:root[data-theme='dark'] .theme-switcher button:hover,
+:root[data-theme='dark'] .file-action:hover,
+:root[data-theme='dark'] .reply-action:hover {
+  color: #cccccc !important;
+  border-color: #cccccc !important;
+}
+
+:root[data-theme='dark'] .nav-unread-badge,
+:root[data-theme='dark'] .project-unread-badge,
+:root[data-theme='dark'] .badge.success,
+:root[data-theme='dark'] .badge.info,
+:root[data-theme='dark'] .badge.warning,
+:root[data-theme='dark'] .badge.danger {
+  color: #090909 !important;
+}
+
