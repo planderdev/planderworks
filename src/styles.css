@@ -6879,19 +6879,20 @@ h1 {
 }
 
 :root[data-theme='dark'] {
-  --bg: #090909;
-  --panel: #111111;
-  --panel-2: #1c1c1c;
-  --card-bg: #111111;
-  --card-line: #f4f2ec;
-  --surface: #111111;
-  --surface-2: #1c1c1c;
-  --border: #f4f2ec;
-  --border-soft: rgba(244, 242, 236, 0.18);
-  --text: #f4f2ec;
-  --muted: #a9a49b;
-  --soft: #1c1c1c;
-  --line: rgba(244, 242, 236, 0.32);
+  --bg: #000000;
+  --panel: #101010;
+  --panel-2: #171717;
+  --card-bg: #101010;
+  --card-line: #292929;
+  --surface: #101010;
+  --surface-2: #171717;
+  --border: #292929;
+  --border-soft: #1b1b1b;
+  --border-strong: #4a4a4a;
+  --text: #f2f2f2;
+  --muted: #8a8a8a;
+  --soft: #0a0a0a;
+  --line: #292929;
   --shadow: none;
 }
 
@@ -7000,7 +7001,7 @@ textarea {
 .section-head,
 .modal-head,
 .admin-section-head {
-  border-bottom: 2px solid var(--border) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 h1,
@@ -7324,5 +7325,24 @@ textarea:focus {
 .topbar input,
 .search-input {
   min-height: 42px !important;
+}
+
+/* PlanderWorks border tone follow-up: keep neutral pills quiet */
+:root[data-theme='dark'] .task-card small,
+:root[data-theme='dark'] .dashboard-flow-row small,
+:root[data-theme='dark'] .month-event,
+:root[data-theme='dark'] .type-chip,
+:root[data-theme='dark'] .project-chip,
+:root[data-theme='dark'] .meeting-category-chip,
+:root[data-theme='dark'] .api-scope-chip,
+:root[data-theme='dark'] .person-row span {
+  border-color: var(--border-strong) !important;
+  color: var(--text-secondary, #c9c9c9) !important;
+}
+
+:root[data-theme='dark'] .select-chip:not([data-selected='true']),
+:root[data-theme='dark'] .calendar-filter-chip:not([data-active='true']) {
+  border-color: var(--border) !important;
+  color: var(--muted) !important;
 }
 
