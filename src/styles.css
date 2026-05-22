@@ -9524,7 +9524,19 @@ h4,
   padding: 14px 18px;
 }
 
+.all-tasks-task-board .project-task-expanded {
+  overflow: hidden;
+}
+
+.all-tasks-task-board .project-task-expanded:not([data-open='true']) {
+  display: none !important;
+}
+
 .all-tasks-task-board .project-task-expanded-inner {
+  padding: 0 18px 0;
+}
+
+.all-tasks-task-board .project-task-expanded[data-open='true'] .project-task-expanded-inner {
   padding: 0 18px 18px;
 }
 
