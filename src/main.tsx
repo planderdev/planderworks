@@ -76,6 +76,7 @@ const MAX_AVATAR_FILE_SIZE_LABEL = '1MB';
 const AVATAR_FILE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const LOGIN_PREFS_STORAGE_KEY = 'plander-login-preferences';
 const SKIP_AUTO_LOGIN_SESSION_KEY = 'plander-skip-auto-login';
+const PLANDER_RECORDER_APP_URL = 'https://duly-sulfite-thirty.ngrok-free.dev';
 const colorThemeOptions: Array<{ value: ColorTheme; label: string; description: string; swatches: string[] }> = [
   { value: 'default', label: '플랜더 기본', description: '블랙/모노화이트 기본 모드', swatches: ['#050506', '#f7f7f4', '#cfd3da'] },
   { value: 'metal-silver', label: '메탈 실버', description: '은색 카드와 차콜 라인', swatches: ['#eef0f3', '#b9c0ca', '#32363d'] },
@@ -5238,6 +5239,11 @@ function Sidebar({
     showActionPopup(message);
   };
 
+  const openRecorderApp = () => {
+    window.open(PLANDER_RECORDER_APP_URL, '_blank', 'noopener,noreferrer');
+    showActionPopup('녹음앱이 열리면 브라우저 메뉴에서 홈 화면에 추가해 주세요.');
+  };
+
   return (
     <aside className="sidebar" data-open={open}>
       <div className="brand-row">
@@ -5401,6 +5407,11 @@ function Sidebar({
             <span>앱 다운로드</span>
           </button>
         ) : null}
+
+        <button className="sidebar-install-button recorder-install-button" onClick={openRecorderApp} type="button">
+          <Download size={17} />
+          <span>녹음앱 홈화면 추가</span>
+        </button>
 
         <div className="profile-card">
           <button className="profile-card-main" onClick={() => setAdminOpen((open) => !open)} type="button">
