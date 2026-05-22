@@ -7346,3 +7346,79 @@ textarea:focus {
   color: var(--muted) !important;
 }
 
+/* PlanderWorks task boxes: neutral borders, soft status surfaces */
+.task-card,
+.dashboard-flow-row {
+  --status-card-border: var(--border) !important;
+  border-color: var(--border) !important;
+}
+
+.task-card[data-status-tone='blue'],
+.dashboard-flow-row[data-status-tone='blue'] {
+  --status-card-bg: rgba(91, 164, 230, 0.08) !important;
+}
+
+.task-card[data-status-tone='amber'],
+.dashboard-flow-row[data-status-tone='amber'] {
+  --status-card-bg: rgba(224, 169, 59, 0.09) !important;
+}
+
+.task-card[data-status-tone='red'],
+.dashboard-flow-row[data-status-tone='red'] {
+  --status-card-bg: rgba(235, 90, 95, 0.08) !important;
+}
+
+.task-card[data-status-tone='green'],
+.dashboard-flow-row[data-status-tone='green'] {
+  --status-card-bg: rgba(70, 195, 107, 0.08) !important;
+}
+
+:root[data-theme='light'] .task-card,
+:root[data-theme='light'] .dashboard-flow-row {
+  --status-card-border: #d8d4ca !important;
+  border-color: #d8d4ca !important;
+}
+
+:root[data-theme='light'] .task-card[data-status-tone='blue'],
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='blue'] {
+  --status-card-bg: rgba(91, 164, 230, 0.11) !important;
+}
+
+:root[data-theme='light'] .task-card[data-status-tone='amber'],
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='amber'] {
+  --status-card-bg: rgba(224, 169, 59, 0.13) !important;
+}
+
+:root[data-theme='light'] .task-card[data-status-tone='red'],
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='red'] {
+  --status-card-bg: rgba(235, 90, 95, 0.10) !important;
+}
+
+:root[data-theme='light'] .task-card[data-status-tone='green'],
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='green'] {
+  --status-card-bg: rgba(70, 195, 107, 0.11) !important;
+}
+
+:root[data-theme='dark'] .task-card,
+:root[data-theme='dark'] .dashboard-flow-row {
+  --status-card-border: #292929 !important;
+  border-color: #292929 !important;
+}
+
+:root[data-theme='dark'] .task-card:hover,
+:root[data-theme='dark'] .dashboard-flow-row:hover {
+  border-color: #3a3a3a !important;
+  filter: brightness(1.08);
+}
+
+/* PlanderWorks task boxes: apply status surface after global card reset */
+.task-card,
+.dashboard-flow-row {
+  background: var(--status-card-bg) !important;
+}
+
+.task-card:hover,
+.dashboard-flow-row:hover {
+  background: var(--status-card-bg) !important;
+}
+
