@@ -9237,35 +9237,46 @@ function AvatarFileField({
   file,
   label = '프로필 사진',
   onChange,
+  onRemove,
 }: {
   currentUrl?: string | null;
   file: File | null;
   label?: string;
   onChange: (file: File | null) => void;
+  onRemove?: () => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const canRemove = Boolean(file || currentUrl);
 
   useEffect(() => {
     if (!file && inputRef.current) inputRef.current.value = '';
   }, [file]);
 
   return (
-    <label className="avatar-upload-field">
-      {label}
+    <div className="avatar-upload-field">
+      <span>{label}</span>
       <input
         accept={AVATAR_FILE_TYPES.join(',')}
         ref={inputRef}
         type="file"
         onChange={(event) => onChange(event.target.files?.[0] || null)}
       />
-      <small>
-        {file
-          ? file.name
-          : currentUrl
-            ? `기존 사진 유지 · JPG/PNG/WebP, ${MAX_AVATAR_FILE_SIZE_LABEL} 이하`
-            : `선택된 사진 없음 · JPG/PNG/WebP, ${MAX_AVATAR_FILE_SIZE_LABEL} 이하`}
-      </small>
-    </label>
+      <div className="avatar-upload-meta">
+        <small>
+          {file
+            ? file.name
+            : currentUrl
+              ? `기존 사진 유지 · JPG/PNG/WebP, ${MAX_AVATAR_FILE_SIZE_LABEL} 이하`
+              : `선택된 사진 없음 · JPG/PNG/WebP, ${MAX_AVATAR_FILE_SIZE_LABEL} 이하`}
+        </small>
+        {onRemove && canRemove ? (
+          <button className="secondary-action avatar-remove-button" onClick={onRemove} type="button">
+            <Trash2 size={14} />
+            {file ? '선택 취소' : '사진 삭제'}
+          </button>
+        ) : null}
+      </div>
+    </div>
   );
 }
 
@@ -9741,7 +9752,15 @@ function ProfileModal({
             onChange={(event) => setProfileForm({ ...profileForm, phone: formatMobilePhone(event.target.value) })}
           />
         </label>
-        <AvatarFileField currentUrl={profileForm.avatarUrl} file={profileAvatarFile} onChange={setProfileAvatarFile} />
+        <AvatarFileField
+          currentUrl={profileForm.avatarUrl}
+          file={profileAvatarFile}
+          onChange={setProfileAvatarFile}
+          onRemove={() => {
+            setProfileAvatarFile(null);
+            setProfileForm((current) => ({ ...current, avatarUrl: '' }));
+          }}
+        />
         <label>
           담당업무
           <select value={profileForm.jobType} onChange={(event) => setProfileForm({ ...profileForm, jobType: event.target.value })}>
