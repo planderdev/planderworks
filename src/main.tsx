@@ -5246,8 +5246,13 @@ function Sidebar({
     showActionPopup(message);
   };
 
-  const openRecorderApp = () => {
-    showActionPopup('녹음앱이 열리면 브라우저 메뉴에서 홈 화면에 추가해 주세요.');
+  const openRecorderApp = async () => {
+    try {
+      await navigator.clipboard?.writeText(PLANDER_RECORDER_APP_URL);
+      showActionPopup('녹음앱 주소를 복사했습니다. 브라우저 주소창에 붙여넣고, ngrok 안내가 보이면 Visit Site를 누른 뒤 홈 화면에 추가해 주세요.');
+    } catch {
+      showActionPopup(`녹음앱 주소: ${PLANDER_RECORDER_APP_URL}`);
+    }
   };
 
   return (
@@ -5414,10 +5419,10 @@ function Sidebar({
           </button>
         ) : null}
 
-        <a className="sidebar-install-button recorder-install-button" href={PLANDER_RECORDER_APP_URL} onClick={openRecorderApp} target="_blank" rel="noopener noreferrer">
+        <button className="sidebar-install-button recorder-install-button" onClick={openRecorderApp} type="button">
           <Download size={17} />
           <span>녹음앱 홈화면 추가</span>
-        </a>
+        </button>
 
         <div className="profile-card">
           <button className="profile-card-main" onClick={() => setAdminOpen((open) => !open)} type="button">

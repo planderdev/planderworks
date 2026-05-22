@@ -8769,3 +8769,51 @@ h4,
 :root[data-theme='dark'] .project-nav-button[data-active='true'] svg {
   color: #cccccc !important;
 }
+
+
+/* 2026-05 modal rhythm: add breathing room around title divider in every popup. */
+.modal-card .modal-head {
+  padding-bottom: 20px;
+  margin-bottom: 26px;
+  border-bottom: 1px solid var(--line);
+}
+
+.modal-card .modal-head h2 {
+  margin: 0;
+  line-height: 1.08;
+}
+
+.modal-card .modal-head + form,
+.modal-card .modal-head + .form-grid,
+.modal-card .modal-head + .form-stack,
+.modal-card .modal-head + .meeting-minute-form,
+.modal-card .modal-head + .compact-form-grid {
+  margin-top: 0;
+}
+
+:root[data-theme='dark'] .modal-card .modal-head {
+  border-bottom-color: #292929;
+}
+
+/* 2026-05 active sidebar menu contrast: keep active labels soft gray. */
+:root[data-theme='dark'] .sidebar .nav-button[data-active='true'],
+:root[data-theme='dark'] .sidebar .project-nav-button[data-active='true'],
+:root[data-theme='dark'] .sidebar .sidebar-project-title[data-active='true'] {
+  color: #cccccc !important;
+}
+
+:root[data-theme='dark'] .sidebar .nav-button[data-active='true'] span,
+:root[data-theme='dark'] .sidebar .nav-button[data-active='true'] svg,
+:root[data-theme='dark'] .sidebar .project-nav-button[data-active='true'] span,
+:root[data-theme='dark'] .sidebar .project-nav-button[data-active='true'] small,
+:root[data-theme='dark'] .sidebar .project-nav-button[data-active='true'] svg,
+:root[data-theme='dark'] .sidebar .sidebar-project-title[data-active='true'] span,
+:root[data-theme='dark'] .sidebar .sidebar-project-title[data-active='true'] svg {
+  color: #cccccc !important;
+  stroke: #cccccc !important;
+}
+
+/* 2026-05 sidebar cleanup: remove redundant top-right close button. */
+.sidebar .close-sidebar {
+  display: none !important;
+}
