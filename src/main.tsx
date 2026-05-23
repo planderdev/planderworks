@@ -4191,7 +4191,7 @@ function App() {
           pushEnabled={pushEnabled}
           pushLoading={pushLoading}
           pushStatus={pushStatus}
-          showSearch={activeView === 'dashboard'}
+          showSearch={false}
           themeMode={themeMode}
           showThemeSwitcher={canControlThemeMode}
           onLogout={handleLogout}
