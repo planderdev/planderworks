@@ -206,29 +206,6 @@ create table if not exists public.api_keys (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists public.weekly_reports (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references public.profiles(id) on delete cascade,
-  week_start date not null,
-  week_end date not null,
-  status text not null default 'draft' check (status in ('draft', 'submitted', 'reviewed')),
-  this_week_done text not null default '',
-  next_week_plan text not null default '',
-  notes text not null default '',
-  suggestions text not null default '',
-  submitted_at timestamptz,
-  reviewed_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  unique (user_id, week_start)
-);
-
-create index if not exists weekly_reports_user_id_idx
-on public.weekly_reports(user_id);
-
-create index if not exists weekly_reports_week_start_idx
-on public.weekly_reports(week_start desc);
-
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -290,11 +267,6 @@ for each row execute function public.set_updated_at();
 drop trigger if exists set_api_keys_updated_at on public.api_keys;
 create trigger set_api_keys_updated_at
 before update on public.api_keys
-for each row execute function public.set_updated_at();
-
-drop trigger if exists set_weekly_reports_updated_at on public.weekly_reports;
-create trigger set_weekly_reports_updated_at
-before update on public.weekly_reports
 for each row execute function public.set_updated_at();
 
 create or replace function public.handle_new_user()
@@ -397,7 +369,6 @@ alter table public.activity_logs enable row level security;
 alter table public.push_subscriptions enable row level security;
 alter table public.push_preferences enable row level security;
 alter table public.api_keys enable row level security;
-alter table public.weekly_reports enable row level security;
 
 drop policy if exists "job types are readable" on public.job_types;
 create policy "job types are readable"
@@ -702,31 +673,6 @@ on public.api_keys for update
 to authenticated
 using (public.current_user_role() = 'admin')
 with check (public.current_user_role() = 'admin');
-
-drop policy if exists "weekly reports are readable" on public.weekly_reports;
-create policy "weekly reports are readable"
-on public.weekly_reports for select
-to authenticated
-using (user_id = auth.uid() or public.current_user_role() = 'admin');
-
-drop policy if exists "users create own weekly reports" on public.weekly_reports;
-create policy "users create own weekly reports"
-on public.weekly_reports for insert
-to authenticated
-with check (user_id = auth.uid() or public.current_user_role() = 'admin');
-
-drop policy if exists "users update own weekly reports" on public.weekly_reports;
-create policy "users update own weekly reports"
-on public.weekly_reports for update
-to authenticated
-using (user_id = auth.uid() or public.current_user_role() = 'admin')
-with check (user_id = auth.uid() or public.current_user_role() = 'admin');
-
-drop policy if exists "users delete own weekly reports" on public.weekly_reports;
-create policy "users delete own weekly reports"
-on public.weekly_reports for delete
-to authenticated
-using (user_id = auth.uid() or public.current_user_role() = 'admin');
 
 drop policy if exists "activity logs are readable to admins" on public.activity_logs;
 create policy "activity logs are readable to admins"

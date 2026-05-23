@@ -16,7 +16,6 @@ export type ActiveView =
   | 'meetingMinutes'
   | 'reports'
   | 'clients'
-  | 'weeklyReports'
   | 'employees'
   | 'operations'
   | 'settings';
@@ -123,31 +122,6 @@ export type PushPreferences = {
   task: boolean;
   report: boolean;
   projectMessage: boolean;
-};
-
-export type WeeklyReportStatus = 'draft' | 'submitted' | 'reviewed';
-export type WeeklyReport = {
-  id: string;
-  userId: string;
-  userName: string;
-  weekStart: string;
-  weekEnd: string;
-  status: WeeklyReportStatus;
-  thisWeekDone: string;
-  nextWeekPlan: string;
-  notes: string;
-  suggestions: string;
-  submittedAt?: string | null;
-  reviewedAt?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-};
-export type WeeklyReportDraft = Pick<WeeklyReport, 'thisWeekDone' | 'nextWeekPlan' | 'notes' | 'suggestions'>;
-export type WeekRange = {
-  start: Date;
-  end: Date;
-  weekStart: string;
-  weekEnd: string;
 };
 
 export type MeetingMinute = {
@@ -330,10 +304,6 @@ export type PushPreferencesUpdateHandler = (preferences: PushPreferences) => Pro
 export type ApiKeyCreateHandler = (name: string, scope: ApiScope) => Promise<ApiKeyCreateResult>;
 export type ApiKeyRevokeHandler = (apiKey: ApiKeyRecord) => Promise<string>;
 export type ApiKeyDeleteHandler = (apiKey: ApiKeyRecord) => Promise<string>;
-export type WeeklyReportGenerateHandler = (userId?: string, range?: WeekRange) => Promise<string>;
-export type WeeklyReportSaveHandler = (report: WeeklyReport, draft: WeeklyReportDraft) => Promise<string>;
-export type WeeklyReportStatusHandler = (report: WeeklyReport, status: WeeklyReportStatus) => Promise<string>;
-export type WeeklyReportDeleteHandler = (report: WeeklyReport) => Promise<string>;
 export type MeetingMinuteSubmitHandler = (minute: MeetingMinuteDraft) => Promise<string>;
 export type MeetingMinuteUpdateHandler = (minuteId: string, minute: MeetingMinuteDraft) => Promise<string>;
 export type MeetingMinuteDeleteHandler = (minute: MeetingMinute) => Promise<string>;
