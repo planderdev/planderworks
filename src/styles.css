@@ -6995,7 +6995,7 @@ textarea:focus {
 :root[data-theme='light'] .sidebar-project-title:hover,
 :root[data-theme='light'] .completed-project-year-button:hover,
 :root[data-theme='light'] .project-trash-row:hover {
-  color: #111111 !important;
+  color: var(--text) !important;
   background: var(--bg-subtle) !important;
   border-color: rgba(17, 17, 17, 0.18) !important;
 }
@@ -7244,7 +7244,7 @@ h4,
 
 :root[data-theme='light'] .project-nav-button[data-active='true'],
 :root[data-theme='light'] .project-nav-button[data-active='true']:hover {
-  color: #111111 !important;
+  color: var(--text) !important;
   background: rgba(0, 0, 0, 0.055) !important;
   border-color: rgba(0, 0, 0, 0.12) !important;
 }
@@ -7252,7 +7252,7 @@ h4,
 :root[data-theme='light'] .project-nav-button[data-active='true'] span,
 :root[data-theme='light'] .project-nav-button[data-active='true'] small,
 :root[data-theme='light'] .project-nav-button[data-active='true'] svg {
-  color: #111111 !important;
+  color: var(--text) !important;
 }
 
 :root[data-theme='dark'] .project-nav-button[data-active='true'],
@@ -7504,9 +7504,9 @@ h4,
 
 :root[data-theme='light'] .sidebar .project-nav-button[data-active='true'],
 :root[data-theme='light'] .sidebar .project-nav-button[data-active='true']:hover {
-  color: #cccccc !important;
-  background: #333333 !important;
-  border-color: #4a4a4a !important;
+  color: var(--accent-fg) !important;
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
 }
 
 :root[data-theme='light'] .sidebar .project-nav-button[data-active='true'] span,
