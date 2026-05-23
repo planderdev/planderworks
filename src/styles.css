@@ -1152,6 +1152,10 @@ h1 {
   transform: translate(0, 0.5px);
 }
 
+:root[data-theme='light'] .team-panel .avatar > span {
+  color: #cccccc;
+}
+
 .avatar[data-size='xs'] {
   width: 22px;
   height: 22px;
@@ -1423,6 +1427,10 @@ h1 {
   margin-bottom: 14px;
 }
 
+.team-panel .section-head {
+  padding-bottom: 10px;
+}
+
 .section-head h2 {
   margin-bottom: 0;
   font-size: 1.2rem;
@@ -1554,7 +1562,7 @@ h1 {
 .task-title-button {
   width: 100%;
   margin-bottom: 8px;
-  padding: 0;
+  padding: 0 0 0 5px;
   color: var(--text);
   background: transparent;
   text-align: left;
@@ -5217,6 +5225,7 @@ h1 {
   min-width: 0;
   display: grid;
   gap: 4px;
+  padding-left: 5px;
 }
 
 .project-task-row-title strong {
