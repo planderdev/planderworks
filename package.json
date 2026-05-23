@@ -8,6 +8,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
     "build": "node scripts/write-build-meta.mjs && vite build",
     "preview": "vite preview",
     "desktop:dev": "npm run build && electron electron/main.cjs",
@@ -31,6 +32,8 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.3.4",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
     "electron": "^42.0.1",
     "electron-builder": "^26.8.1"
   },
@@ -49,10 +52,16 @@
       "category": "public.app-category.productivity",
       "icon": "build/icon.icns",
       "identity": null,
-      "target": ["dmg", "zip"]
+      "target": [
+        "dmg",
+        "zip"
+      ]
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": [
+        "nsis",
+        "portable"
+      ]
     }
   }
 }

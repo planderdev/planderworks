@@ -39,32 +39,89 @@ import {
 import { hasSupabaseConfig, supabase } from './supabaseClient';
 import './styles.css';
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-};
-
-type ThemeMode = 'light' | 'dark';
-type ColorTheme = 'default' | 'metal-silver' | 'british-green' | 'navy' | 'orange' | 'pastel-pink';
-type ActiveView =
-  | 'dashboard'
-  | 'calendar'
-  | 'allTasks'
-  | 'inbox'
-  | 'sent'
-  | 'project'
-  | 'create'
-  | 'meetingMinutes'
-  | 'reports'
-  | 'clients'
-  | 'weeklyReports'
-  | 'employees'
-  | 'operations'
-  | 'settings';
-type TaskStatus = '대기' | '진행중' | '완료 요청' | '보류' | '완료';
-type TaskListFilter = '전체' | '마감 임박' | TaskStatus;
-type Priority = '높음' | '보통' | '낮음';
-type TaskType = string;
+import type {
+  BeforeInstallPromptEvent,
+  ThemeMode,
+  ColorTheme,
+  ActiveView,
+  TaskStatus,
+  TaskListFilter,
+  Priority,
+  TaskType,
+  AppUser,
+  Task,
+  TaskFile,
+  TaskComment,
+  Client,
+  Project,
+  ProjectMessage,
+  PushPreferences,
+  WeeklyReportStatus,
+  WeeklyReport,
+  WeeklyReportDraft,
+  WeekRange,
+  MeetingMinute,
+  MeetingMinuteDraft,
+  ApiScope,
+  ApiKeyRecord,
+  ApiKeyCreateResult,
+  Employee,
+  NewEmployee,
+  EmployeeUpdate,
+  OwnProfileUpdate,
+  TaskDraft,
+  TaskUpdateDraft,
+  OperationCategory,
+  OperationFrequency,
+  OperationFilter,
+  OperationStatus,
+  OperationItem,
+  OperationDraft,
+  GoogleCalendarSettings,
+  WorkSchedule,
+  WorkScheduleDraft,
+  CalendarEventItem,
+  CalendarSegment,
+  GoogleCalendarSyncResult,
+  TaskSubmitHandler,
+  TaskUpdateHandler,
+  TaskDeleteHandler,
+  TaskCommentSubmitHandler,
+  TaskCommentDeleteHandler,
+  MessageHandler,
+  ClientSubmitHandler,
+  ClientUpdateHandler,
+  ClientDeleteHandler,
+  ProjectDraft,
+  ProjectSubmitHandler,
+  ProjectUpdateHandler,
+  ProjectStatusHandler,
+  ProjectPermanentDeleteHandler,
+  WorkScheduleSubmitHandler,
+  WorkScheduleUpdateHandler,
+  WorkScheduleDeleteHandler,
+  JobTypeSubmitHandler,
+  JobTypeDeleteHandler,
+  TaskTypeSubmitHandler,
+  TaskTypeDeleteHandler,
+  EmployeeSubmitHandler,
+  EmployeeUpdateHandler,
+  GoogleCalendarSettingsHandler,
+  PushPreferencesUpdateHandler,
+  ApiKeyCreateHandler,
+  ApiKeyRevokeHandler,
+  ApiKeyDeleteHandler,
+  WeeklyReportGenerateHandler,
+  WeeklyReportSaveHandler,
+  WeeklyReportStatusHandler,
+  WeeklyReportDeleteHandler,
+  MeetingMinuteSubmitHandler,
+  MeetingMinuteUpdateHandler,
+  MeetingMinuteDeleteHandler,
+  MeetingMinuteCategorySubmitHandler,
+  MeetingMinuteCategoryDeleteHandler,
+  MeetingMinuteExportFormat,
+} from './types';
 
 const appViews: ActiveView[] = ['dashboard', 'calendar', 'weeklyReports', 'allTasks', 'inbox', 'sent', 'project', 'create', 'meetingMinutes', 'reports', 'clients', 'employees', 'operations', 'settings'];
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
@@ -102,316 +159,6 @@ const apiScopeOptions: Array<{ value: ApiScope; label: string; description: stri
     description: '녹음기/요약 앱에서 PlanderWorks 회의록 게시판으로 회의 요약을 등록합니다.',
   },
 ];
-
-type AppUser = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  accountRole: 'admin' | 'staff';
-  isPrototype: boolean;
-  avatarUrl?: string | null;
-};
-
-type Task = {
-  id: string;
-  title: string;
-  from: string;
-  to: string;
-  creatorId?: string;
-  assigneeId?: string;
-  recipientIds?: string[];
-  clientId?: string;
-  projectId?: string | null;
-  projectName?: string;
-  client: string;
-  dueAt?: string | null;
-  startedAt?: string | null;
-  readAt?: string | null;
-  creatorReadAt?: string | null;
-  showOnCalendar?: boolean;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-  due: string;
-  status: TaskStatus;
-  priority: Priority;
-  type: TaskType;
-  summary: string;
-  watchers: string[];
-  files: TaskFile[];
-  comments: TaskComment[];
-  creatorAvatarUrl?: string | null;
-  assigneeAvatarUrl?: string | null;
-};
-
-type TaskFile = {
-  id: string;
-  name: string;
-  path: string;
-  size?: number | null;
-  mimeType?: string | null;
-};
-
-type TaskComment = {
-  id: string;
-  taskId: string;
-  parentId?: string | null;
-  userId?: string;
-  author: string;
-  avatarUrl?: string | null;
-  content: string;
-  createdAt: string;
-};
-
-type Client = {
-  id: string;
-  name: string;
-  manager: string;
-  phone: string;
-  region: string;
-  memo: string;
-};
-
-type Project = {
-  id: string;
-  name: string;
-  clientId?: string | null;
-  client: string;
-  status: string;
-  createdBy?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-  memberIds: string[];
-  memberNames: string[];
-};
-
-type ProjectMessage = {
-  id: string;
-  projectId: string;
-  userId: string;
-  author: string;
-  avatarUrl?: string | null;
-  content: string;
-  createdAt: string;
-  readByIds: string[];
-  readBy: string[];
-};
-
-type PushPreferences = {
-  task: boolean;
-  report: boolean;
-  projectMessage: boolean;
-};
-
-type WeeklyReportStatus = 'draft' | 'submitted' | 'reviewed';
-type WeeklyReport = {
-  id: string;
-  userId: string;
-  userName: string;
-  weekStart: string;
-  weekEnd: string;
-  status: WeeklyReportStatus;
-  thisWeekDone: string;
-  nextWeekPlan: string;
-  notes: string;
-  suggestions: string;
-  submittedAt?: string | null;
-  reviewedAt?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-};
-type WeeklyReportDraft = Pick<WeeklyReport, 'thisWeekDone' | 'nextWeekPlan' | 'notes' | 'suggestions'>;
-type WeekRange = {
-  start: Date;
-  end: Date;
-  weekStart: string;
-  weekEnd: string;
-};
-
-type MeetingMinute = {
-  id: string;
-  category: string;
-  title: string;
-  content: string;
-  summary: string;
-  decisions: string;
-  actionItems: string;
-  attendees: string;
-  projectId?: string | null;
-  projectName?: string;
-  heldAt?: string | null;
-  sourceApp?: string | null;
-  externalId?: string | null;
-  createdBy?: string | null;
-  author: string;
-  authorAvatarUrl?: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-};
-type MeetingMinuteDraft = Pick<MeetingMinute, 'category' | 'title' | 'content' | 'summary' | 'decisions' | 'actionItems' | 'attendees'> & {
-  projectId?: string;
-  heldAt?: string;
-};
-
-type ApiScope = 'personal_schedule' | 'meeting_minutes';
-type ApiKeyRecord = {
-  id: string;
-  name: string;
-  scope: ApiScope;
-  keyPrefix: string;
-  active: boolean;
-  lastUsedAt?: string | null;
-  createdAt?: string | null;
-};
-type ApiKeyCreateResult = {
-  message: string;
-  secret?: string;
-};
-
-type Employee = {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  jobType: string;
-  role: '관리자' | '사용자';
-  load: number;
-  avatarUrl?: string | null;
-};
-
-type NewEmployee = Omit<Employee, 'id' | 'load'> & {
-  password?: string;
-};
-
-type EmployeeUpdate = Pick<Employee, 'name' | 'phone' | 'jobType' | 'role' | 'avatarUrl'> & {
-  password?: string;
-};
-
-type OwnProfileUpdate = Pick<Employee, 'name' | 'phone' | 'jobType' | 'avatarUrl'> & {
-  password?: string;
-};
-
-type TaskDraft = Omit<Task, 'id' | 'status' | 'watchers' | 'files' | 'comments' | 'dueAt' | 'startedAt' | 'readAt' | 'creatorReadAt'> & {
-  status?: TaskStatus;
-  watchers?: string[];
-  toIds?: string[];
-  toList?: string[];
-  clientId?: string;
-  projectId?: string | null;
-  files?: File[];
-  showOnCalendar?: boolean;
-};
-
-type TaskUpdateDraft = {
-  title: string;
-  summary: string;
-  type: TaskType;
-  assigneeId: string;
-  clientId: string;
-  projectId?: string | null;
-  due: string;
-  priority: Priority;
-  showOnCalendar: boolean;
-};
-
-type OperationCategory = '서버' | '도메인' | 'SaaS' | '정산' | '세금' | '라이선스' | '기타';
-type OperationFrequency = '1회' | '매월' | '분기' | '반기' | '매년';
-type OperationFilter = '전체' | '오늘' | '7일 이내' | '이번달' | '미완료';
-type OperationStatus = '예정' | '임박' | '오늘' | '완료' | '보류';
-type OperationItem = {
-  id: string;
-  title: string;
-  category: OperationCategory;
-  provider: string;
-  amount: number;
-  dueDate: string;
-  frequency: OperationFrequency;
-  assigneeId: string;
-  reminders: Array<0 | 1 | 3 | 7>;
-  memo: string;
-  link: string;
-  active: boolean;
-  lastCompletedAt?: string | null;
-};
-type OperationDraft = Omit<OperationItem, 'id' | 'lastCompletedAt'> & {
-  lastCompletedAt?: string | null;
-};
-type GoogleCalendarSettings = {
-  calendarId: string;
-};
-type WorkSchedule = {
-  id: string;
-  title: string;
-  startAt: string;
-  endAt: string;
-  allDay: boolean;
-  memo: string;
-  createdBy: string;
-  creatorName: string;
-};
-type WorkScheduleDraft = {
-  title: string;
-  startAt: string;
-  endAt: string;
-  allDay: boolean;
-  memo: string;
-};
-type CalendarEventItem = {
-  id: string;
-  title: string;
-  start: Date;
-  end: Date;
-  days: number;
-  kind: string;
-  description: string;
-  sourceUrl: string;
-  allDay: boolean;
-  onClick: () => void;
-};
-type GoogleCalendarSyncResult = {
-  created: number;
-  updated: number;
-  failed: number;
-};
-
-type TaskSubmitHandler = (task: TaskDraft) => Promise<string>;
-type TaskUpdateHandler = (task: Task, updates: TaskUpdateDraft) => Promise<string>;
-type TaskDeleteHandler = (task: Task) => Promise<string>;
-type TaskCommentSubmitHandler = (task: Task, content: string, parentCommentId?: string | null) => Promise<string>;
-type TaskCommentDeleteHandler = (task: Task, comment: TaskComment) => Promise<string>;
-type MessageHandler = (message: string) => void;
-type ClientSubmitHandler = (client: Omit<Client, 'id'>) => Promise<string>;
-type ClientUpdateHandler = (clientId: string, client: Omit<Client, 'id'>) => Promise<string>;
-type ClientDeleteHandler = (client: Client) => Promise<string>;
-type ProjectDraft = { name: string; clientId: string; memberIds: string[]; status?: string };
-type ProjectSubmitHandler = (project: ProjectDraft) => Promise<string>;
-type ProjectUpdateHandler = (projectId: string, project: ProjectDraft) => Promise<string>;
-type ProjectStatusHandler = (project: Project, status: string) => Promise<string>;
-type ProjectPermanentDeleteHandler = (project: Project) => Promise<string>;
-type WorkScheduleSubmitHandler = (schedule: WorkScheduleDraft) => Promise<string>;
-type WorkScheduleUpdateHandler = (scheduleId: string, schedule: WorkScheduleDraft) => Promise<string>;
-type WorkScheduleDeleteHandler = (schedule: WorkSchedule) => Promise<string>;
-type JobTypeSubmitHandler = (name: string) => Promise<string>;
-type JobTypeDeleteHandler = (name: string) => Promise<string>;
-type TaskTypeSubmitHandler = (name: string) => Promise<string>;
-type TaskTypeDeleteHandler = (name: string) => Promise<string>;
-type EmployeeSubmitHandler = (employee: NewEmployee) => Promise<string>;
-type EmployeeUpdateHandler = (employeeId: string, updates: EmployeeUpdate) => Promise<string>;
-type GoogleCalendarSettingsHandler = (settings: GoogleCalendarSettings) => Promise<string>;
-type PushPreferencesUpdateHandler = (preferences: PushPreferences) => Promise<string>;
-type ApiKeyCreateHandler = (name: string, scope: ApiScope) => Promise<ApiKeyCreateResult>;
-type ApiKeyRevokeHandler = (apiKey: ApiKeyRecord) => Promise<string>;
-type ApiKeyDeleteHandler = (apiKey: ApiKeyRecord) => Promise<string>;
-type WeeklyReportGenerateHandler = (userId?: string, range?: WeekRange) => Promise<string>;
-type WeeklyReportSaveHandler = (report: WeeklyReport, draft: WeeklyReportDraft) => Promise<string>;
-type WeeklyReportStatusHandler = (report: WeeklyReport, status: WeeklyReportStatus) => Promise<string>;
-type WeeklyReportDeleteHandler = (report: WeeklyReport) => Promise<string>;
-type MeetingMinuteSubmitHandler = (minute: MeetingMinuteDraft) => Promise<string>;
-type MeetingMinuteUpdateHandler = (minuteId: string, minute: MeetingMinuteDraft) => Promise<string>;
-type MeetingMinuteDeleteHandler = (minute: MeetingMinute) => Promise<string>;
-type MeetingMinuteCategorySubmitHandler = (name: string) => Promise<string>;
-type MeetingMinuteCategoryDeleteHandler = (name: string) => Promise<string>;
-type MeetingMinuteExportFormat = 'pdf' | 'xls' | 'hwp';
 
 function showActionPopup(message: string) {
   window.dispatchEvent(new CustomEvent('plander-action-complete', { detail: message }));
@@ -1647,7 +1394,7 @@ function App() {
     let cancelled = false;
 
     const loadThemePreferences = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await supabase!
         .from('profiles')
         .select('theme_mode, color_theme')
         .eq('id', currentUser.id)
@@ -2162,7 +1909,7 @@ function App() {
         window.clearTimeout(realtimeRefreshTimer.current);
         realtimeRefreshTimer.current = null;
       }
-      void supabase.removeChannel(channel);
+      void supabase!.removeChannel(channel);
     };
   }, [currentUser?.id, currentUser?.isPrototype]);
 
@@ -5451,6 +5198,7 @@ function Topbar({
   currentUser: AppUser;
   pushEnabled: boolean;
   pushLoading: boolean;
+  pushPreferences?: PushPreferences;
   pushStatus: string;
   showSearch: boolean;
   showThemeSwitcher: boolean;
@@ -5605,7 +5353,6 @@ function ImmersiveTopControls({
   searchPlaceholder: string;
   showThemeSwitcher: boolean;
   themeMode: ThemeMode;
-  onClosePage: () => void;
   onLogout: () => void;
   onMenuClick: () => void;
   onNavigate: (view: ActiveView) => void;
@@ -5707,6 +5454,7 @@ function ImmersivePageFrame({
   onClosePage,
   ...chrome
 }: ImmersiveChromeProps & {
+  onClosePage?: () => void;
   action?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
@@ -6210,19 +5958,6 @@ function TaskEditModal({
   });
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState('');
-  const isNewBriefing = form.category === '신규브리핑';
-
-  const changeCategory = (category: string) => {
-    setForm((current) => ({
-      ...current,
-      category,
-      projectId: category === '신규브리핑' ? '' : current.projectId,
-      summary: category === '신규브리핑' ? '' : current.summary,
-      decisions: category === '신규브리핑' ? '' : current.decisions,
-      actionItems: category === '신규브리핑' ? '' : current.actionItems,
-      attendees: category === '신규브리핑' ? '' : current.attendees,
-    }));
-  };
   const sortedProjects = [...projects].sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
 
   useEffect(() => {
@@ -8469,7 +8204,7 @@ function CalendarPage({
         const lastDay = firstDay + span - 1;
         return { ...event, columnStart, span, firstDay, lastDay };
       })
-      .filter((item): item is { id: string; title: string; kind: string; onClick: () => void; start: Date; end: Date; days: number; columnStart: number; span: number; firstDay: number; lastDay: number } => Boolean(item));
+      .filter((item): item is CalendarSegment => Boolean(item));
 
     const occupiedRowsByColumn = Array.from({ length: 7 }, () => new Set<number>());
 
@@ -8498,7 +8233,7 @@ function CalendarPage({
     }
     return `${event.start.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}~${event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`;
   };
-  const monthEventMetaLabel = (event: CalendarEventItem) => {
+  const monthEventMetaLabel = (event: CalendarSegment) => {
     if (event.allDay) return event.days > 1 ? `${event.firstDay}~${event.lastDay}일차` : '';
     if (event.days > 1) return `${event.firstDay}~${event.lastDay}일차`;
     return event.end.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
