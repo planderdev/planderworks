@@ -6736,7 +6736,7 @@ textarea:focus {
 :root[data-theme='dark'] .person-row span,
 :root[data-theme='dark'] .task-card small,
 :root[data-theme='dark'] .dashboard-flow-row small {
-  color: #d7d2c7 !important;
+  color: var(--text-secondary) !important;
 }
 
 .task-card small,
