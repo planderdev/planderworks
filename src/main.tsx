@@ -6127,53 +6127,61 @@ function DashboardTaskSection({
   onNavigate: (view: ActiveView, filter?: TaskListFilter) => void;
   onOpenTask: (task: Task) => void;
 }) {
+  const [collapsed, setCollapsed] = useState(false);
+  void target;
+  void onNavigate;
   return (
-    <section className="dashboard-flow-section" data-tone={tone}>
-      <button className="dashboard-flow-head" onClick={() => onNavigate(target, '전체')} type="button">
+    <section className="dashboard-flow-section" data-tone={tone} data-collapsed={collapsed}>
+      <button className="dashboard-flow-head" onClick={() => setCollapsed((value) => !value)} type="button" aria-expanded={!collapsed}>
         <span>
           <small>{eyebrow}</small>
           <strong>{title}</strong>
         </span>
         <ChevronDown size={16} />
       </button>
-      <div className="dashboard-flow-list">
-        {tasks.slice(0, 5).map((task) => (
-          <button
-            className="dashboard-flow-row"
-            data-attention={needsTaskAttention(task, currentUser)}
-            data-status-tone={getTaskStatusTone(task.status)}
-            key={task.id}
-            onClick={() => onOpenTask(task)}
-            type="button"
-          >
-            <span>{task.title}</span>
-            <small>{task.due}</small>
-          </button>
-        ))}
-        {!tasks.length ? <p className="mini-empty">표시할 항목이 없습니다.</p> : null}
+      <div className="dashboard-flow-collapse">
+        <div className="dashboard-flow-list">
+          {tasks.slice(0, 5).map((task) => (
+            <button
+              className="dashboard-flow-row"
+              data-attention={needsTaskAttention(task, currentUser)}
+              data-status-tone={getTaskStatusTone(task.status)}
+              key={task.id}
+              onClick={() => onOpenTask(task)}
+              type="button"
+            >
+              <span>{task.title}</span>
+              <small>{task.due}</small>
+            </button>
+          ))}
+          {!tasks.length ? <p className="mini-empty">표시할 항목이 없습니다.</p> : null}
+        </div>
       </div>
     </section>
   );
 }
 
 function DashboardClientSection({ clients, onNavigate }: { clients: Client[]; onNavigate: () => void }) {
+  const [collapsed, setCollapsed] = useState(false);
   return (
-    <section className="dashboard-flow-section">
-      <button className="dashboard-flow-head" onClick={onNavigate} type="button">
+    <section className="dashboard-flow-section" data-collapsed={collapsed}>
+      <button className="dashboard-flow-head" onClick={() => setCollapsed((value) => !value)} type="button" aria-expanded={!collapsed}>
         <span>
           <small>Clients</small>
           <strong>업체</strong>
         </span>
         <ChevronDown size={16} />
       </button>
-      <div className="dashboard-flow-list">
-        {clients.slice(0, 5).map((client) => (
-          <button className="dashboard-flow-row" key={client.id} onClick={onNavigate} type="button">
-            <span>{client.name}</span>
-            <small>{client.manager}</small>
-          </button>
-        ))}
-        {!clients.length ? <p className="mini-empty">등록된 업체가 없습니다.</p> : null}
+      <div className="dashboard-flow-collapse">
+        <div className="dashboard-flow-list">
+          {clients.slice(0, 5).map((client) => (
+            <button className="dashboard-flow-row" key={client.id} onClick={onNavigate} type="button">
+              <span>{client.name}</span>
+              <small>{client.manager}</small>
+            </button>
+          ))}
+          {!clients.length ? <p className="mini-empty">등록된 업체가 없습니다.</p> : null}
+        </div>
       </div>
     </section>
   );

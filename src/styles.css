@@ -1171,7 +1171,6 @@ h1 {
 .task-board,
 .compose-panel,
 .team-panel,
-.dashboard-flow-section,
 .page-card,
 .client-card,
 .month-cell,
@@ -1276,9 +1275,9 @@ h1 {
   gap: 10px;
   position: relative;
   overflow: hidden;
-  border: 1px solid rgba(150, 158, 172, 0.18);
-  border-radius: 8px;
-  padding: 18px;
+  border: 0;
+  border-radius: 0;
+  padding: 18px 18px 18px 22px;
   background: var(--panel);
 }
 
@@ -1328,6 +1327,30 @@ h1 {
 .dashboard-flow-list {
   display: grid;
   gap: 16px;
+}
+
+.dashboard-flow-collapse {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 280ms ease;
+}
+
+.dashboard-flow-collapse > .dashboard-flow-list {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-flow-section[data-collapsed='true'] .dashboard-flow-collapse {
+  grid-template-rows: 0fr;
+}
+
+.dashboard-flow-head svg {
+  flex: none;
+  transition: transform 240ms ease;
+}
+
+.dashboard-flow-section[data-collapsed='true'] .dashboard-flow-head svg {
+  transform: rotate(-90deg);
 }
 
 .dashboard-flow-row {
@@ -3799,7 +3822,6 @@ h1 {
 .task-board,
 .compose-panel,
 .team-panel,
-.dashboard-flow-section,
 .page-card,
 .client-card,
 .month-cell,
@@ -3919,10 +3941,11 @@ h1 {
   --status-line: #5b6472;
   --status-card-bg: var(--card-bg);
   --status-card-border: var(--card-line);
-  border: 1px solid var(--status-card-border) !important;
+  border: 1px solid var(--card-line) !important;
   border-radius: 8px !important;
-  background: var(--status-card-bg) !important;
-  box-shadow: inset 4px 0 0 var(--status-line);
+  background: var(--card-bg) !important;
+  box-shadow: none;
+  transition: border-color 140ms ease, background 140ms ease;
 }
 
 .task-card[data-status-tone='blue'],
@@ -4096,7 +4119,7 @@ h1 {
   padding: 14px 16px;
   color: var(--project-ink);
   background: transparent !important;
-  box-shadow: inset 4px 0 0 var(--status-line) !important;
+  box-shadow: none !important;
 }
 
 .project-mode-shell .task-card:last-child {
@@ -4711,7 +4734,7 @@ h1 {
   border: 0;
   border-bottom: 1px solid rgba(8, 8, 8, 0.72);
   border-radius: 0;
-  padding: 0 0 18px;
+  padding: 0 0 10px;
   background: transparent;
 }
 
@@ -4940,7 +4963,7 @@ h1 {
   color: var(--project-ink);
   background: transparent;
   text-align: left;
-  box-shadow: inset 4px 0 0 var(--status-line, #9ca3af);
+  box-shadow: none;
 }
 
 .project-task-row[data-selected='true'],
@@ -6296,7 +6319,6 @@ h3,
 .stat-card,
 .task-board,
 .compose-panel,
-.dashboard-flow-section,
 .page-card,
 .client-card,
 .month-cell,
@@ -6598,11 +6620,10 @@ textarea:focus {
 
 :root[data-theme='dark'] .task-card:hover,
 :root[data-theme='dark'] .dashboard-flow-row:hover {
-  border-color: #3a3a3a !important;
   filter: none !important;
 }
 
-/* PlanderWorks task boxes: apply status surface after global card reset */
+/* PlanderWorks task boxes: soft status surface, neutral border, status color border on hover */
 .task-card,
 .dashboard-flow-row {
   background: var(--status-card-bg) !important;
@@ -6610,6 +6631,7 @@ textarea:focus {
 
 .task-card:hover,
 .dashboard-flow-row:hover {
+  border-color: var(--status-line) !important;
   background: var(--status-card-bg) !important;
 }
 
@@ -6647,7 +6669,7 @@ textarea:focus {
 
 .project-mode-canvas {
   border: 0 !important;
-  padding: 0 !important;
+  padding: 20px 0 28px 10px !important;
   background: transparent !important;
 }
 
@@ -7715,8 +7737,6 @@ h4,
 
 :root[data-theme='light'] .project-task-row[data-selected='true'],
 :root[data-theme='light'] .project-task-row:hover,
-:root[data-theme='light'] .task-card:hover,
-:root[data-theme='light'] .dashboard-flow-row:hover,
 :root[data-theme='light'] .filter-chip:hover,
 :root[data-theme='light'] .secondary-action:hover,
 :root[data-theme='light'] .icon-button:hover {
