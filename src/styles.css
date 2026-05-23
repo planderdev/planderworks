@@ -6975,7 +6975,7 @@ textarea:focus {
 .sidebar-project-title:hover,
 .completed-project-year-button:hover,
 .project-trash-row:hover {
-  color: #f2f2f2 !important;
+  color: var(--text) !important;
   background: #101010 !important;
   border-color: #292929 !important;
   transform: none !important;
@@ -6996,7 +6996,7 @@ textarea:focus {
 :root[data-theme='light'] .completed-project-year-button:hover,
 :root[data-theme='light'] .project-trash-row:hover {
   color: #111111 !important;
-  background: #ebe8df !important;
+  background: var(--bg-subtle) !important;
   border-color: rgba(17, 17, 17, 0.18) !important;
 }
 
@@ -7178,82 +7178,41 @@ h4,
 .dashboard-flow-row,
 .project-task-row,
 .project-inspector-card {
-  border-color: rgba(128, 128, 128, 0.28) !important;
+  border-color: var(--border) !important;
 }
 
 .task-card[data-status-tone='gray'],
 .dashboard-flow-row[data-status-tone='gray'],
 .project-task-row[data-status-tone='gray'] {
-  background: rgba(148, 163, 184, 0.09) !important;
+  background: var(--bg-subtle) !important;
 }
 
 .task-card[data-status-tone='blue'],
 .dashboard-flow-row[data-status-tone='blue'],
 .project-task-row[data-status-tone='blue'],
 .project-inspector-card[data-status-tone='blue'] {
-  background: rgba(75, 142, 247, 0.11) !important;
+  background: var(--info-bg) !important;
 }
 
 .task-card[data-status-tone='amber'],
 .dashboard-flow-row[data-status-tone='amber'],
 .project-task-row[data-status-tone='amber'],
 .project-inspector-card[data-status-tone='amber'] {
-  background: rgba(214, 151, 49, 0.12) !important;
+  background: var(--warning-bg) !important;
 }
 
 .task-card[data-status-tone='red'],
 .dashboard-flow-row[data-status-tone='red'],
 .project-task-row[data-status-tone='red'],
 .project-inspector-card[data-status-tone='red'] {
-  background: rgba(223, 95, 95, 0.11) !important;
+  background: var(--danger-bg) !important;
 }
 
 .task-card[data-status-tone='green'],
 .dashboard-flow-row[data-status-tone='green'],
 .project-task-row[data-status-tone='green'],
 .project-inspector-card[data-status-tone='green'] {
-  background: rgba(57, 168, 107, 0.11) !important;
-}
-
-:root[data-theme='light'] .task-card,
-:root[data-theme='light'] .dashboard-flow-row,
-:root[data-theme='light'] .project-task-row,
-:root[data-theme='light'] .project-inspector-card {
-  border-color: rgba(118, 118, 118, 0.32) !important;
-}
-
-:root[data-theme='light'] .task-card[data-status-tone='gray'],
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='gray'],
-:root[data-theme='light'] .project-task-row[data-status-tone='gray'] {
-  background: rgba(100, 116, 139, 0.08) !important;
-}
-
-:root[data-theme='light'] .task-card[data-status-tone='blue'],
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='blue'],
-:root[data-theme='light'] .project-task-row[data-status-tone='blue'],
-:root[data-theme='light'] .project-inspector-card[data-status-tone='blue'] {
-  background: rgba(75, 142, 247, 0.10) !important;
-}
-
-:root[data-theme='light'] .task-card[data-status-tone='amber'],
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='amber'],
-:root[data-theme='light'] .project-task-row[data-status-tone='amber'],
-:root[data-theme='light'] .project-inspector-card[data-status-tone='amber'] {
-  background: rgba(214, 151, 49, 0.11) !important;
-}
-
-:root[data-theme='light'] .task-card[data-status-tone='red'],
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='red'],
-:root[data-theme='light'] .project-task-row[data-status-tone='red'],
-:root[data-theme='light'] .project-inspector-card[data-status-tone='red'] {
-  background: rgba(223, 95, 95, 0.10) !important;
-}
-
-:root[data-theme='light'] .task-card[data-status-tone='green'],
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='green'],
-:root[data-theme='light'] .project-task-row[data-status-tone='green'],
-:root[data-theme='light'] .project-inspector-card[data-status-tone='green'] {
-  background: rgba(57, 168, 107, 0.10) !important;
+  background: var(--success-bg) !important;
 }
 
 :root[data-theme='light'] .project-nav-button,
@@ -7411,7 +7370,7 @@ h4,
 :root[data-theme='dark'] .project-message p,
 :root[data-theme='dark'] .project-message-readers,
 :root[data-theme='dark'] .project-message small {
-  color: #aaaaaa !important;
+  color: var(--text-muted) !important;
 }
 
 :root[data-theme='dark'] .project-message[data-own='true'] {
@@ -7421,7 +7380,7 @@ h4,
 
 :root[data-theme='dark'] .project-message[data-own='true'] small,
 :root[data-theme='dark'] .project-message[data-own='true'] .project-message-readers {
-  color: #aaaaaa !important;
+  color: var(--text-muted) !important;
 }
 
 :root[data-theme='dark'] .project-mode-shell .project-chat-panel {
@@ -7460,7 +7419,7 @@ h4,
 }
 
 .meeting-filter-row .filter-chip[data-active='true'] {
-  border-color: #8bbdff;
+  border-color: var(--info);
   color: var(--text);
   background: rgba(139, 189, 255, 0.12);
 }
@@ -7470,7 +7429,7 @@ h4,
 }
 
 :root[data-theme='dark'] .meeting-filter-row .filter-chip {
-  color: #aaaaaa;
+  color: var(--text-muted);
 }
 
 :root[data-theme='dark'] .meeting-filter-row .filter-chip:hover {
@@ -7480,7 +7439,7 @@ h4,
 }
 
 :root[data-theme='dark'] .meeting-filter-row .filter-chip[data-active='true'] {
-  border-color: #8bbdff;
+  border-color: var(--info);
   color: #cccccc;
   background: rgba(139, 189, 255, 0.11);
 }
@@ -7760,36 +7719,32 @@ h4,
 .project-task-row,
 .task-card,
 .dashboard-flow-row {
-  border: 1px solid rgba(128, 128, 128, 0.30) !important;
-  border-left-color: rgba(128, 128, 128, 0.30) !important;
-  border-right-color: rgba(128, 128, 128, 0.30) !important;
-  border-top-color: rgba(128, 128, 128, 0.30) !important;
-  border-bottom-color: rgba(128, 128, 128, 0.30) !important;
+  border: 1px solid var(--border) !important;
 }
 
 .project-task-row[data-selected='true'],
 .project-task-row:hover {
-  border-color: rgba(128, 128, 128, 0.42) !important;
+  border-color: var(--border-strong) !important;
 }
 
 .project-task-row[data-status-tone='gray'] {
-  background: rgba(148, 163, 184, 0.08) !important;
+  background: var(--bg-subtle) !important;
 }
 
 .project-task-row[data-status-tone='blue'] {
-  background: rgba(75, 142, 247, 0.10) !important;
+  background: var(--info-bg) !important;
 }
 
 .project-task-row[data-status-tone='amber'] {
-  background: rgba(214, 151, 49, 0.11) !important;
+  background: var(--warning-bg) !important;
 }
 
 .project-task-row[data-status-tone='red'] {
-  background: rgba(223, 95, 95, 0.10) !important;
+  background: var(--danger-bg) !important;
 }
 
 .project-task-row[data-status-tone='green'] {
-  background: rgba(57, 168, 107, 0.10) !important;
+  background: var(--success-bg) !important;
 }
 
 .project-task-expanded,
