@@ -6787,54 +6787,34 @@ textarea:focus {
 
 .task-card[data-status-tone='blue'],
 .dashboard-flow-row[data-status-tone='blue'] {
-  --status-card-bg: rgba(91, 164, 230, 0.08) !important;
+  --status-card-bg: var(--info-bg) !important;
 }
 
 .task-card[data-status-tone='amber'],
 .dashboard-flow-row[data-status-tone='amber'] {
-  --status-card-bg: rgba(224, 169, 59, 0.09) !important;
+  --status-card-bg: var(--warning-bg) !important;
 }
 
 .task-card[data-status-tone='red'],
 .dashboard-flow-row[data-status-tone='red'] {
-  --status-card-bg: rgba(235, 90, 95, 0.08) !important;
+  --status-card-bg: var(--danger-bg) !important;
 }
 
 .task-card[data-status-tone='green'],
 .dashboard-flow-row[data-status-tone='green'] {
-  --status-card-bg: rgba(70, 195, 107, 0.08) !important;
+  --status-card-bg: var(--success-bg) !important;
 }
 
 :root[data-theme='light'] .task-card,
 :root[data-theme='light'] .dashboard-flow-row {
-  --status-card-border: #d8d4ca !important;
-  border-color: #d8d4ca !important;
-}
-
-:root[data-theme='light'] .task-card[data-status-tone='blue'],
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='blue'] {
-  --status-card-bg: rgba(91, 164, 230, 0.11) !important;
-}
-
-:root[data-theme='light'] .task-card[data-status-tone='amber'],
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='amber'] {
-  --status-card-bg: rgba(224, 169, 59, 0.13) !important;
-}
-
-:root[data-theme='light'] .task-card[data-status-tone='red'],
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='red'] {
-  --status-card-bg: rgba(235, 90, 95, 0.10) !important;
-}
-
-:root[data-theme='light'] .task-card[data-status-tone='green'],
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='green'] {
-  --status-card-bg: rgba(70, 195, 107, 0.11) !important;
+  --status-card-border: var(--border) !important;
+  border-color: var(--border) !important;
 }
 
 :root[data-theme='dark'] .task-card,
 :root[data-theme='dark'] .dashboard-flow-row {
-  --status-card-border: #292929 !important;
-  border-color: #292929 !important;
+  --status-card-border: var(--border) !important;
+  border-color: var(--border) !important;
 }
 
 :root[data-theme='dark'] .task-card:hover,
