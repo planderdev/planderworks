@@ -1153,7 +1153,7 @@ h1 {
 }
 
 :root[data-theme='light'] .team-panel .avatar > span {
-  color: #cccccc;
+  color: #eeeeee;
 }
 
 .avatar[data-size='xs'] {
@@ -1229,11 +1229,7 @@ h1 {
 }
 
 .stat-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 4px;
-  background: #aab0bb;
+  content: none;
 }
 
 .stat-card[data-tone='blue']::before {
@@ -6527,7 +6523,6 @@ h3,
 .stat-card,
 .task-board,
 .compose-panel,
-.team-panel,
 .dashboard-flow-section,
 .page-card,
 .client-card,
@@ -7343,8 +7338,7 @@ h4,
 }
 
 .stat-card:hover {
-  border-color: var(--border-strong, var(--stat-card-border)) !important;
-  background: var(--soft) !important;
+  background: #eeeeee !important;
   filter: none !important;
 }
 
