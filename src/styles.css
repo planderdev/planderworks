@@ -7246,23 +7246,6 @@ h4,
   height: 0;
 }
 
-.project-folder-tabs:hover {
-  scrollbar-width: thin;
-}
-
-.project-folder-tabs:hover::-webkit-scrollbar {
-  height: 6px;
-}
-
-.project-folder-tabs:hover::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.project-folder-tabs:hover::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(128, 128, 128, 0.42);
-}
-
 .project-folder-tabs button {
   flex: 0 0 auto;
 }

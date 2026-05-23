@@ -16,6 +16,7 @@ import {
   ClipboardList,
   FileText,
   FolderKanban,
+  Inbox,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -351,6 +352,7 @@ function resolveActionConfirm(id: number, confirmed: boolean) {
 
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
+  { id: 'inbox', label: '받은업무', icon: Inbox },
   { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'meetingMinutes', label: '회의록', icon: ClipboardList },
@@ -425,6 +427,204 @@ const seedTasks: Task[] = [
     files: [],
     comments: [],
   },
+  {
+    id: '5',
+    title: '인플루언서 8인 최종 리스트 확정',
+    from: '인성이형',
+    to: '대표',
+    client: 'A식당',
+    due: '5월 6일',
+    status: '진행중',
+    priority: '높음',
+    type: '확인 요청',
+    projectId: 'proj-1',
+    projectName: 'A식당 일본 진출 캠페인',
+    summary: '후보 계정별 팔로워·인게이지먼트 정리 후 대표 승인용 리스트 확정',
+    watchers: ['대표'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '6',
+    title: '현지 촬영 일정·이동 동선 정리',
+    from: '대표',
+    to: '운영팀',
+    client: 'A식당',
+    due: '5월 9일',
+    status: '대기',
+    priority: '보통',
+    type: '촬영 요청',
+    projectId: 'proj-1',
+    projectName: 'A식당 일본 진출 캠페인',
+    summary: '도쿄/오사카 2개 도시 촬영 동선과 숙소·교통 예약 일정 정리',
+    watchers: ['운영팀', '인성이형'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '7',
+    title: '캠페인 예산안 1차 작성',
+    from: '인성이형',
+    to: '대표',
+    client: 'A식당',
+    due: '5월 12일',
+    status: '보류',
+    priority: '보통',
+    type: '시장 조사',
+    projectId: 'proj-1',
+    projectName: 'A식당 일본 진출 캠페인',
+    summary: '인플루언서 섭외비·촬영비·광고비 항목별 예산 초안',
+    watchers: ['대표'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '8',
+    title: '상세페이지 톤앤매너 시안 A/B',
+    from: '인성이형',
+    to: '디자인팀장',
+    client: 'B뷰티샵',
+    due: '5월 7일',
+    status: '진행중',
+    priority: '높음',
+    type: '디자인 요청',
+    projectId: 'proj-2',
+    projectName: 'B뷰티샵 상세페이지 리뉴얼',
+    summary: '일본 현지 고객 대상 두 가지 톤 시안 제작 후 내부 리뷰',
+    watchers: ['인성이형'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '9',
+    title: '시술 메뉴 일본어 번역 검수',
+    from: '디자인팀장',
+    to: '인성이형',
+    client: 'B뷰티샵',
+    due: '5월 10일',
+    status: '대기',
+    priority: '보통',
+    type: '확인 요청',
+    projectId: 'proj-2',
+    projectName: 'B뷰티샵 상세페이지 리뉴얼',
+    summary: '번역본 용어 통일 및 시술 설명 자연스러움 검수',
+    watchers: ['디자인팀장'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '10',
+    title: '촬영용 제품 컷 리스트업',
+    from: '인성이형',
+    to: '디자인팀장',
+    client: 'B뷰티샵',
+    due: '4월 29일',
+    status: '완료',
+    priority: '낮음',
+    type: '촬영 요청',
+    projectId: 'proj-2',
+    projectName: 'B뷰티샵 상세페이지 리뉴얼',
+    summary: '대표 제품 12종 컷 구성과 소품 리스트 정리',
+    watchers: ['디자인팀장'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '11',
+    title: '라쿠텐·아마존재팬 입점 조건 비교',
+    from: '대표',
+    to: '인성이형',
+    client: '온고',
+    due: '5월 8일',
+    status: '진행중',
+    priority: '높음',
+    type: '시장 조사',
+    projectId: 'proj-3',
+    projectName: '온고 조청 일본 이커머스 입점',
+    summary: '수수료·정산주기·물류 옵션 비교표 작성',
+    watchers: ['대표', '개발팀'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '12',
+    title: '상품 상세 일본어 카피 초안',
+    from: '인성이형',
+    to: '디자인팀장',
+    client: '온고',
+    due: '5월 13일',
+    status: '대기',
+    priority: '보통',
+    type: '디자인 요청',
+    projectId: 'proj-3',
+    projectName: '온고 조청 일본 이커머스 입점',
+    summary: '브랜드 스토리 기반 상세 카피와 핵심 키워드 정리',
+    watchers: ['인성이형'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '13',
+    title: '예상 물류비·관세 시뮬레이션',
+    from: '대표',
+    to: '개발팀',
+    client: '온고',
+    due: '5월 15일',
+    status: '보류',
+    priority: '보통',
+    type: '확인 요청',
+    projectId: 'proj-3',
+    projectName: '온고 조청 일본 이커머스 입점',
+    summary: '판매가 시나리오별 물류비·관세 반영 마진 계산',
+    watchers: ['대표'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '14',
+    title: '4월 일본 마케팅 성과 보고',
+    from: '인성이형',
+    to: '대표',
+    client: 'A식당',
+    due: '5월 3일',
+    status: '완료 요청',
+    priority: '높음',
+    type: '보고',
+    summary: '4월 인플루언서 캠페인 노출·유입·예약 전환 성과 정리',
+    watchers: ['대표'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '15',
+    title: '5월 인플루언서 협업 제안',
+    from: '인성이형',
+    to: '대표',
+    client: '온고',
+    due: '5월 5일',
+    status: '진행중',
+    priority: '보통',
+    type: '제안',
+    summary: '온고 조청 신규 라인 일본 인플루언서 협업 3안 제안',
+    watchers: ['대표'],
+    files: [],
+    comments: [],
+  },
+  {
+    id: '16',
+    title: 'B뷰티샵 추가 패키지 제안',
+    from: '디자인팀장',
+    to: '인성이형',
+    client: 'B뷰티샵',
+    due: '5월 11일',
+    status: '대기',
+    priority: '보통',
+    type: '제안',
+    summary: '상세페이지 외 릴스 3편 + 배너 패키지 추가 제안',
+    watchers: ['인성이형'],
+    files: [],
+    comments: [],
+  },
 ];
 
 const seedClients: Client[] = [
@@ -438,6 +638,91 @@ const seedEmployees: Employee[] = [
   { id: '2', name: '대표', email: 'ceo@plander.co.kr', phone: '010-1111-1111', jobType: '경영·영업', role: '관리자', load: 5 },
   { id: '3', name: '디자인팀장', email: 'design@plander.co.kr', phone: '010-2222-2222', jobType: 'UIUX·브랜딩', role: '사용자', load: 9 },
   { id: '4', name: '개발팀', email: 'dev@plander.co.kr', phone: '010-3333-3333', jobType: '웹·앱 개발', role: '사용자', load: 4 },
+];
+
+const seedProjects: Project[] = [
+  {
+    id: 'proj-1',
+    name: 'A식당 일본 진출 캠페인',
+    clientId: '1',
+    client: 'A식당',
+    status: 'active',
+    createdBy: '1',
+    memberIds: ['1', '2'],
+    memberNames: ['인성이형', '대표'],
+    createdAt: '2026-04-10T00:00:00.000Z',
+    updatedAt: '2026-04-22T00:00:00.000Z',
+  },
+  {
+    id: 'proj-2',
+    name: 'B뷰티샵 상세페이지 리뉴얼',
+    clientId: '2',
+    client: 'B뷰티샵',
+    status: 'active',
+    createdBy: '1',
+    memberIds: ['1', '3'],
+    memberNames: ['인성이형', '디자인팀장'],
+    createdAt: '2026-04-14T00:00:00.000Z',
+    updatedAt: '2026-04-24T00:00:00.000Z',
+  },
+  {
+    id: 'proj-3',
+    name: '온고 조청 일본 이커머스 입점',
+    clientId: '3',
+    client: '온고',
+    status: 'active',
+    createdBy: '2',
+    memberIds: ['2', '4'],
+    memberNames: ['대표', '개발팀'],
+    createdAt: '2026-04-18T00:00:00.000Z',
+    updatedAt: '2026-04-25T00:00:00.000Z',
+  },
+];
+
+const seedMeetingMinutes: MeetingMinute[] = [
+  {
+    id: 'mm-1',
+    category: '프로젝트회의',
+    title: 'A식당 일본 캠페인 킥오프',
+    content: '4월 일본 인플루언서 캠페인의 목표와 일정, 역할 분담을 공유했습니다.',
+    summary: '인플루언서 8인 후보 확정 및 4월 4주차 촬영 일정 합의',
+    decisions: '- 후보 8인 중 6인 우선 컨택\n- 촬영은 4월 4주차로 확정',
+    actionItems: '- 인성이형: 컨택 시트 정리\n- 대표: 캠페인 예산 승인',
+    attendees: '인성이형, 대표, 운영팀',
+    projectId: 'proj-1',
+    projectName: 'A식당 일본 진출 캠페인',
+    heldAt: '2026-04-12',
+    author: '인성이형',
+    createdAt: '2026-04-12T01:00:00.000Z',
+  },
+  {
+    id: 'mm-2',
+    category: '내부회의',
+    title: '5월 콘텐츠 운영 점검',
+    content: '진행 중인 3개 프로젝트의 콘텐츠 일정과 리소스 배분을 점검했습니다.',
+    summary: '디자인 리소스 집중 배분과 보고 주기 정리',
+    decisions: '- 디자인팀장 주 3일 B뷰티샵 우선\n- 주간 보고는 매주 금요일',
+    actionItems: '- 디자인팀장: 우선순위표 작성\n- 인성이형: 보고 양식 통일',
+    attendees: '인성이형, 대표, 디자인팀장',
+    heldAt: '2026-05-02',
+    author: '대표',
+    createdAt: '2026-05-02T02:00:00.000Z',
+  },
+  {
+    id: 'mm-3',
+    category: '신규브리핑',
+    title: '온고 조청 일본 진출 브리핑',
+    content: '온고 조청 브랜드의 일본 이커머스 입점 전략을 논의했습니다.',
+    summary: '라쿠텐 우선 입점 검토 및 물류비 시뮬레이션 필요',
+    decisions: '- 1차 채널은 라쿠텐\n- 입점 조건 비교 후 재논의',
+    actionItems: '- 인성이형: 입점 조건 비교표\n- 개발팀: 물류비 시뮬레이션',
+    attendees: '대표, 인성이형, 개발팀',
+    projectId: 'proj-3',
+    projectName: '온고 조청 일본 이커머스 입점',
+    heldAt: '2026-04-20',
+    author: '대표',
+    createdAt: '2026-04-20T03:00:00.000Z',
+  },
 ];
 
 const seedJobTypes = ['일본 마케팅', '국내 마케팅', '디자인', '개발', '영업', '운영', '대표', '회계·정산'];
@@ -1133,10 +1418,10 @@ function App() {
   const [viewHistory, setViewHistory] = useState<ActiveView[]>([]);
   const [tasks, setTasks] = useState<Task[]>(seedTasks);
   const [clients, setClients] = useState<Client[]>(seedClients);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>(seedProjects);
   const [projectMessages, setProjectMessages] = useState<ProjectMessage[]>([]);
   const [workSchedules, setWorkSchedules] = useState<WorkSchedule[]>([]);
-  const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>([]);
+  const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>(seedMeetingMinutes);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
   const [googleCalendarSettings, setGoogleCalendarSettings] = useState<GoogleCalendarSettings>(getInitialGoogleCalendarSettings);
@@ -5131,6 +5416,7 @@ type ImmersiveChromeProps = {
   pushStatus: string;
   showThemeSwitcher: boolean;
   themeMode: ThemeMode;
+  onClosePage: () => void;
   onLogout: () => void;
   onMenuClick: () => void;
   onNavigate: (view: ActiveView) => void;
@@ -5904,6 +6190,7 @@ function TaskListPage({
   initialStatus,
   tasks,
   employees = [],
+  onClosePage,
   onLogout,
   onMenuClick,
   onNavigate,
@@ -5972,6 +6259,7 @@ function TaskListPage({
       showThemeSwitcher={showThemeSwitcher}
       subheading={`조건에 맞는 업무 ${filteredTasks.length}건 · 전체 ${tasks.length}건`}
       themeMode={themeMode}
+      onClosePage={onClosePage}
       onLogout={onLogout}
       onMenuClick={onMenuClick}
       onNavigate={onNavigate}
@@ -6845,6 +7133,7 @@ function ReportsPage({
   pushStatus,
   showThemeSwitcher,
   themeMode,
+  onClosePage,
   onLogout,
   onMenuClick,
   onNavigate,
@@ -6899,6 +7188,7 @@ function ReportsPage({
       showThemeSwitcher={showThemeSwitcher}
       subheading={`대표에게 전달한 보고와 직원 간 제안을 한 곳에서 확인합니다. · 전체 ${reportTasks.length}건`}
       themeMode={themeMode}
+      onClosePage={onClosePage}
       onLogout={onLogout}
       onMenuClick={onMenuClick}
       onNavigate={onNavigate}
@@ -6977,6 +7267,7 @@ function MeetingMinutesPage({
   onCreateMinute,
   onDeleteMinute,
   onUpdateMinute,
+  onClosePage,
   onLogout,
   onMenuClick,
   onNavigate,
@@ -7033,6 +7324,7 @@ function MeetingMinutesPage({
       showThemeSwitcher={showThemeSwitcher}
       subheading={`회의 요약과 결정사항을 게시판처럼 보관합니다. · 전체 ${minutes.length}건`}
       themeMode={themeMode}
+      onClosePage={onClosePage}
       onLogout={onLogout}
       onMenuClick={onMenuClick}
       onNavigate={onNavigate}
@@ -7411,6 +7703,7 @@ function CalendarPage({
   tasks,
   operations,
   schedules,
+  onClosePage,
   onLogout,
   onMenuClick,
   onNavigate,
@@ -7683,6 +7976,7 @@ function CalendarPage({
       showThemeSwitcher={showThemeSwitcher}
       subheading={currentDateLabel}
       themeMode={themeMode}
+      onClosePage={onClosePage}
       onLogout={onLogout}
       onMenuClick={onMenuClick}
       onNavigate={onNavigate}
@@ -8029,6 +8323,7 @@ function ClientsPage({
   themeMode,
   clients,
   employees,
+  onClosePage,
   onLogout,
   onMenuClick,
   onNavigate,
@@ -8149,6 +8444,7 @@ function ClientsPage({
       showThemeSwitcher={showThemeSwitcher}
       subheading={`등록 업체 ${clients.length}곳`}
       themeMode={themeMode}
+      onClosePage={onClosePage}
       onLogout={onLogout}
       onMenuClick={onMenuClick}
       onNavigate={onNavigate}
@@ -8915,6 +9211,7 @@ function OperationsPage({
   themeMode,
   items,
   employees,
+  onClosePage,
   onLogout,
   onMenuClick,
   onNavigate,
@@ -9071,6 +9368,7 @@ function OperationsPage({
       showThemeSwitcher={showThemeSwitcher}
       subheading={`미완료 ${summary.pending}건 · 이번달 예정액 ${new Intl.NumberFormat('ko-KR').format(summary.monthAmount)}원`}
       themeMode={themeMode}
+      onClosePage={onClosePage}
       onLogout={onLogout}
       onMenuClick={onMenuClick}
       onNavigate={onNavigate}
