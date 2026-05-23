@@ -447,7 +447,7 @@ button:disabled {
 }
 
 .nav-button.compact {
-  color: #b8bec8;
+  color: var(--text-muted);
 }
 
 .sidebar-create-split {
@@ -561,10 +561,10 @@ button:disabled {
   height: 30px;
   display: grid;
   place-items: center;
-  border: 1px solid rgba(255, 255, 255, 0.26);
+  border: 1px solid var(--border);
   border-radius: 50%;
-  color: rgba(245, 247, 251, 0.96);
-  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  background: transparent;
 }
 
 .sidebar-project-add:hover {
@@ -6208,6 +6208,11 @@ textarea {
   border-color: var(--border);
 }
 
+:root[data-theme='light'] .sidebar .project-nav-button:not([data-active='true']),
+:root[data-theme='light'] .sidebar .project-nav-button:not([data-active='true']) span {
+  color: var(--text);
+}
+
 .sidebar-project-title:hover,
 .project-nav-button:hover,
 .project-nav-button[data-active='true'],
@@ -6426,7 +6431,6 @@ h3,
 .month-event,
 .calendar-filter-chip,
 .select-chip,
-.nav-unread-badge,
 .api-scope-chip {
   display: inline-flex;
   align-items: center;
