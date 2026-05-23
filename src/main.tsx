@@ -4524,14 +4524,7 @@ function LoginScreen({
 
   return (
     <main className="auth-shell">
-      <section className="auth-brand">
-        <img className="auth-logo" src="/logo.svg" alt="Plander" />
-        <p className="eyebrow">Plander Works</p>
-        <h1>업무가 흩어지지 않게, 요청부터 보고까지 한 흐름으로.</h1>
-        <p>
-          관리자가 만든 계정으로 로그인하고, 받은 업무와 보낸 업무를 사람별로 확인하는 내부 업무관리 MVP입니다.
-        </p>
-      </section>
+      <img className="auth-logo" src="/plander-admin-logo.svg" alt="Plander Works" />
 
       <section className="auth-card">
         <div className="auth-card-head">
