@@ -522,6 +522,7 @@ button:disabled {
   align-items: center;
   gap: 8px;
   padding: 0 4px 0 2px;
+  color: var(--text-muted);
 }
 
 .sidebar-project-head.single {
@@ -6861,13 +6862,15 @@ textarea:focus {
 }
 
 .project-mode-shell {
-  border-color: var(--border) !important;
-  background: var(--bg) !important;
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
 }
 
 .project-mode-canvas {
-  border-color: var(--border) !important;
-  background: var(--panel) !important;
+  border: 0 !important;
+  padding: 0 !important;
+  background: transparent !important;
 }
 
 .project-mode-shell .page-card,

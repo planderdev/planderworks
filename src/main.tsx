@@ -5004,7 +5004,6 @@ function Sidebar({
     <aside className="sidebar" data-open={open}>
       <div className="brand-row">
         <img className="brand-logo" src="/plander-admin-logo.svg" alt="Plander Works" />
-        <span className="brand-subtitle">Works</span>
         <button className="icon-button close-sidebar" aria-label="메뉴 닫기" onClick={onClose}>
           <X size={18} />
         </button>
