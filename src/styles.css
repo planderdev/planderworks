@@ -1231,8 +1231,8 @@ h1 {
 .stat-card::before {
   content: '';
   position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
+  inset: 0 0 auto 0;
+  height: 4px;
   background: #aab0bb;
 }
 
@@ -6564,7 +6564,9 @@ h3,
 }
 
 .stat-card::before {
-  content: none !important;
+  inset: 0 0 auto 0;
+  height: 4px;
+  width: auto;
 }
 
 .stat-card:hover,
