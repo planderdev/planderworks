@@ -6349,6 +6349,7 @@ function TaskListPage({
                   key={task.id}
                   onAddComment={onAddComment}
                   onDeleteComment={onDeleteComment}
+                  onDeleteTask={onDeleteTask}
                   onDownloadFile={onDownloadFile}
                   onEditTask={onEditTask}
                   onMarkRead={onMarkTaskRead}
@@ -6713,6 +6714,7 @@ function ProjectPage({
                       key={task.id}
                       onAddComment={onAddComment}
                       onDeleteComment={onDeleteComment}
+                      onDeleteTask={onDeleteTask}
                       onDownloadFile={onDownloadFile}
                       onEditTask={onEditTask}
                       onMarkRead={onMarkTaskRead}
@@ -6789,6 +6791,7 @@ function ProjectTaskRow({
   employees,
   onAddComment,
   onDeleteComment,
+  onDeleteTask,
   onDownloadFile,
   onEditTask,
   onMarkRead,
@@ -6801,6 +6804,7 @@ function ProjectTaskRow({
   employees: Employee[];
   onAddComment: TaskCommentSubmitHandler;
   onDeleteComment: TaskCommentDeleteHandler;
+  onDeleteTask: TaskDeleteHandler;
   onDownloadFile: (file: TaskFile) => void;
   onEditTask: (task: Task) => void;
   onMarkRead?: (task: Task) => void;
@@ -6857,6 +6861,7 @@ function ProjectTaskRow({
             currentUser={currentUser}
             onAddComment={onAddComment}
             onDeleteComment={onDeleteComment}
+            onDeleteTask={onDeleteTask}
             onDownloadFile={onDownloadFile}
             onEditTask={onEditTask}
             onUpdateStatus={onUpdateStatus}
@@ -6872,6 +6877,7 @@ function ProjectTaskInspector({
   currentUser,
   onAddComment,
   onDeleteComment,
+  onDeleteTask,
   onDownloadFile,
   onEditTask,
   onUpdateStatus,
@@ -6880,6 +6886,7 @@ function ProjectTaskInspector({
   currentUser: AppUser;
   onAddComment: TaskCommentSubmitHandler;
   onDeleteComment: TaskCommentDeleteHandler;
+  onDeleteTask: TaskDeleteHandler;
   onDownloadFile: (file: TaskFile) => void;
   onEditTask: (task: Task) => void;
   onUpdateStatus: (taskId: string, status: TaskStatus) => Promise<string>;
@@ -6894,6 +6901,7 @@ function ProjectTaskInspector({
   const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState<TaskStatus | null>(null);
+  const [deletingTask, setDeletingTask] = useState(false);
   const statusActions: TaskStatus[] = ['진행중', '완료 요청', '보류', '완료'];
 
   if (!task) {
@@ -6918,6 +6926,15 @@ function ProjectTaskInspector({
     canEdit ||
     getTaskRecipientIds(task).includes(currentUser.id) ||
     (currentUser.isPrototype && task.to.split(', ').includes(currentUser.name));
+
+  const removeTask = async () => {
+    if (deletingTask) return;
+    if (!(await requestActionConfirm(`'${task.title}' 업무를 삭제할까요? 삭제하면 복구할 수 없습니다.`))) return;
+    setDeletingTask(true);
+    const message = await onDeleteTask(task);
+    setDeletingTask(false);
+    showActionPopup(message);
+  };
 
   const updateStatus = async (status: TaskStatus) => {
     if (loadingStatus) return;
@@ -7028,6 +7045,12 @@ function ProjectTaskInspector({
             <button className="secondary-action" onClick={() => onEditTask(task)} type="button">
               <Pencil size={15} />
               수정
+            </button>
+          ) : null}
+          {canEdit ? (
+            <button className="secondary-action danger-action" disabled={deletingTask} onClick={removeTask} type="button">
+              <Trash2 size={15} />
+              {deletingTask ? '삭제중...' : '삭제'}
             </button>
           ) : null}
           {canManage ? (
@@ -7271,6 +7294,7 @@ function ReportsPage({
                   key={task.id}
                 onAddComment={onAddComment}
                 onDeleteComment={onDeleteComment}
+                onDeleteTask={onDeleteTask}
                 onDownloadFile={onDownloadFile}
                 onEditTask={onEditTask}
                 onMarkRead={onMarkTaskRead}
