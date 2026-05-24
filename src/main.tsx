@@ -5550,7 +5550,8 @@ function DraggableFolderTabs({ children, label }: { children: React.ReactNode; l
 
   const endDrag = () => {
     const node = scrollRef.current;
-    if (node && dragState.current.pointerId !== null) {
+    const wasDragging = dragState.current.dragging;
+    if (node && dragState.current.pointerId !== null && wasDragging) {
       try {
         node.releasePointerCapture(dragState.current.pointerId);
       } catch {
@@ -5559,8 +5560,10 @@ function DraggableFolderTabs({ children, label }: { children: React.ReactNode; l
     }
     dragState.current.dragging = false;
     dragState.current.pointerId = null;
-    setDragging(false);
-    showScrollHint();
+    if (wasDragging) {
+      setDragging(false);
+      showScrollHint();
+    }
   };
 
   return (
@@ -5583,22 +5586,31 @@ function DraggableFolderTabs({ children, label }: { children: React.ReactNode; l
         const node = scrollRef.current;
         if (!node) return;
         dragState.current = {
-          dragging: true,
+          dragging: false,
           pointerId: event.pointerId,
           startX: event.clientX,
           scrollLeft: node.scrollLeft,
           moved: false,
         };
-        setDragging(true);
-        showScrollHint();
-        node.setPointerCapture(event.pointerId);
       }}
       onPointerMove={(event) => {
         const node = scrollRef.current;
-        if (!node || !dragState.current.dragging) return;
-        const deltaX = event.clientX - dragState.current.startX;
-        if (Math.abs(deltaX) > 4) dragState.current.moved = true;
-        node.scrollLeft = dragState.current.scrollLeft - deltaX;
+        const state = dragState.current;
+        if (!node || state.pointerId === null) return;
+        const deltaX = event.clientX - state.startX;
+        if (!state.dragging) {
+          if (Math.abs(deltaX) <= 4) return;
+          state.dragging = true;
+          state.moved = true;
+          setDragging(true);
+          try {
+            node.setPointerCapture(state.pointerId);
+          } catch {
+            // Pointer capture may be unavailable for synthetic pointers.
+          }
+          showScrollHint();
+        }
+        node.scrollLeft = state.scrollLeft - deltaX;
         updateScrollHint();
       }}
       onPointerUp={endDrag}
