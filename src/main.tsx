@@ -375,6 +375,7 @@ const seedTasks: Task[] = [
     to: '대표',
     client: 'A식당',
     due: '4월 25일',
+    dueAt: '2026-04-25T09:00:00.000Z',
     status: '진행중',
     priority: '높음',
     type: '영업 브리핑',
@@ -390,6 +391,7 @@ const seedTasks: Task[] = [
     to: '디자인팀장',
     client: 'B뷰티샵',
     due: '4월 28일',
+    dueAt: '2026-04-28T09:00:00.000Z',
     status: '대기',
     priority: '보통',
     type: '디자인 요청',
@@ -405,6 +407,7 @@ const seedTasks: Task[] = [
     to: '인성이형',
     client: '온고',
     due: '5월 2일',
+    dueAt: '2026-05-02T09:00:00.000Z',
     status: '완료 요청',
     priority: '높음',
     type: '시장 조사',
@@ -420,6 +423,7 @@ const seedTasks: Task[] = [
     to: '인성이형',
     client: '제주 숙소',
     due: '4월 30일',
+    dueAt: '2026-04-30T09:00:00.000Z',
     status: '보류',
     priority: '낮음',
     type: '촬영 요청',
@@ -435,6 +439,7 @@ const seedTasks: Task[] = [
     to: '대표',
     client: 'A식당',
     due: '5월 6일',
+    dueAt: '2026-05-06T09:00:00.000Z',
     status: '진행중',
     priority: '높음',
     type: '확인 요청',
@@ -452,6 +457,7 @@ const seedTasks: Task[] = [
     to: '운영팀',
     client: 'A식당',
     due: '5월 9일',
+    dueAt: '2026-05-09T09:00:00.000Z',
     status: '대기',
     priority: '보통',
     type: '촬영 요청',
@@ -469,6 +475,7 @@ const seedTasks: Task[] = [
     to: '대표',
     client: 'A식당',
     due: '5월 12일',
+    dueAt: '2026-05-12T09:00:00.000Z',
     status: '보류',
     priority: '보통',
     type: '시장 조사',
@@ -486,6 +493,7 @@ const seedTasks: Task[] = [
     to: '디자인팀장',
     client: 'B뷰티샵',
     due: '5월 7일',
+    dueAt: '2026-05-07T09:00:00.000Z',
     status: '진행중',
     priority: '높음',
     type: '디자인 요청',
@@ -503,6 +511,7 @@ const seedTasks: Task[] = [
     to: '인성이형',
     client: 'B뷰티샵',
     due: '5월 10일',
+    dueAt: '2026-05-10T09:00:00.000Z',
     status: '대기',
     priority: '보통',
     type: '확인 요청',
@@ -520,6 +529,7 @@ const seedTasks: Task[] = [
     to: '디자인팀장',
     client: 'B뷰티샵',
     due: '4월 29일',
+    dueAt: '2026-04-29T09:00:00.000Z',
     status: '완료',
     priority: '낮음',
     type: '촬영 요청',
@@ -537,6 +547,7 @@ const seedTasks: Task[] = [
     to: '인성이형',
     client: '온고',
     due: '5월 8일',
+    dueAt: '2026-05-08T09:00:00.000Z',
     status: '진행중',
     priority: '높음',
     type: '시장 조사',
@@ -554,6 +565,7 @@ const seedTasks: Task[] = [
     to: '디자인팀장',
     client: '온고',
     due: '5월 13일',
+    dueAt: '2026-05-13T09:00:00.000Z',
     status: '대기',
     priority: '보통',
     type: '디자인 요청',
@@ -571,6 +583,7 @@ const seedTasks: Task[] = [
     to: '개발팀',
     client: '온고',
     due: '5월 15일',
+    dueAt: '2026-05-15T09:00:00.000Z',
     status: '보류',
     priority: '보통',
     type: '확인 요청',
@@ -588,6 +601,7 @@ const seedTasks: Task[] = [
     to: '대표',
     client: 'A식당',
     due: '5월 3일',
+    dueAt: '2026-05-03T09:00:00.000Z',
     status: '완료 요청',
     priority: '높음',
     type: '보고',
@@ -603,6 +617,7 @@ const seedTasks: Task[] = [
     to: '대표',
     client: '온고',
     due: '5월 5일',
+    dueAt: '2026-05-05T09:00:00.000Z',
     status: '진행중',
     priority: '보통',
     type: '제안',
@@ -618,6 +633,7 @@ const seedTasks: Task[] = [
     to: '인성이형',
     client: 'B뷰티샵',
     due: '5월 11일',
+    dueAt: '2026-05-11T09:00:00.000Z',
     status: '대기',
     priority: '보통',
     type: '제안',
@@ -4344,6 +4360,7 @@ function App() {
             onOpenOperations={() => navigateTo('operations')}
             onOpenTask={(task) => setSelectedTaskId(task.id)}
             tasks={tasks}
+            employees={employees}
           />
         ) : null}
         {activeView === 'clients' ? <ClientsPage {...immersiveChromeProps} clients={clients} employees={employees} onAddClient={addClient} onDeleteClient={deleteClient} onUpdateClient={updateClient} /> : null}
@@ -7817,6 +7834,7 @@ function CalendarPage({
   themeMode,
   googleCalendarSettings,
   tasks,
+  employees,
   operations,
   schedules,
   onClosePage,
@@ -7834,6 +7852,7 @@ function CalendarPage({
 }: ImmersiveChromeProps & {
   googleCalendarSettings: GoogleCalendarSettings;
   tasks: Task[];
+  employees: Employee[];
   operations: OperationItem[];
   schedules: WorkSchedule[];
   onAddSchedule: WorkScheduleSubmitHandler;
@@ -7849,8 +7868,22 @@ function CalendarPage({
   const [editingSchedule, setEditingSchedule] = useState<WorkSchedule | null>(null);
   const [googleSyncLoading, setGoogleSyncLoading] = useState(false);
   const [googleSyncStatus, setGoogleSyncStatus] = useState('');
-  // 캘린더는 팀 전체 일정 보드 — 내 업무가 아니어도 캘린더 표시 대상이면 모두 노출
-  const calendarTasks = tasks.filter((task) => task.showOnCalendar ?? true);
+  // 담당자 필터: '전체' | '__others__'(나 제외/팀) | employee.id
+  const [calendarPerson, setCalendarPerson] = useState<string>('전체');
+  // 캘린더는 팀 전체 일정 보드 — 내 업무가 아니어도 캘린더 표시 대상이면 모두 노출.
+  // 담당자(받는 사람) 기준 매칭 — 보낸 사람/생성자는 제외
+  const calendarAssigneeNames = (task: Task) => (task.to || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const taskAssignedTo = (task: Task, emp: Employee) =>
+    getTaskRecipientIds(task).includes(emp.id) || calendarAssigneeNames(task).includes(emp.name);
+  const taskAssignedToCurrentUser = (task: Task) =>
+    getTaskRecipientIds(task).includes(currentUser.id) || calendarAssigneeNames(task).includes(currentUser.name);
+  const calendarSelectedEmployee = employees.find((emp) => emp.id === calendarPerson);
+  const calendarTasks = tasks.filter((task) => {
+    if (!(task.showOnCalendar ?? true)) return false;
+    if (calendarPerson === '전체') return true;
+    if (calendarPerson === '__others__') return !taskAssignedToCurrentUser(task);
+    return calendarSelectedEmployee ? taskAssignedTo(task, calendarSelectedEmployee) : true;
+  });
   const taskCalendarEvents = calendarTasks
     .map((task) => {
       const range = getTaskCalendarRange(task);
@@ -8049,6 +8082,18 @@ function CalendarPage({
     <ImmersivePageFrame
       action={(
         <div className="calendar-controls">
+          <select
+            className="task-person-filter calendar-person-filter"
+            value={calendarPerson}
+            onChange={(event) => setCalendarPerson(event.target.value)}
+            aria-label="담당자 필터"
+          >
+            <option value="전체">전체 담당자</option>
+            <option value="__others__">나 제외 (팀)</option>
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>{employee.name}</option>
+            ))}
+          </select>
           <button className="primary-action" onClick={() => setScheduleCreateOpen(true)} type="button">
             <Plus size={16} />
             스케줄 추가
