@@ -1,4 +1,4 @@
-const SW_VERSION = 'plander-works-sw-20260516-1';
+const SW_VERSION = 'plander-works-sw-20260524-1';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -54,8 +54,8 @@ self.addEventListener('push', (event) => {
   const title = payload.title || 'Plander Works';
   const options = {
     body: payload.body || '새 업무 알림이 도착했습니다.',
-    icon: '/logo.svg',
-    badge: '/logo.svg',
+    icon: '/plander-app-icon-192.png',
+    badge: '/plander-admin-logo.svg',
     data: {
       url: payload.url || '/',
       taskId: payload.taskId || null,
