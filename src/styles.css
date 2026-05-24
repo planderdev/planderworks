@@ -643,7 +643,7 @@ button:disabled {
 }
 
 .project-nav-button span {
-  color: #eef1f5;
+  color: var(--text);
   font-size: 0.84rem;
   font-weight: 820;
 }
@@ -1399,7 +1399,7 @@ h1 {
 }
 
 :root[data-theme='dark'] .dashboard-flow-row span {
-  color: #f3f6fb;
+  color: var(--text);
 }
 
 :root[data-theme='dark'] .dashboard-flow-row small {
@@ -5430,13 +5430,13 @@ h1 {
 }
 
 :root[data-theme='dark'] .project-mode-shell {
-  --project-ink: #f7f8fb;
+  --project-ink: #cccccc;
   --project-paper: #050506;
   --project-panel: #111111;
   --project-soft: rgba(255, 255, 255, 0.08);
   --project-line: rgba(88, 88, 88, 0.42);
-  --project-muted: rgba(247, 248, 251, 0.64);
-  color: #fff;
+  --project-muted: rgba(204, 204, 204, 0.64);
+  color: #cccccc;
   background:
     radial-gradient(circle at 45% 8%, rgba(255, 255, 255, 0.08), transparent 34%),
     linear-gradient(135deg, #111111, #050505 72%);
@@ -5451,13 +5451,13 @@ h1 {
 
 :root[data-theme='dark'] .project-folder-tabs button[data-active='true'] {
   border-color: rgba(96, 96, 96, 0.72);
-  color: #fff;
+  color: var(--project-ink);
   background: linear-gradient(180deg, #202020, #101010);
 }
 
 :root[data-theme='dark'] .project-folder-tabs button svg,
 :root[data-theme='dark'] .project-folder-tabs .project-folder-close {
-  color: #fff;
+  color: var(--project-ink);
 }
 
 :root[data-theme='dark'] .project-folder-tabs button[data-active='true'] {
@@ -5496,7 +5496,7 @@ h1 {
 }
 
 :root[data-theme='dark'] .project-mode-canvas .filters button[data-active='true'] {
-  color: #fff;
+  color: var(--project-ink);
   background: rgba(255, 255, 255, 0.16);
 }
 
@@ -5534,7 +5534,7 @@ h1 {
 :root[data-theme='dark'] .project-mode-shell .project-edit-button,
 :root[data-theme='dark'] .project-inspector-head .secondary-action {
   border-color: var(--project-line);
-  color: #f7f8fb;
+  color: var(--project-ink);
   background: rgba(255, 255, 255, 0.08);
 }
 
@@ -5549,7 +5549,7 @@ h1 {
 
 :root[data-theme='dark'] .project-mode-shell .theme-switcher button,
 :root[data-theme='dark'] .project-mode-shell .account-popover button {
-  color: #f7f8fb;
+  color: var(--project-ink);
 }
 
 :root[data-theme='dark'] .project-mode-shell .theme-switcher button[data-active='true'] {
@@ -5649,7 +5649,7 @@ h1 {
 }
 
 :root[data-theme='dark'] .project-message[data-own='true'] {
-  color: #fff;
+  color: var(--project-ink);
   background: #242424;
 }
 
