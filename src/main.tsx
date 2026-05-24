@@ -7849,13 +7849,8 @@ function CalendarPage({
   const [editingSchedule, setEditingSchedule] = useState<WorkSchedule | null>(null);
   const [googleSyncLoading, setGoogleSyncLoading] = useState(false);
   const [googleSyncStatus, setGoogleSyncStatus] = useState('');
-  const calendarTasks = tasks.filter(
-    (task) =>
-      (task.showOnCalendar ?? true) &&
-      (getTaskRecipientIds(task).includes(currentUser.id) ||
-        task.creatorId === currentUser.id ||
-        (currentUser.isPrototype && (task.to === currentUser.name || task.from === currentUser.name))),
-  );
+  // 캘린더는 팀 전체 일정 보드 — 내 업무가 아니어도 캘린더 표시 대상이면 모두 노출
+  const calendarTasks = tasks.filter((task) => task.showOnCalendar ?? true);
   const taskCalendarEvents = calendarTasks
     .map((task) => {
       const range = getTaskCalendarRange(task);
