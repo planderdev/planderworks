@@ -838,6 +838,7 @@ button:disabled {
   gap: 14px;
   margin-top: 10px;
   margin-bottom: 10px;
+  padding-bottom: 10px;
 }
 
 .menu-button {
