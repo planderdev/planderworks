@@ -8035,8 +8035,18 @@ h4,
   margin-bottom: 5px;
 }
 
-/* 라이트모드 대시보드 업무카드: 평소엔 테두리 없이(transparent) 배경 조금 옅게, 호버 시 원래 상태색 배경+테두리 */
-:root[data-theme='light'] .dashboard-flow-row {
-  background: #fdfdfd !important;
+/* 대시보드 업무카드 — 평소(non-hover): 상태색을 한 톤 옅게(테두리 없음) / 호버: 원래 상태색+테두리. 라이트+다크 */
+:root[data-theme='light'] .dashboard-flow-row:not(:hover),
+:root[data-theme='dark'] .dashboard-flow-row:not(:hover) {
   border-color: transparent !important;
 }
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='blue']:not(:hover)  { background: #f7faff !important; }
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='amber']:not(:hover) { background: #fffcf4 !important; }
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='red']:not(:hover)   { background: #fff9f9 !important; }
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='green']:not(:hover) { background: #f6fcf9 !important; }
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='gray']:not(:hover)  { background: #fafafa !important; }
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='blue']:not(:hover)  { background: #0f1520 !important; }
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='amber']:not(:hover) { background: #1a140c !important; }
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='red']:not(:hover)   { background: #1b1111 !important; }
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='green']:not(:hover) { background: #0e1911 !important; }
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='gray']:not(:hover)  { background: #161616 !important; }
