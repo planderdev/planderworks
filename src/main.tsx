@@ -742,6 +742,12 @@ const seedMeetingMinutes: MeetingMinute[] = [
   },
 ];
 
+const seedWorkSchedules: WorkSchedule[] = [
+  { id: 'sch-1', title: '도쿄 인플루언서 촬영 출장', startAt: '2026-05-14T00:00:00.000Z', endAt: '2026-05-16T00:00:00.000Z', allDay: true, memo: 'A식당 캠페인 현지 촬영', createdBy: '1', creatorName: '인성이형' },
+  { id: 'sch-2', title: '월간 전략 회의', startAt: '2026-05-08T01:00:00.000Z', endAt: '2026-05-08T02:00:00.000Z', allDay: false, memo: '5월 운영 점검', createdBy: '2', creatorName: '대표' },
+  { id: 'sch-3', title: '디자인 워크샵', startAt: '2026-05-20T05:00:00.000Z', endAt: '2026-05-20T08:00:00.000Z', allDay: false, memo: 'B뷰티샵 비주얼 컨셉', createdBy: '3', creatorName: '디자인팀장' },
+];
+
 const seedJobTypes = ['일본 마케팅', '국내 마케팅', '디자인', '개발', '영업', '운영', '대표', '회계·정산'];
 const operationStorageKey = 'plander-operations-items';
 const operationCategories: OperationCategory[] = ['서버', '도메인', 'SaaS', '정산', '세금', '라이선스', '기타'];
@@ -1440,7 +1446,7 @@ function App() {
   const [clients, setClients] = useState<Client[]>(seedClients);
   const [projects, setProjects] = useState<Project[]>(seedProjects);
   const [projectMessages, setProjectMessages] = useState<ProjectMessage[]>([]);
-  const [workSchedules, setWorkSchedules] = useState<WorkSchedule[]>([]);
+  const [workSchedules, setWorkSchedules] = useState<WorkSchedule[]>(seedWorkSchedules);
   const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>(seedMeetingMinutes);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
@@ -7884,11 +7890,24 @@ function CalendarPage({
     if (calendarPerson === '__others__') return !taskAssignedToCurrentUser(task);
     return calendarSelectedEmployee ? taskAssignedTo(task, calendarSelectedEmployee) : true;
   });
+  // 개인 스케줄도 담당자(작성자) 기준으로 동일하게 필터링
+  const scheduleOwnedByCurrentUser = (schedule: WorkSchedule) =>
+    schedule.createdBy === currentUser.id || schedule.creatorName === currentUser.name;
+  const calendarSchedules = schedules.filter((schedule) => {
+    if (calendarPerson === '전체') return true;
+    if (calendarPerson === '__others__') return !scheduleOwnedByCurrentUser(schedule);
+    return calendarSelectedEmployee
+      ? schedule.createdBy === calendarSelectedEmployee.id || schedule.creatorName === calendarSelectedEmployee.name
+      : true;
+  });
   const taskCalendarEvents = calendarTasks
     .map((task) => {
       const range = getTaskCalendarRange(task);
-      const kind =
-        task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name) ? '보낸 업무' : '받은 업무';
+      const kind = task.status === '완료'
+        ? '완료'
+        : task.creatorId === currentUser.id || (currentUser.isPrototype && task.from === currentUser.name)
+          ? '보낸 업무'
+          : '받은 업무';
       return range
         ? {
             id: `task-${task.id}`,
@@ -7905,7 +7924,7 @@ function CalendarPage({
         : null;
     })
     .filter((item): item is CalendarEventItem => Boolean(item));
-  const scheduleCalendarEvents = schedules
+  const scheduleCalendarEvents = calendarSchedules
     .map((schedule) => {
       const startDate = parseTaskDate(schedule.startAt);
       const endDate = parseTaskDate(schedule.endAt);
@@ -8081,6 +8100,7 @@ function CalendarPage({
   return (
     <ImmersivePageFrame
       action={(
+        <div className="calendar-head-actions">
         <div className="calendar-controls">
           <select
             className="task-person-filter calendar-person-filter"
@@ -8117,6 +8137,14 @@ function CalendarPage({
           <button className="icon-button" aria-label="다음" onClick={() => moveCalendar(1)} type="button">
             <ChevronRight size={18} />
           </button>
+        </div>
+        <div className="calendar-legend" aria-label="색상 범례">
+          <span><i style={{ background: '#4b8ef7' }} />받은 업무</span>
+          <span><i style={{ background: '#9aa1ad' }} />보낸 업무</span>
+          <span><i style={{ background: '#36a878' }} />완료</span>
+          <span><i style={{ background: '#d69731' }} />구독/정산</span>
+          <span><i className="legend-none" />개인 스케줄</span>
+        </div>
         </div>
       )}
       className="calendar-mode-shell"

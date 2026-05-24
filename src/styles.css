@@ -2375,11 +2375,46 @@ h1 {
   font-weight: 800;
 }
 
+.calendar-head-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
 .calendar-controls {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px 14px;
+}
+
+.calendar-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.calendar-legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.calendar-legend i.legend-none {
+  background: transparent;
+  border: 1px solid var(--border-strong);
 }
 
 .calendar-controls .primary-action {
@@ -2497,9 +2532,16 @@ h1 {
   box-shadow: inset 3px 0 0 #d69731;
 }
 
+.month-cell button[data-kind='완료'],
+.calendar-task-pill[data-kind='완료'],
+.calendar-range-pill[data-kind='완료'] {
+  box-shadow: inset 3px 0 0 #36a878;
+}
+
+.month-cell button[data-kind='업무 스케줄'],
 .calendar-task-pill[data-kind='업무 스케줄'],
 .calendar-range-pill[data-kind='업무 스케줄'] {
-  box-shadow: inset 3px 0 0 #36a878;
+  box-shadow: none;
 }
 
 .month-cell button span,
@@ -2682,6 +2724,14 @@ h1 {
 .calendar-time-block[data-kind='정산/만료관리'],
 .calendar-time-block[data-kind='구독/정산관리'] {
   box-shadow: inset 3px 0 0 #d69731;
+}
+
+.calendar-time-block[data-kind='완료'] {
+  box-shadow: inset 3px 0 0 #36a878;
+}
+
+.calendar-time-block[data-kind='업무 스케줄'] {
+  box-shadow: none;
 }
 
 .calendar-time-block span,
