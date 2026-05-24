@@ -8006,7 +8006,7 @@ h4,
 .settings-layout .s-push { order: 3 !important; }
 .settings-layout .s-install { order: 4 !important; }
 .settings-layout .google-calendar-settings { order: 5 !important; }
-.settings-layout .api-settings-card { order: 6 !important; }
+.settings-layout .api-settings-card { order: 6 !important; grid-column: auto !important; }
 .settings-layout .settings-backend { order: 7 !important; }
 
 @media (max-width: 760px) {
