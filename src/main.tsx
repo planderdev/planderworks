@@ -139,7 +139,6 @@ const colorThemeOptions: Array<{ value: ColorTheme; label: string; description: 
 const defaultPushPreferences: PushPreferences = {
   task: true,
   report: true,
-  meeting: true,
   projectMessage: true,
 };
 const apiScopeOptions: Array<{ value: ApiScope; label: string; description: string }> = [
@@ -1769,7 +1768,7 @@ function App() {
         .order('created_at', { ascending: false }),
       supabase
         .from('push_preferences')
-        .select('task_enabled, report_enabled, meeting_enabled, project_message_enabled')
+        .select('task_enabled, report_enabled, project_message_enabled')
         .eq('user_id', currentUser.id)
         .maybeSingle(),
       supabase
@@ -2017,7 +2016,6 @@ function App() {
       ? {
           task: Boolean((pushPreferencesResult.data as any).task_enabled),
           report: Boolean((pushPreferencesResult.data as any).report_enabled),
-          meeting: Boolean((pushPreferencesResult.data as any).meeting_enabled),
           projectMessage: Boolean((pushPreferencesResult.data as any).project_message_enabled),
         }
       : defaultPushPreferences;
@@ -3573,7 +3571,6 @@ function App() {
           user_id: currentUser.id,
           task_enabled: preferences.task,
           report_enabled: preferences.report,
-          meeting_enabled: preferences.meeting,
           project_message_enabled: preferences.projectMessage,
         },
         { onConflict: 'user_id' },
@@ -9899,7 +9896,6 @@ function SettingsPage({
               {[
                 { key: 'task' as const, label: '업무전달' },
                 { key: 'report' as const, label: '보고·제안' },
-                { key: 'meeting' as const, label: '회의록' },
                 { key: 'projectMessage' as const, label: '채팅창 메시지' },
               ].map((item) => (
                 <label className="toggle-row" key={item.key}>

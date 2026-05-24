@@ -121,7 +121,6 @@ export type ProjectMessage = {
 export type PushPreferences = {
   task: boolean;
   report: boolean;
-  meeting: boolean;
   projectMessage: boolean;
 };
 
