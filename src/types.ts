@@ -3,7 +3,7 @@ export type BeforeInstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 };
 
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'system';
 export type ColorTheme = 'default' | 'metal-silver' | 'british-green' | 'navy' | 'orange' | 'pastel-pink';
 export type ActiveView =
   | 'dashboard'

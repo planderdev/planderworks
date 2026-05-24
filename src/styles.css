@@ -832,11 +832,12 @@ button:disabled {
 }
 
 .topbar {
-  min-height: 58px;
+  min-height: 0;
   display: flex;
   align-items: center;
   gap: 14px;
-  margin-bottom: 18px;
+  margin-top: 10px;
+  margin-bottom: 10px;
 }
 
 .menu-button {
@@ -6358,11 +6359,9 @@ h3,
 }
 
 .stat-card::before {
-  content: '';
   inset: 0 0 auto 0;
   height: 4px;
   width: auto;
-  background: var(--stat-line);
 }
 
 .stat-card:hover,
@@ -7831,17 +7830,25 @@ h4,
 
 /* 2026-05-24 dashboard polish: gray task cards w/ status hover frame, flat team panel, brighter avatar initial */
 
-/* item 2: 업무카드 — default flat gray fill + same-color border; on hover, 1px status-tone frame on all 4 sides + status tint fill */
+/* item 1 (rev): KPI color bar is the box TOP BORDER, not an inner bar.
+   Theme-scoped (0,3,0) so it beats the light-mode border normalizer that forces border-color. */
+:root[data-theme='light'] .stat-card,
+:root[data-theme='dark'] .stat-card {
+  border-top: 3px solid var(--stat-line) !important;
+  border-top-color: var(--stat-line) !important;
+}
+
+/* item 2/3: 업무카드 — default light fill + same-color border; on hover, 1px status-tone frame on all 4 sides + status tint fill */
 .dashboard-flow-row,
 .task-card {
-  background: var(--bg-subtle) !important;
+  background: var(--surface-raised) !important;
 }
 
 :root[data-theme='light'] .dashboard-flow-row,
 :root[data-theme='light'] .task-card,
 :root[data-theme='dark'] .dashboard-flow-row,
 :root[data-theme='dark'] .task-card {
-  border-color: var(--bg-subtle) !important;
+  border-color: var(--surface-raised) !important;
 }
 
 :root[data-theme='light'] .dashboard-flow-row:hover,
@@ -7863,4 +7870,158 @@ h4,
 /* item 6: avatar initial brighter (was #eee → #fff for more contrast on the dark avatar) */
 :root[data-theme='light'] .team-panel .avatar > span {
   color: #ffffff !important;
+}
+
+/* 업무카드 이중 보더 제거: 바깥 래퍼(.project-task-item) 보더 0 → 카드(.project-task-row)에만 보더.
+   펼친 내용(.project-task-expanded)은 래퍼 안에 있으므로 보더 없이 카드 아래로 흐른다. */
+.project-task-item,
+.all-tasks-task-board .project-task-item {
+  border: 0 !important;
+}
+
+/* 보고·제안 / 프로젝트 업무목록: 큰 박스(.project-task-board) 보더 제거 (배경은 유지) */
+.task-board.list-surface.project-task-board,
+:root[data-theme='light'] .task-board.list-surface.project-task-board,
+:root[data-theme='dark'] .task-board.list-surface.project-task-board {
+  border: 0 !important;
+}
+
+/* 모든 업무카드 hover 통일 → 대시보드 카드 방식(평소 중립, hover 시 상태색 4면 보더 + 상태 틴트).
+   .project-task-row 에 task-card 와 동일한 status-tone 토큰을 정의한 뒤 default/hover 적용. */
+.project-task-row[data-status-tone='blue']  { --status-line: #4b8ef7; --status-card-bg: #f3f8ff; }
+.project-task-row[data-status-tone='amber'] { --status-line: #d69731; --status-card-bg: #fff8eb; }
+.project-task-row[data-status-tone='red']   { --status-line: #df5f5f; --status-card-bg: #fff5f5; }
+.project-task-row[data-status-tone='green'] { --status-line: #39a86b; --status-card-bg: #f1fbf5; }
+.project-task-row[data-status-tone='gray']  { --status-line: #5b6472; --status-card-bg: var(--surface-raised); }
+:root[data-theme='dark'] .project-task-row[data-status-tone='blue']  { --status-line: #70a7ff; --status-card-bg: #111a28; }
+:root[data-theme='dark'] .project-task-row[data-status-tone='amber'] { --status-line: #e5ad4f; --status-card-bg: #231b0f; }
+:root[data-theme='dark'] .project-task-row[data-status-tone='red']   { --status-line: #ff8585; --status-card-bg: #241414; }
+:root[data-theme='dark'] .project-task-row[data-status-tone='green'] { --status-line: #60c98a; --status-card-bg: #102016; }
+:root[data-theme='dark'] .project-task-row[data-status-tone='gray']  { --status-line: #8b95a4; --status-card-bg: var(--surface-raised); }
+
+.project-task-row[data-status-tone] {
+  background: var(--surface-raised) !important;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+:root[data-theme='light'] .project-task-row,
+:root[data-theme='dark'] .project-task-row {
+  border-color: var(--surface-raised) !important;
+}
+:root[data-theme='light'] .project-task-row:hover,
+:root[data-theme='light'] .project-task-row[data-selected='true'],
+:root[data-theme='dark'] .project-task-row:hover,
+:root[data-theme='dark'] .project-task-row[data-selected='true'] {
+  border-color: var(--status-line) !important;
+  background: var(--status-card-bg) !important;
+}
+
+/* 중립 배경이라 붙어있던 행들이 뭉치지 않게, 대시보드처럼 행 간격 부여 (프로젝트 뷰·보고) */
+.project-mode-shell .task-board.list-surface .project-task-list,
+.reports-task-board .project-task-list {
+  gap: 5px !important;
+}
+
+/* 닫힌 카드의 상세영역 유령 하단패딩 제거 (보고제안·프로젝트 뷰는 display:none 처리가 없어 18px가 남아 카드 간격처럼 보였음) */
+.project-task-expanded:not([data-open='true']) .project-task-expanded-inner {
+  padding-bottom: 0 !important;
+}
+
+/* 담당자 이름("OOO 외 N명") → 다크/라이트 일반 텍스트색 */
+.project-task-assignees small,
+:root[data-theme='light'] .project-task-assignees small,
+:root[data-theme='dark'] .project-task-assignees small,
+:root[data-theme='light'] .project-mode-canvas .project-task-assignees small,
+:root[data-theme='dark'] .project-mode-canvas .project-task-assignees small {
+  color: var(--text) !important;
+}
+
+/* (1) 모든 메뉴 공통 헤더: 제목 밑 작은글씨 ~ 가로바(헤더 하단선) 간격 10px */
+.project-mode-head {
+  padding-bottom: 10px !important;
+}
+.project-mode-head p:not(.eyebrow) {
+  margin-bottom: 0 !important;
+}
+
+/* (2) 보고·제안 / 프로젝트 업무목록: 큰 박스 + 리스트 배경 투명 */
+.task-board.list-surface.project-task-board {
+  background: transparent !important;
+}
+.project-mode-shell .task-board.list-surface .project-task-list,
+.reports-task-board .project-task-list,
+:root[data-theme='dark'] .project-mode-shell .project-task-list {
+  background: transparent !important;
+}
+
+/* (3) 회의록 작성 버튼: 다른 메뉴 액션 버튼과 동일 높이(46px) */
+.meeting-mode-shell .primary-action {
+  min-height: 46px !important;
+  height: auto !important;
+}
+
+/* (4) 업체카드: 수정/삭제 아이콘 버튼을 카드 우측하단(밑10·우10)에 고정 */
+.client-card {
+  position: relative;
+  padding-bottom: 46px !important;
+}
+.client-actions {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  margin-top: 0 !important;
+  gap: 6px !important;
+}
+
+/* (5) 구독/정산: 헤더 간격(eyebrow 5px, 헤더→가로바 10px) + urgent 카드 배경 밝게 */
+.operations-urgent-panel .eyebrow,
+.operations-mode-shell .operations-table-head .eyebrow {
+  margin-bottom: 5px !important;
+}
+.operations-urgent-panel {
+  gap: 10px !important;
+}
+.operations-urgent-panel .section-head.tight {
+  margin-bottom: 0 !important;
+}
+.operations-mode-shell .operations-table-head {
+  margin-bottom: 10px !important;
+}
+:root[data-theme='light'] .operations-urgent-card,
+:root[data-theme='dark'] .operations-urgent-card {
+  background: var(--surface-raised) !important;
+}
+
+/* 설정 메뉴 3열 재배치: 관리·테마·푸시 / 앱설치·구글·api / 백엔드 */
+.settings-layout {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+  align-items: start !important;
+}
+.settings-side {
+  display: contents !important;
+}
+.settings-layout .s-admin { order: 1 !important; }
+.settings-layout .s-theme { order: 2 !important; }
+.settings-layout .s-push { order: 3 !important; }
+.settings-layout .s-install { order: 4 !important; }
+.settings-layout .google-calendar-settings { order: 5 !important; }
+.settings-layout .api-settings-card { order: 6 !important; }
+.settings-layout .settings-backend { order: 7 !important; }
+
+@media (max-width: 760px) {
+  .settings-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* 직원관리 헤더: 제목 밑 가로바(10px) + 계정생성 버튼(가로바 15px 위) */
+.employees-page-head {
+  align-items: flex-end;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 18px;
+}
+.employees-create-button {
+  margin-bottom: 5px;
 }

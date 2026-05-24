@@ -21,6 +21,7 @@ import {
   LogOut,
   Menu,
   MessageSquareText,
+  Monitor,
   Moon,
   MoreHorizontal,
   Paperclip,
@@ -887,12 +888,12 @@ async function syncEventsToGoogleCalendar(settings: GoogleCalendarSettings, even
 
 function getInitialTheme(): ThemeMode {
   const saved = localStorage.getItem('plander-theme');
-  if (saved === 'light' || saved === 'dark') return saved;
+  if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
   return 'dark';
 }
 
 function normalizeThemeMode(value: unknown): ThemeMode {
-  return value === 'light' || value === 'dark' ? value : 'dark';
+  return value === 'light' || value === 'dark' || value === 'system' ? value : 'dark';
 }
 
 function getInitialColorTheme(): ColorTheme {
@@ -910,7 +911,10 @@ function getColorThemeBaseMode(colorTheme: ColorTheme): 'light' | 'dark' | null 
 }
 
 function applyTheme(mode: ThemeMode, colorTheme: ColorTheme) {
-  document.documentElement.dataset.theme = mode;
+  const resolved = mode === 'system'
+    ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+    : mode;
+  document.documentElement.dataset.theme = resolved;
   document.documentElement.dataset.colorTheme = 'default';
 }
 
@@ -1444,6 +1448,14 @@ function App() {
   const [forwardHistory, setForwardHistory] = useState<ActiveView[]>([]);
   const [swipeOffset, setSwipeOffset] = useState(0);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
+  // focusTaskId is a one-shot signal: the destination page captures it on navigation, then it is cleared
+  // so it does not re-expand/re-scroll that task on later visits to the page or a project.
+  useEffect(() => {
+    if (!focusTaskId) return;
+    const handle = requestAnimationFrame(() => setFocusTaskId(null));
+    return () => cancelAnimationFrame(handle);
+  }, [focusTaskId]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [projectCreateOpen, setProjectCreateOpen] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
@@ -1582,6 +1594,14 @@ function App() {
     applyTheme(themeMode, colorTheme);
     localStorage.setItem('plander-theme', themeMode);
     localStorage.setItem('plander-color-theme', 'default');
+  }, [colorTheme, themeMode]);
+
+  useEffect(() => {
+    if (themeMode !== 'system') return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = () => applyTheme('system', colorTheme);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
   }, [colorTheme, themeMode]);
 
   useEffect(() => {
@@ -2318,24 +2338,28 @@ function App() {
     }
   };
 
-  const openDashboardTask = (task: Task) => {
-    if (!task.projectId) {
-      setSelectedTaskId(task.id);
+  const openDashboardTask = (task: Task, target?: ActiveView) => {
+    if (task.projectId) {
+      setFocusTaskId(task.id);
+      setSelectedProjectId(task.projectId);
+      setViewHistory((history) => [...history, activeView].slice(-12));
+      setForwardHistory([]);
+      setActiveView('project');
+      if (appHistoryReady.current) {
+        window.history.pushState(
+          { plander: true, view: 'project', taskId: task.id, projectId: task.projectId },
+          '',
+          `${window.location.pathname}?projectId=${encodeURIComponent(task.projectId)}&taskId=${encodeURIComponent(task.id)}#project`,
+        );
+      }
       return;
     }
-
-    setSelectedProjectId(task.projectId);
-    setSelectedTaskId(task.id);
-    setViewHistory((history) => [...history, activeView].slice(-12));
-    setForwardHistory([]);
-    setActiveView('project');
-    if (appHistoryReady.current) {
-      window.history.pushState(
-        { plander: true, view: 'project', taskId: task.id, projectId: task.projectId },
-        '',
-        `${window.location.pathname}?projectId=${encodeURIComponent(task.projectId)}&taskId=${encodeURIComponent(task.id)}#project`,
-      );
+    if (target) {
+      setFocusTaskId(task.id);
+      navigateTo(target);
+      return;
     }
+    setSelectedTaskId(task.id);
   };
 
   const navigateBack = () => {
@@ -4107,7 +4131,7 @@ function App() {
     pushStatus,
     themeMode,
     showThemeSwitcher: canControlThemeMode,
-    onClosePage: navigateBack,
+    onClosePage: () => navigateTo('dashboard'),
     onLogout: handleLogout,
     onMenuClick: () => setSidebarOpen(true),
     onNavigate: navigateTo,
@@ -4219,16 +4243,17 @@ function App() {
           />
         ) : null}
         {activeView === 'inbox' ? (
-          <TaskListPage {...immersiveChromeProps} title="받은 업무" initialStatus={taskListFilters.inbox || '전체'} tasks={inboxTasks} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage {...immersiveChromeProps} title="받은 업무" initialStatus={taskListFilters.inbox || '전체'} initialFocusedTaskId={focusTaskId} tasks={inboxTasks} employees={employees} onAddComment={addTaskComment} onDeleteComment={deleteTaskComment} onDownloadFile={openTaskFile} onEditTask={(task) => setEditingTaskId(task.id)} onMarkTaskRead={markTaskRead} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'sent' ? (
-          <TaskListPage {...immersiveChromeProps} title="보낸 업무" initialStatus={taskListFilters.sent || '전체'} tasks={sentTasks} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
+          <TaskListPage {...immersiveChromeProps} title="보낸 업무" initialStatus={taskListFilters.sent || '전체'} initialFocusedTaskId={focusTaskId} tasks={sentTasks} employees={employees} onAddComment={addTaskComment} onDeleteComment={deleteTaskComment} onDownloadFile={openTaskFile} onEditTask={(task) => setEditingTaskId(task.id)} onMarkTaskRead={markTaskRead} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
         ) : null}
         {activeView === 'create' ? <TaskCreatePage clients={clients} employees={employees} projects={projects} taskTypes={taskTypes} onCreateTask={createTask} /> : null}
         {activeView === 'reports' ? (
           <ReportsPage
             {...immersiveChromeProps}
             tasks={reportTasks}
+            initialFocusedTaskId={focusTaskId}
             employees={employees}
             onAddComment={addTaskComment}
             onCreateTask={createTask}
@@ -4274,6 +4299,7 @@ function App() {
             clients={clients}
             currentUser={currentUser}
             employees={employees}
+            initialFocusedTaskId={focusTaskId}
             messages={selectedProjectMessages}
             project={selectedProject}
             projects={projects}
@@ -5264,8 +5290,9 @@ function Topbar({
 
 function ThemeSwitcher({ value, onChange }: { value: ThemeMode; onChange: (mode: ThemeMode) => void }) {
   const options: Array<{ value: ThemeMode; icon: React.ElementType; label: string }> = [
-    { value: 'light', icon: Sun, label: '화이트' },
+    { value: 'light', icon: Sun, label: '라이트' },
     { value: 'dark', icon: Moon, label: '다크' },
+    { value: 'system', icon: Monitor, label: '시스템' },
   ];
 
   return (
@@ -6081,7 +6108,7 @@ function Dashboard({
   employees: Employee[];
   currentUser: AppUser;
   onNavigate: (view: ActiveView, filter?: TaskListFilter) => void;
-  onOpenTask: (task: Task) => void;
+  onOpenTask: (task: Task, target?: ActiveView) => void;
 }) {
   return (
     <>
@@ -6125,10 +6152,9 @@ function DashboardTaskSection({
   tone?: string;
   currentUser: AppUser;
   onNavigate: (view: ActiveView, filter?: TaskListFilter) => void;
-  onOpenTask: (task: Task) => void;
+  onOpenTask: (task: Task, target?: ActiveView) => void;
 }) {
   const [collapsed, setCollapsed] = useState(false);
-  void target;
   void onNavigate;
   return (
     <section className="dashboard-flow-section" data-tone={tone} data-collapsed={collapsed}>
@@ -6147,7 +6173,7 @@ function DashboardTaskSection({
               data-attention={needsTaskAttention(task, currentUser)}
               data-status-tone={getTaskStatusTone(task.status)}
               key={task.id}
-              onClick={() => onOpenTask(task)}
+              onClick={() => onOpenTask(task, target)}
               type="button"
             >
               <span>{task.title}</span>
@@ -6162,7 +6188,7 @@ function DashboardTaskSection({
 }
 
 function DashboardClientSection({ clients, onNavigate }: { clients: Client[]; onNavigate: () => void }) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   return (
     <section className="dashboard-flow-section" data-collapsed={collapsed}>
       <button className="dashboard-flow-head" onClick={() => setCollapsed((value) => !value)} type="button" aria-expanded={!collapsed}>
@@ -6196,6 +6222,7 @@ function TaskListPage({
   themeMode,
   title,
   initialStatus,
+  initialFocusedTaskId,
   tasks,
   employees = [],
   onClosePage,
@@ -6216,6 +6243,7 @@ function TaskListPage({
 }: ImmersiveChromeProps & {
   title: string;
   initialStatus: TaskListFilter;
+  initialFocusedTaskId?: string | null;
   tasks: Task[];
   employees?: Employee[];
   onAddComment?: TaskCommentSubmitHandler;
@@ -6229,7 +6257,7 @@ function TaskListPage({
 }) {
   const [status, setStatus] = useState<TaskListFilter>(initialStatus);
   const [employeeId, setEmployeeId] = useState('전체');
-  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(initialFocusedTaskId ?? null);
   const statusFilteredTasks = status === '전체'
     ? tasks
     : status === '마감 임박'
@@ -6346,6 +6374,7 @@ function ProjectPage({
   clients,
   currentUser,
   employees,
+  initialFocusedTaskId,
   messages,
   project,
   projects,
@@ -6380,6 +6409,7 @@ function ProjectPage({
   clients: Client[];
   currentUser: AppUser;
   employees: Employee[];
+  initialFocusedTaskId?: string | null;
   messages: ProjectMessage[];
   project: Project | null;
   projects: Project[];
@@ -6412,7 +6442,7 @@ function ProjectPage({
   onUpdateTaskStatus: (taskId: string, status: TaskStatus) => Promise<string>;
 }) {
   const activeTasks = tasks.filter((task) => task.status !== '완료');
-  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(initialFocusedTaskId ?? null);
   const [message, setMessage] = useState('');
   const [messageStatus, setMessageStatus] = useState('');
   const [messageLoading, setMessageLoading] = useState(false);
@@ -6446,11 +6476,14 @@ function ProjectPage({
     return assigneeFiltered;
   }, [projectTaskAssigneeId, projectTaskSort, projectTaskStatus, tasks]);
 
+  const focusResetRef = useRef(false);
   useEffect(() => {
-    setFocusedTaskId(null);
     setProjectTaskStatus('전체');
     setProjectTaskAssigneeId('전체');
     setProjectTaskSort('최신순');
+    // keep the dashboard-provided focus on first mount; clear focus only when switching projects in-view
+    if (focusResetRef.current) setFocusedTaskId(null);
+    focusResetRef.current = true;
   }, [project?.id]);
 
   useEffect(() => {
@@ -6779,9 +6812,18 @@ function ProjectTaskRow({
   const recipientNames = (task.watchers.length ? task.watchers : task.to.split(', ')).map((name) => name.trim()).filter(Boolean);
   const totalRecipients = Math.max(1, getTaskRecipientIds(task).length || recipientNames.length);
   const readCount = task.readAt ? totalRecipients : 0;
+  const rowRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (selected && rowRef.current) {
+      const node = rowRef.current;
+      requestAnimationFrame(() => node.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    }
+    // run once on mount: auto-scroll only to the task focused via dashboard navigation, not manual clicks
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <article className="project-task-item" data-open={selected}>
+    <article className="project-task-item" data-open={selected} ref={rowRef}>
       <button
         className="project-task-row"
         data-attention={needsTaskAttention(task, currentUser)}
@@ -7134,6 +7176,7 @@ function TaskCreatePage({
 
 function ReportsPage({
   tasks,
+  initialFocusedTaskId,
   employees,
   currentUser,
   pushEnabled,
@@ -7158,6 +7201,7 @@ function ReportsPage({
   onMarkTaskRead,
 }: ImmersiveChromeProps & {
   tasks: Task[];
+  initialFocusedTaskId?: string | null;
   employees: Employee[];
   onAddComment: TaskCommentSubmitHandler;
   onCreateTask: TaskSubmitHandler;
@@ -7170,7 +7214,7 @@ function ReportsPage({
 }) {
   const reportTasks = tasks.filter((task) => task.type === '보고' || task.type === '제안');
   const [composeOpen, setComposeOpen] = useState(false);
-  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(initialFocusedTaskId ?? null);
   const toggleFocusedTask = (task: Task) => {
     setFocusedTaskId((current) => (current === task.id ? null : task.id));
   };
@@ -8471,9 +8515,11 @@ function ClientsPage({
               <span>지역: {client.region || '미지정'}</span>
               <p>{client.memo}</p>
               <div className="client-actions">
-                <button className="secondary-action" onClick={() => openEdit(client)} type="button">수정</button>
-                <button className="secondary-action danger-action" disabled={actionLoading === client.id} onClick={() => removeClient(client)} type="button">
-                  {actionLoading === client.id ? '진행중...' : '삭제'}
+                <button className="icon-button" aria-label="수정" onClick={() => openEdit(client)} type="button">
+                  <Pencil size={15} />
+                </button>
+                <button className="icon-button danger-action" aria-label="삭제" disabled={actionLoading === client.id} onClick={() => removeClient(client)} type="button">
+                  <Trash2 size={15} />
                 </button>
               </div>
             </article>
@@ -8733,6 +8779,7 @@ function EmployeesPage({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const openEdit = (employee: Employee) => {
     setError('');
@@ -8789,6 +8836,7 @@ function EmployeesPage({
     if (!message.includes('실패')) {
       setForm({ name: '', email: '', password: '', passwordConfirm: '', phone: '', avatarUrl: '', jobType: jobTypes[0] || '', role: '사용자' });
       setAvatarFile(null);
+      setCreateOpen(false);
     }
   };
 
@@ -8837,90 +8885,99 @@ function EmployeesPage({
 
   return (
     <section className="page-shell">
-      <div className="page-head">
+      <div className="page-head employees-page-head">
         <div>
           <p className="eyebrow">Admin</p>
           <h1>직원 관리</h1>
         </div>
+        <button className="primary-action employees-create-button" onClick={() => setCreateOpen(true)} type="button">
+          <Plus size={17} />
+          계정 생성
+        </button>
       </div>
 
-      <div className="split-layout wide-left">
-        <div className="page-card">
-          <div className="table-list">
-            {employees.map((employee) => (
-              <div className="table-row employee-row" key={employee.id}>
-                <div className="employee-identity">
-                  <Avatar name={employee.name} src={employee.avatarUrl} size="sm" />
-                  <div>
-                    <strong>{employee.name}</strong>
-                    <span>{employee.email}</span>
-                  </div>
+      <div className="page-card">
+        <div className="table-list">
+          {employees.map((employee) => (
+            <div className="table-row employee-row" key={employee.id}>
+              <div className="employee-identity">
+                <Avatar name={employee.name} src={employee.avatarUrl} size="sm" />
+                <div>
+                  <strong>{employee.name}</strong>
+                  <span>{employee.email}</span>
                 </div>
-                <span>{employee.jobType}</span>
-                <span>{employee.role}</span>
-                <small>{employee.load}건</small>
-                <button className="secondary-action" onClick={() => openEdit(employee)} type="button">
-                  수정
-                </button>
               </div>
-            ))}
-          </div>
+              <span>{employee.jobType}</span>
+              <span>{employee.role}</span>
+              <small>{employee.load}건</small>
+              <button className="secondary-action" onClick={() => openEdit(employee)} type="button">
+                수정
+              </button>
+            </div>
+          ))}
         </div>
+      </div>
 
-        <div className="admin-forms">
-          <form className="page-card form-stack" onSubmit={submit}>
-          <div>
-            <p className="eyebrow">Create User</p>
-            <h2>계정 생성 폼</h2>
-          </div>
-          <p className="admin-note">관리자만 사용자 계정을 생성할 수 있습니다. 초기 비밀번호는 로그인 후 변경하도록 안내하세요.</p>
-          <label>
-            이름
-            <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
-          </label>
-          <AvatarFileField currentUrl={form.avatarUrl} file={avatarFile} onChange={setAvatarFile} />
-          <label>
-            이메일
-            <input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
-          </label>
-          <label>
-            비밀번호
-            <input required type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
-          </label>
-          <label>
-            비밀번호 확인
-            <input required type="password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} />
-          </label>
-          <label>
-            담당업무
-            <select value={form.jobType} onChange={(event) => setForm({ ...form, jobType: event.target.value })}>
-              {jobTypes.map((jobType) => <option key={jobType}>{jobType}</option>)}
-            </select>
-          </label>
-          <label>
-            전화번호
-            <input
-              inputMode="numeric"
-              maxLength={13}
-              value={form.phone}
-              onChange={(event) => setForm({ ...form, phone: formatMobilePhone(event.target.value) })}
-            />
-          </label>
-          <label>
-            권한
-            <select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as Employee['role'] })}>
-              <option>관리자</option>
-              <option>사용자</option>
-            </select>
-          </label>
-          {error ? <p className="auth-error">{error}</p> : null}
-          <button className="primary-action wide" disabled={loading} type="submit">
-            <Plus size={17} />
-            {loading ? '진행중...' : '계정 추가'}
-          </button>
+      {createOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={() => setCreateOpen(false)}>
+          <form className="modal-card form-stack" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Create User</p>
+                <h2>계정 생성</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setCreateOpen(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="admin-note">관리자만 사용자 계정을 생성할 수 있습니다. 초기 비밀번호는 로그인 후 변경하도록 안내하세요.</p>
+            <label>
+              이름
+              <input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
+            </label>
+            <AvatarFileField currentUrl={form.avatarUrl} file={avatarFile} onChange={setAvatarFile} />
+            <label>
+              이메일
+              <input required type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} />
+            </label>
+            <label>
+              비밀번호
+              <input required type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} />
+            </label>
+            <label>
+              비밀번호 확인
+              <input required type="password" value={form.passwordConfirm} onChange={(event) => setForm({ ...form, passwordConfirm: event.target.value })} />
+            </label>
+            <label>
+              담당업무
+              <select value={form.jobType} onChange={(event) => setForm({ ...form, jobType: event.target.value })}>
+                {jobTypes.map((jobType) => <option key={jobType}>{jobType}</option>)}
+              </select>
+            </label>
+            <label>
+              전화번호
+              <input
+                inputMode="numeric"
+                maxLength={13}
+                value={form.phone}
+                onChange={(event) => setForm({ ...form, phone: formatMobilePhone(event.target.value) })}
+              />
+            </label>
+            <label>
+              권한
+              <select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as Employee['role'] })}>
+                <option>관리자</option>
+                <option>사용자</option>
+              </select>
+            </label>
+            {error ? <p className="auth-error">{error}</p> : null}
+            <button className="primary-action wide" disabled={loading} type="submit">
+              <Plus size={17} />
+              {loading ? '진행중...' : '계정 추가'}
+            </button>
           </form>
         </div>
-      </div>
+      ) : null}
 
       {editingEmployee ? (
         <div className="modal-backdrop" role="presentation" onClick={() => setEditingEmployee(null)}>
@@ -9814,12 +9871,12 @@ function SettingsPage({
 
       <div className="settings-layout">
         <div className="settings-side">
-          <div className="page-card settings-card">
+          <div className="page-card settings-card s-theme">
             <h2>테마</h2>
-            <p>다크/화이트 두 가지 화면 모드만 사용합니다.</p>
+            <p>라이트 / 다크 / 시스템 세 가지 화면 모드를 사용합니다.</p>
             <ThemeSwitcher value={themeMode} onChange={onThemeChange} />
           </div>
-          <div className="page-card settings-card">
+          <div className="page-card settings-card s-install">
             <h2>앱 설치</h2>
             <p>{installStatus}</p>
             <button className="primary-action" disabled={appInstalled && !canPromptInstall} onClick={onInstallApp} type="button">
@@ -9828,7 +9885,7 @@ function SettingsPage({
             </button>
             <p className="admin-note">맥/윈도우/안드로이드 Chrome·Edge는 설치 버튼이 뜨고, iPhone Safari는 공유 버튼에서 “홈 화면에 추가”로 설치합니다.</p>
           </div>
-          <div className="page-card settings-card">
+          <div className="page-card settings-card s-push">
             <h2>푸시알림</h2>
             <p>{pushStatus}</p>
             <button className="primary-action" disabled={pushLoading} onClick={onRegisterPush} type="button">
@@ -9936,7 +9993,7 @@ function SettingsPage({
             </div>
           </form>
         ) : null}
-        <div className="page-card settings-card">
+        <div className="page-card settings-card s-admin">
           <h2>관리</h2>
           <div className="settings-shortcuts">
             <button className="secondary-action" onClick={() => setProfileOpen(true)} type="button">내 정보 수정</button>
