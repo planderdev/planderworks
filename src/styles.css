@@ -5513,7 +5513,7 @@ h1 {
 }
 
 :root[data-theme='dark'] .project-mode-shell .task-board.list-surface.project-task-board {
-  background: rgba(17, 17, 17, 0.94) !important;
+  background: transparent !important;
 }
 
 :root[data-theme='dark'] .project-mode-shell .project-task-list {
