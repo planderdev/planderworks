@@ -2394,6 +2394,7 @@ h1 {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px 14px;
+  margin-top: 5px;
 }
 
 .calendar-legend span {
