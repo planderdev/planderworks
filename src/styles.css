@@ -6358,9 +6358,11 @@ h3,
 }
 
 .stat-card::before {
+  content: '';
   inset: 0 0 auto 0;
   height: 4px;
   width: auto;
+  background: var(--stat-line);
 }
 
 .stat-card:hover,
@@ -7112,7 +7114,7 @@ h4,
   --stat-card-border: var(--border, var(--line)) !important;
   border-color: var(--stat-card-border) !important;
   background: var(--stat-card-bg) !important;
-  box-shadow: inset 4px 0 0 var(--stat-line) !important;
+  box-shadow: none !important;
 }
 
 .stat-card[data-tone='silver'],
@@ -7825,4 +7827,40 @@ h4,
 .meeting-board .meeting-minute-card,
 .meeting-board .meeting-minute-card:first-child {
   border-radius: 0 !important;
+}
+
+/* 2026-05-24 dashboard polish: gray task cards w/ status hover frame, flat team panel, brighter avatar initial */
+
+/* item 2: 업무카드 — default flat gray fill + same-color border; on hover, 1px status-tone frame on all 4 sides + status tint fill */
+.dashboard-flow-row,
+.task-card {
+  background: var(--bg-subtle) !important;
+}
+
+:root[data-theme='light'] .dashboard-flow-row,
+:root[data-theme='light'] .task-card,
+:root[data-theme='dark'] .dashboard-flow-row,
+:root[data-theme='dark'] .task-card {
+  border-color: var(--bg-subtle) !important;
+}
+
+:root[data-theme='light'] .dashboard-flow-row:hover,
+:root[data-theme='light'] .task-card:hover,
+:root[data-theme='dark'] .dashboard-flow-row:hover,
+:root[data-theme='dark'] .task-card:hover {
+  border-color: var(--status-line) !important;
+  background: var(--status-card-bg) !important;
+}
+
+/* item 5: 팀 구성원 — remove outer box */
+.team-panel {
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+
+/* item 6: avatar initial brighter (was #eee → #fff for more contrast on the dark avatar) */
+:root[data-theme='light'] .team-panel .avatar > span {
+  color: #ffffff !important;
 }
