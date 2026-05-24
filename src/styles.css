@@ -8034,3 +8034,9 @@ h4,
 .employees-create-button {
   margin-bottom: 5px;
 }
+
+/* 라이트모드 대시보드 업무카드: 평소엔 테두리 없이(transparent) 배경 조금 옅게, 호버 시 원래 상태색 배경+테두리 */
+:root[data-theme='light'] .dashboard-flow-row {
+  background: #fdfdfd !important;
+  border-color: transparent !important;
+}
