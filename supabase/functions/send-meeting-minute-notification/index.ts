@@ -75,21 +75,21 @@ Deno.serve(async (req) => {
 
   const { data: preferences, error: preferencesError } = await admin
     .from('push_preferences')
-    .select('user_id, report_enabled')
+    .select('user_id, meeting_enabled')
     .in('user_id', adminIds);
 
   if (preferencesError) {
     return jsonResponse({ error: preferencesError.message }, 400);
   }
 
-  const preferencesByUser = new Map((preferences || []).map((preference: { user_id: string; report_enabled: boolean }) => [preference.user_id, preference]));
+  const preferencesByUser = new Map((preferences || []).map((preference: { user_id: string; meeting_enabled: boolean }) => [preference.user_id, preference]));
   const enabledAdminIds = adminIds.filter((userId) => {
     const preference = preferencesByUser.get(userId);
-    return preference ? Boolean(preference.report_enabled) : true;
+    return preference ? Boolean(preference.meeting_enabled) : true;
   });
 
   if (!enabledAdminIds.length) {
-    return jsonResponse({ sent: 0, skipped: 'Admins disabled report push' });
+    return jsonResponse({ sent: 0, skipped: 'Admins disabled meeting push' });
   }
 
   const { data: subscriptions, error: subscriptionError } = await admin
