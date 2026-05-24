@@ -8035,18 +8035,30 @@ h4,
   margin-bottom: 5px;
 }
 
-/* 대시보드 업무카드 — 평소(non-hover): 상태색을 한 톤 옅게(테두리 없음) / 호버: 원래 상태색+테두리. 라이트+다크 */
-:root[data-theme='light'] .dashboard-flow-row:not(:hover),
-:root[data-theme='dark'] .dashboard-flow-row:not(:hover) {
+/* 모든 업무카드(대시보드 + 인라인 행) — 평소(미호버·미선택): 상태색 한 톤 옅게(테두리 없음) / 호버·선택: 원래 상태색+테두리. 라이트+다크 */
+:root[data-theme='light'] .dashboard-flow-row:not(:hover):not([data-selected='true']),
+:root[data-theme='light'] .project-task-row:not(:hover):not([data-selected='true']),
+:root[data-theme='dark'] .dashboard-flow-row:not(:hover):not([data-selected='true']),
+:root[data-theme='dark'] .project-task-row:not(:hover):not([data-selected='true']) {
   border-color: transparent !important;
 }
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='blue']:not(:hover)  { background: #f7faff !important; }
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='amber']:not(:hover) { background: #fffcf4 !important; }
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='red']:not(:hover)   { background: #fff9f9 !important; }
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='green']:not(:hover) { background: #f6fcf9 !important; }
-:root[data-theme='light'] .dashboard-flow-row[data-status-tone='gray']:not(:hover)  { background: #fafafa !important; }
-:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='blue']:not(:hover)  { background: #0f1520 !important; }
-:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='amber']:not(:hover) { background: #1a140c !important; }
-:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='red']:not(:hover)   { background: #1b1111 !important; }
-:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='green']:not(:hover) { background: #0e1911 !important; }
-:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='gray']:not(:hover)  { background: #161616 !important; }
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='blue']:not(:hover):not([data-selected='true']),
+:root[data-theme='light'] .project-task-row[data-status-tone='blue']:not(:hover):not([data-selected='true'])  { background: #f7faff !important; }
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='amber']:not(:hover):not([data-selected='true']),
+:root[data-theme='light'] .project-task-row[data-status-tone='amber']:not(:hover):not([data-selected='true']) { background: #fffcf4 !important; }
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='red']:not(:hover):not([data-selected='true']),
+:root[data-theme='light'] .project-task-row[data-status-tone='red']:not(:hover):not([data-selected='true'])   { background: #fff9f9 !important; }
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='green']:not(:hover):not([data-selected='true']),
+:root[data-theme='light'] .project-task-row[data-status-tone='green']:not(:hover):not([data-selected='true']) { background: #f6fcf9 !important; }
+:root[data-theme='light'] .dashboard-flow-row[data-status-tone='gray']:not(:hover):not([data-selected='true']),
+:root[data-theme='light'] .project-task-row[data-status-tone='gray']:not(:hover):not([data-selected='true'])  { background: #fafafa !important; }
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='blue']:not(:hover):not([data-selected='true']),
+:root[data-theme='dark'] .project-task-row[data-status-tone='blue']:not(:hover):not([data-selected='true'])  { background: #0f1520 !important; }
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='amber']:not(:hover):not([data-selected='true']),
+:root[data-theme='dark'] .project-task-row[data-status-tone='amber']:not(:hover):not([data-selected='true']) { background: #1a140c !important; }
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='red']:not(:hover):not([data-selected='true']),
+:root[data-theme='dark'] .project-task-row[data-status-tone='red']:not(:hover):not([data-selected='true'])   { background: #1b1111 !important; }
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='green']:not(:hover):not([data-selected='true']),
+:root[data-theme='dark'] .project-task-row[data-status-tone='green']:not(:hover):not([data-selected='true']) { background: #0e1911 !important; }
+:root[data-theme='dark'] .dashboard-flow-row[data-status-tone='gray']:not(:hover):not([data-selected='true']),
+:root[data-theme='dark'] .project-task-row[data-status-tone='gray']:not(:hover):not([data-selected='true'])  { background: #161616 !important; }
