@@ -9,3 +9,9 @@ release
 .vercel
 supabase/.temp
 public/build-meta.json
+
+# local-only dirs (tooling / drafts / design refs)
+.claude
+.hermes-backups
+design-samples
+proposal-draft
