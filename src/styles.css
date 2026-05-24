@@ -1773,6 +1773,15 @@ h1 {
   font-weight: 800;
 }
 
+.required-mark {
+  color: #d93939;
+  font-weight: 950;
+}
+
+:root[data-theme='dark'] .required-mark {
+  color: #ffb4b4;
+}
+
 .form-stack input,
 .form-stack select,
 .form-stack textarea {
@@ -1797,6 +1806,20 @@ h1 {
   min-height: 92px;
   resize: vertical;
   line-height: 1.5;
+}
+
+.modal-action-bar {
+  position: sticky;
+  bottom: -20px;
+  z-index: 2;
+  margin: 4px -20px -20px;
+  padding: 12px 20px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.modal-action-bar .wide {
+  width: 100%;
 }
 
 .inline-select-action {

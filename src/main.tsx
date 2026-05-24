@@ -4711,8 +4711,12 @@ function ProjectCreateModal({
   const submitClient = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (clientLoading) return;
-    if (!clientForm.name.trim() || !clientForm.manager) {
-      showActionPopup('업체명과 담당자를 입력해주세요.');
+    if (!clientForm.name.trim()) {
+      showActionPopup('업체명을 입력해주세요.');
+      return;
+    }
+    if (!clientForm.manager) {
+      showActionPopup('담당자를 선택해주세요.');
       return;
     }
 
@@ -4861,11 +4865,11 @@ function ProjectCreateModal({
               </button>
             </div>
             <label>
-              업체명
+              업체명 <span className="required-mark">*</span>
               <input autoFocus value={clientForm.name} onChange={(event) => setClientForm({ ...clientForm, name: event.target.value })} />
             </label>
             <label>
-              담당자
+              담당자 <span className="required-mark">*</span>
               <select value={clientForm.manager} onChange={(event) => setClientForm({ ...clientForm, manager: event.target.value })}>
                 {employees.length ? (
                   employees.map((employee) => <option key={employee.id} value={employee.name}>{employee.name}</option>)
@@ -4899,10 +4903,12 @@ function ProjectCreateModal({
               메모
               <textarea value={clientForm.memo} onChange={(event) => setClientForm({ ...clientForm, memo: event.target.value })} />
             </label>
-            <button className="primary-action wide" disabled={clientLoading} type="submit">
-              <Plus size={17} />
-              {clientLoading ? '진행중...' : '업체 추가'}
-            </button>
+            <div className="modal-action-bar">
+              <button className="primary-action wide" disabled={clientLoading} type="submit">
+                <Plus size={17} />
+                {clientLoading ? '진행중...' : '업체 추가'}
+              </button>
+            </div>
           </form>
         </div>
       ) : null}
@@ -5639,11 +5645,17 @@ function CompletionPopup({ message, onClose }: { message: string; onClose: () =>
 
   if (!message) return null;
 
+  const popupTitle = message.includes('입력') || message.includes('선택')
+    ? '확인 필요'
+    : message.includes('실패') || message.includes('오류')
+      ? '오류'
+      : '완료';
+
   return (
     <div className="modal-backdrop action-popup-backdrop" role="presentation" onClick={onClose}>
       <div className="action-popup" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
         <CheckCircle2 size={26} />
-        <h2>완료</h2>
+        <h2>{popupTitle}</h2>
         <p>{message}</p>
         <button className="primary-action wide" onClick={onClose} type="button">
           확인
@@ -7681,6 +7693,20 @@ function MeetingMinuteForm({
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (loading) return;
+    const title = form.title.trim();
+    const content = form.content.trim();
+    if (!title) {
+      const message = '회의록 제목을 입력해주세요.';
+      setStatus(message);
+      showActionPopup(message);
+      return;
+    }
+    if (!content) {
+      const message = '회의 내용을 입력해주세요.';
+      setStatus(message);
+      showActionPopup(message);
+      return;
+    }
     setLoading(true);
     const message = await onSubmitMinute({ ...form, attendees: buildAttendees(attendeeIds, externalAttendees) });
     setLoading(false);
@@ -7715,12 +7741,12 @@ function MeetingMinuteForm({
         <DateTimeConfirmField allowClear value={form.heldAt || ''} onChange={(heldAt) => setForm({ ...form, heldAt })} />
       </label>
       <label>
-        제목
+        제목 <span className="required-mark">*</span>
         <input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="회의록 제목" />
       </label>
       <label>
-        회의 내용
-        <textarea className="modal-scroll-field" required value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} rows={7} />
+        회의 내용 <span className="required-mark">*</span>
+        <textarea className="modal-scroll-field" value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} rows={7} />
       </label>
       <label>
         {isNewBriefing ? '참가자' : '참석자'}
@@ -7763,10 +7789,12 @@ function MeetingMinuteForm({
         </>
       ) : null}
       {status ? <p className="admin-note">{status}</p> : null}
-      <button className="primary-action wide" disabled={loading} type="submit">
-        <CheckCircle2 size={17} />
-        {loading ? '진행중...' : submitLabel}
-      </button>
+      <div className="modal-action-bar">
+        <button className="primary-action wide" disabled={loading} type="submit">
+          <CheckCircle2 size={17} />
+          {loading ? '진행중...' : submitLabel}
+        </button>
+      </div>
     </form>
   );
 }
@@ -8449,7 +8477,15 @@ function ClientsPage({
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!form.name.trim() || !form.manager || loading) return;
+    if (loading) return;
+    if (!form.name.trim()) {
+      showActionPopup('업체명을 입력해주세요.');
+      return;
+    }
+    if (!form.manager) {
+      showActionPopup('담당자를 선택해주세요.');
+      return;
+    }
     setLoading(true);
     const message = await onAddClient(form);
     setLoading(false);
@@ -8474,7 +8510,14 @@ function ClientsPage({
   const saveEdit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!editingClient || actionLoading) return;
-    if (!editForm.name.trim() || !editForm.manager) return;
+    if (!editForm.name.trim()) {
+      showActionPopup('업체명을 입력해주세요.');
+      return;
+    }
+    if (!editForm.manager) {
+      showActionPopup('담당자를 선택해주세요.');
+      return;
+    }
     if (!(await requestActionConfirm('업체 정보를 저장하시겠습니까?'))) return;
     setActionLoading('save');
     const message = await onUpdateClient(editingClient.id, editForm);
@@ -8575,11 +8618,11 @@ function ClientsPage({
               </button>
             </div>
             <label>
-              업체명
+              업체명 <span className="required-mark">*</span>
               <input autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
             </label>
             <label>
-              담당자
+              담당자 <span className="required-mark">*</span>
               <select value={form.manager} onChange={(event) => setForm({ ...form, manager: event.target.value })}>
                 {employees.length ? (
                   employees.map((employee) => <option key={employee.id} value={employee.name}>{employee.name}</option>)
@@ -8613,10 +8656,12 @@ function ClientsPage({
               메모
               <textarea value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
             </label>
-            <button className="primary-action wide" disabled={loading} type="submit">
-              <Plus size={17} />
-              {loading ? '진행중...' : '업체 추가'}
-            </button>
+            <div className="modal-action-bar">
+              <button className="primary-action wide" disabled={loading} type="submit">
+                <Plus size={17} />
+                {loading ? '진행중...' : '업체 추가'}
+              </button>
+            </div>
           </form>
         </div>
       ) : null}
@@ -8633,11 +8678,11 @@ function ClientsPage({
               </button>
             </div>
             <label>
-              업체명
+              업체명 <span className="required-mark">*</span>
               <input value={editForm.name} onChange={(event) => setEditForm({ ...editForm, name: event.target.value })} />
             </label>
             <label>
-              담당자
+              담당자 <span className="required-mark">*</span>
               <select value={editForm.manager} onChange={(event) => setEditForm({ ...editForm, manager: event.target.value })}>
                 {employees.length ? (
                   employees.map((employee) => <option key={employee.id} value={employee.name}>{employee.name}</option>)
@@ -8671,10 +8716,12 @@ function ClientsPage({
               메모
               <textarea value={editForm.memo} onChange={(event) => setEditForm({ ...editForm, memo: event.target.value })} />
             </label>
-            <button className="primary-action wide" disabled={actionLoading === 'save'} type="submit">
-              <CheckCircle2 size={17} />
-              {actionLoading === 'save' ? '진행중...' : '저장'}
-            </button>
+            <div className="modal-action-bar">
+              <button className="primary-action wide" disabled={actionLoading === 'save'} type="submit">
+                <CheckCircle2 size={17} />
+                {actionLoading === 'save' ? '진행중...' : '저장'}
+              </button>
+            </div>
           </form>
         </div>
       ) : null}
