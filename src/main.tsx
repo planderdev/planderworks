@@ -10842,16 +10842,16 @@ function DateTimeConfirmField({
 
   return (
     <div className="datetime-field" ref={fieldRef}>
-      <input
+      <button
+        aria-label={placeholder}
         className="datetime-display-input"
-        required={required}
-        readOnly
-        type="text"
-        value={value ? formatDueDate(value) : ''}
-        placeholder={placeholder}
+        data-empty={!value}
         onClick={openPicker}
-        onFocus={openPicker}
-      />
+        type="button"
+      >
+        {value ? formatDueDate(value) : placeholder}
+      </button>
+      {required && !value ? <input aria-hidden="true" className="datetime-required-input" required tabIndex={-1} value="" onChange={() => {}} /> : null}
       {isOpen ? (
         <div
           className="datetime-popover"

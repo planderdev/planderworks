@@ -2219,7 +2219,31 @@ h1 {
 }
 
 .datetime-display-input {
+  width: 100%;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 13px;
+  color: var(--text);
+  background: var(--input-bg, var(--panel-2));
+  font: inherit;
+  text-align: left;
   cursor: pointer;
+}
+
+.datetime-display-input[data-empty='true'] {
+  color: var(--muted);
+}
+
+.datetime-required-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .datetime-popover {
@@ -3171,9 +3195,8 @@ h1 {
   min-height: 100dvh;
   padding: 24px;
   background: rgba(0, 0, 0, 0.58);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  touch-action: pan-y;
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .nested-modal-backdrop {
