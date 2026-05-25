@@ -1096,20 +1096,33 @@ const getTaskCalendarRange = (task: Task) => {
   };
 };
 
+const dateOnlyValuePattern = /^\d{4}-\d{2}-\d{2}$/;
+
 function formatDueDate(value: string | null | undefined) {
   if (!value) return '미정';
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '미정';
+
+  if (dateOnlyValuePattern.test(value) || (parsed.getHours() === 0 && parsed.getMinutes() === 0 && parsed.getSeconds() === 0)) {
+    return new Intl.DateTimeFormat('ko-KR', {
+      month: 'numeric',
+      day: 'numeric',
+    }).format(parsed);
+  }
+
   return new Intl.DateTimeFormat('ko-KR', {
     month: 'numeric',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value));
+  }).format(parsed);
 }
 
 function parseDueDate(value: string) {
-  if (!value.trim()) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  const nextValue = value.trim();
+  if (!nextValue) return null;
+  const parsed = dateOnlyValuePattern.test(nextValue) ? parseDateOnlyLocalValue(nextValue) : new Date(nextValue);
+  return parsed && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : null;
 }
 
 function getOversizedTaskFiles(files: File[]) {
@@ -1182,8 +1195,8 @@ function toDateTimeLocalValue(date: Date) {
 
 function parseDateTimeLocalValue(value: string) {
   if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
+  const parsed = dateOnlyValuePattern.test(value) ? parseDateOnlyLocalValue(value) : new Date(value);
+  return Number.isNaN(parsed?.getTime()) ? null : parsed;
 }
 
 function parseDateOnlyLocalValue(value: string, endOfDay = false) {
@@ -10784,6 +10797,7 @@ function DateTimeConfirmField({
     return new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
   });
   const draftDate = parseDateTimeLocalValue(draft);
+  const draftHasTime = Boolean(draft && !dateOnlyValuePattern.test(draft));
   const monthStart = new Date(monthCursor.getFullYear(), monthCursor.getMonth(), 1);
   const monthGridStart = addCalendarDays(monthStart, -monthStart.getDay());
   const monthDays = useMemo(() => Array.from({ length: 42 }, (_, index) => addCalendarDays(monthGridStart, index)), [monthGridStart.getTime()]);
@@ -10817,6 +10831,10 @@ function DateTimeConfirmField({
   };
 
   const updateDraftDate = (day: Date) => {
+    if (draft && dateOnlyValuePattern.test(draft)) {
+      setDraft(formatDateInputValue(day));
+      return;
+    }
     const timeDate = draftDate || new Date();
     const nextDate = new Date(day.getFullYear(), day.getMonth(), day.getDate(), timeDate.getHours(), timeDate.getMinutes());
     setDraft(toDateTimeLocalValue(nextDate));
@@ -10824,6 +10842,10 @@ function DateTimeConfirmField({
 
   const updateDraftTime = (type: 'hour' | 'minute', nextValue: string) => {
     const baseDate = draftDate || new Date();
+    if (type === 'hour' && nextValue === 'none') {
+      setDraft(formatDateInputValue(baseDate));
+      return;
+    }
     const nextDate = new Date(baseDate);
     if (type === 'hour') nextDate.setHours(Number(nextValue));
     if (type === 'minute') nextDate.setMinutes(Number(nextValue));
@@ -10831,8 +10853,10 @@ function DateTimeConfirmField({
   };
 
   const confirmDate = () => {
-    onChange(draft || toDateTimeLocalValue(new Date()));
+    const nextValue = draft || toDateTimeLocalValue(new Date());
     setIsOpen(false);
+    onChange(nextValue);
+    window.setTimeout(() => setIsOpen(false), 0);
   };
   const clearDate = () => {
     onChange('');
@@ -10898,12 +10922,13 @@ function DateTimeConfirmField({
             })}
           </div>
           <div className="datetime-time-row">
-            <select value={draftDate ? String(draftDate.getHours()).padStart(2, '0') : '00'} onChange={(event) => updateDraftTime('hour', event.target.value)}>
+            <select value={draftHasTime && draftDate ? String(draftDate.getHours()).padStart(2, '0') : 'none'} onChange={(event) => updateDraftTime('hour', event.target.value)}>
+              <option value="none">시간 선택 안함</option>
               {hours.map((hour) => (
                 <option key={hour} value={hour}>{hour}시</option>
               ))}
             </select>
-            <select value={draftDate ? String(draftDate.getMinutes()).padStart(2, '0') : '00'} onChange={(event) => updateDraftTime('minute', event.target.value)}>
+            <select disabled={!draftHasTime} value={draftHasTime && draftDate ? String(draftDate.getMinutes()).padStart(2, '0') : '00'} onChange={(event) => updateDraftTime('minute', event.target.value)}>
               {minutes.map((minute) => (
                 <option key={minute} value={minute}>{minute}분</option>
               ))}
@@ -10921,7 +10946,11 @@ function DateTimeConfirmField({
             }}>
               취소
             </button>
-            <button className="primary-action" type="button" onClick={confirmDate}>
+            <button className="primary-action" type="button" onMouseDown={(event) => event.preventDefault()} onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              confirmDate();
+            }}>
               확인
             </button>
           </div>
