@@ -5652,6 +5652,8 @@ function DraggableFolderTabs({ children, label }: { children: React.ReactNode; l
           }
           showScrollHint();
         }
+        event.preventDefault();
+        event.stopPropagation();
         node.scrollLeft = state.scrollLeft - deltaX;
         updateScrollHint();
       }}
