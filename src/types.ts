@@ -14,6 +14,7 @@ export type ActiveView =
   | 'project'
   | 'create'
   | 'meetingMinutes'
+  | 'notices'
   | 'reports'
   | 'clients'
   | 'employees'
@@ -122,6 +123,7 @@ export type PushPreferences = {
   task: boolean;
   report: boolean;
   projectMessage: boolean;
+  notice: boolean;
 };
 
 export type MeetingMinute = {
@@ -310,3 +312,45 @@ export type MeetingMinuteDeleteHandler = (minute: MeetingMinute) => Promise<stri
 export type MeetingMinuteCategorySubmitHandler = (name: string) => Promise<string>;
 export type MeetingMinuteCategoryDeleteHandler = (name: string) => Promise<string>;
 export type MeetingMinuteExportFormat = 'pdf' | 'xls' | 'hwp';
+
+// 공지/전달사항
+export type NoticeComment = {
+  id: string;
+  noticeId: string;
+  parentId?: string | null;
+  userId?: string | null;
+  author: string;
+  avatarUrl?: string | null;
+  content: string;
+  createdAt: string;
+};
+export type Notice = {
+  id: string;
+  category: string;
+  title: string;
+  content: string;
+  important: boolean;
+  pinned: boolean;
+  allowComments: boolean;
+  popup: boolean;
+  popupUntil?: string | null;
+  createdBy?: string | null;
+  author: string;
+  authorAvatarUrl?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  comments: NoticeComment[];
+};
+export type NoticeDraft = Pick<Notice,
+  'category' | 'title' | 'content' | 'important' | 'pinned' | 'allowComments' | 'popup'
+> & {
+  popupUntil?: string | null;
+};
+export type NoticeSubmitHandler = (notice: NoticeDraft) => Promise<string>;
+export type NoticeUpdateHandler = (noticeId: string, notice: NoticeDraft) => Promise<string>;
+export type NoticeDeleteHandler = (notice: Notice) => Promise<string>;
+export type NoticeTogglePinHandler = (notice: Notice) => Promise<string>;
+export type NoticeCommentSubmitHandler = (notice: Notice, content: string, parentCommentId?: string | null) => Promise<string>;
+export type NoticeCommentDeleteHandler = (notice: Notice, comment: NoticeComment) => Promise<string>;
+export type NoticeCategorySubmitHandler = (name: string) => Promise<string>;
+export type NoticeCategoryDeleteHandler = (name: string) => Promise<string>;

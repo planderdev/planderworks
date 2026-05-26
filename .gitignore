@@ -8,6 +8,7 @@ release
 *.log
 .vercel
 supabase/.temp
+supabase/.temp.backup.*.tgz
 public/build-meta.json
 
 # local-only dirs (tooling / drafts / design refs)

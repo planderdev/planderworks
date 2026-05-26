@@ -8167,3 +8167,149 @@ h4,
 :root[data-theme='dark'] .project-task-row[data-status-tone='green']:not(:hover):not([data-selected='true']) { background: #0e1911 !important; }
 :root[data-theme='dark'] .dashboard-flow-row[data-status-tone='gray']:not(:hover):not([data-selected='true']),
 :root[data-theme='dark'] .project-task-row[data-status-tone='gray']:not(:hover):not([data-selected='true'])  { background: #161616 !important; }
+
+/* ─── 공지/전달사항 ─────────────────────────────────────────────── */
+.notice-mode-shell .notice-board { padding-top: 0; }
+
+/* important / pinned 표시 */
+.notice-important-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  margin-right: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  color: #fff;
+  background: #d9534f;
+  border-radius: 10px;
+  vertical-align: middle;
+}
+.notice-pinned-marker {
+  vertical-align: middle;
+  margin-right: 4px;
+  color: #c98404;
+}
+.notice-card[data-pinned='true'] .meeting-minute-summary {
+  background: linear-gradient(0deg, transparent, rgba(220, 174, 64, 0.06));
+}
+.notice-card[data-important='true'] .meeting-minute-summary strong {
+  color: #b8302c;
+}
+:root[data-theme='dark'] .notice-card[data-important='true'] .meeting-minute-summary strong {
+  color: #ff7b75;
+}
+
+.notice-comments-disabled { padding: 12px 0; }
+
+/* 폼 — flag 4종 + popup_until */
+.notice-form-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 3fr;
+  gap: 12px;
+}
+.notice-flags-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  background: var(--surface-muted, #f5f6f8);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 14px 0 4px;
+}
+.notice-flag {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: start;
+  gap: 6px 10px;
+  cursor: pointer;
+}
+.notice-flag input { margin-top: 3px; }
+.notice-flag span {
+  font-weight: 600;
+  font-size: 14px;
+  grid-column: 2 / -1;
+}
+.notice-flag small {
+  grid-column: 2 / -1;
+  font-size: 12px;
+  color: var(--text-secondary, #6f7480);
+}
+.notice-popup-until-field {
+  display: grid;
+  gap: 4px;
+}
+.notice-popup-until-field small {
+  font-size: 12px;
+  color: var(--text-secondary, #6f7480);
+}
+
+@media (max-width: 720px) {
+  .notice-form-grid { grid-template-columns: 1fr; }
+  .notice-flags-row { grid-template-columns: 1fr; }
+}
+
+/* 메인 접속 팝업 */
+.notice-popup-backdrop {
+  z-index: 1200;
+}
+.notice-popup-card {
+  width: min(520px, calc(100% - 32px));
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.notice-popup-card[data-important='true'] {
+  border-top: 4px solid #d9534f;
+}
+.notice-popup-head {
+  padding: 20px 22px 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.notice-popup-head .eyebrow { color: #888; }
+.notice-popup-card[data-important='true'] .notice-popup-head .eyebrow { color: #d9534f; }
+.notice-popup-head h2 { font-size: 19px; margin: 4px 0; line-height: 1.35; }
+.notice-popup-head small { color: var(--text-secondary, #6f7480); font-size: 12px; }
+.notice-popup-body {
+  padding: 8px 22px 18px;
+  overflow-y: auto;
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.notice-popup-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--border);
+}
+.notice-popup-hide-today {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.notice-popup-actions { display: inline-flex; gap: 8px; }
+
+@media (max-width: 480px) {
+  .notice-popup-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .notice-popup-actions {
+    justify-content: flex-end;
+  }
+}

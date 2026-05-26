@@ -19,6 +19,7 @@ import {
   Inbox,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Menu,
   MessageSquareText,
   Monitor,
@@ -26,6 +27,7 @@ import {
   MoreHorizontal,
   Paperclip,
   Pencil,
+  Pin,
   Plus,
   Reply,
   Search,
@@ -115,11 +117,25 @@ import type {
   MeetingMinuteCategorySubmitHandler,
   MeetingMinuteCategoryDeleteHandler,
   MeetingMinuteExportFormat,
+  Notice,
+  NoticeComment,
+  NoticeDraft,
+  NoticeSubmitHandler,
+  NoticeUpdateHandler,
+  NoticeDeleteHandler,
+  NoticeTogglePinHandler,
+  NoticeCommentSubmitHandler,
+  NoticeCommentDeleteHandler,
+  NoticeCategorySubmitHandler,
+  NoticeCategoryDeleteHandler,
 } from './types';
 
-const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'project', 'create', 'meetingMinutes', 'reports', 'clients', 'employees', 'operations', 'settings'];
+const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'project', 'create', 'meetingMinutes', 'notices', 'reports', 'clients', 'employees', 'operations', 'settings'];
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 const fallbackMeetingMinuteCategories = ['프로젝트회의', '내부회의', '신규브리핑'];
+const fallbackNoticeCategories = ['없음', '일반', '이벤트', '긴급'];
+const NOTICES_LAST_SEEN_KEY = 'plander-notices-last-seen';
+const NOTICE_POPUP_DISMISS_PREFIX = 'plander-notice-popup-dismissed-';
 const MAX_TASK_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_TASK_FILE_SIZE_LABEL = '10MB';
 const MAX_AVATAR_FILE_SIZE = 1024 * 1024;
@@ -140,6 +156,7 @@ const defaultPushPreferences: PushPreferences = {
   task: true,
   report: true,
   projectMessage: true,
+  notice: true,
 };
 const apiScopeOptions: Array<{ value: ApiScope; label: string; description: string }> = [
   {
@@ -357,6 +374,7 @@ const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.Elemen
   { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'meetingMinutes', label: '회의록', icon: ClipboardList },
+  { id: 'notices', label: '공지/전달사항', icon: Megaphone },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
   { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
   { id: 'calendar', label: '캘린더', icon: CalendarClock },
@@ -739,6 +757,51 @@ const seedMeetingMinutes: MeetingMinute[] = [
     heldAt: '2026-04-20',
     author: '대표',
     createdAt: '2026-04-20T03:00:00.000Z',
+  },
+];
+
+const seedNotices: Notice[] = [
+  {
+    id: 'notice-1',
+    category: '긴급',
+    title: '6월 5일 전사 시스템 점검 안내',
+    content: '6월 5일(목) 22:00 ~ 6월 6일(금) 02:00 까지 인프라 점검이 진행됩니다. 해당 시간에는 일부 기능 사용이 제한될 수 있으니 미리 참고 부탁드립니다.',
+    important: true,
+    pinned: true,
+    allowComments: true,
+    popup: true,
+    popupUntil: '2026-06-06',
+    author: '대표',
+    createdAt: '2026-05-25T01:00:00.000Z',
+    comments: [],
+  },
+  {
+    id: 'notice-2',
+    category: '이벤트',
+    title: '신규 입사자 환영회 안내',
+    content: '5월 30일(금) 19시 회사 라운지에서 환영회를 진행합니다. 모두 참석 부탁드립니다.',
+    important: false,
+    pinned: false,
+    allowComments: true,
+    popup: false,
+    popupUntil: null,
+    author: '운영팀',
+    createdAt: '2026-05-22T05:00:00.000Z',
+    comments: [],
+  },
+  {
+    id: 'notice-3',
+    category: '일반',
+    title: '여름철 복장 가이드',
+    content: '6월부터 8월까지 비즈니스 캐주얼이 허용됩니다. 단정한 차림을 유지해주세요.',
+    important: false,
+    pinned: false,
+    allowComments: false,
+    popup: false,
+    popupUntil: null,
+    author: '대표',
+    createdAt: '2026-05-20T07:00:00.000Z',
+    comments: [],
   },
 ];
 
@@ -1461,6 +1524,7 @@ function App() {
   const [projectMessages, setProjectMessages] = useState<ProjectMessage[]>([]);
   const [workSchedules, setWorkSchedules] = useState<WorkSchedule[]>(seedWorkSchedules);
   const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>(seedMeetingMinutes);
+  const [notices, setNotices] = useState<Notice[]>(seedNotices);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
   const [operations, setOperations] = useState<OperationItem[]>(getInitialOperations);
   const [googleCalendarSettings, setGoogleCalendarSettings] = useState<GoogleCalendarSettings>(getInitialGoogleCalendarSettings);
@@ -1468,6 +1532,15 @@ function App() {
   const [jobTypes, setJobTypes] = useState(seedJobTypes);
   const [taskTypes, setTaskTypes] = useState(fallbackTaskTypes);
   const [meetingMinuteCategories, setMeetingMinuteCategories] = useState(fallbackMeetingMinuteCategories);
+  const [noticeCategories, setNoticeCategories] = useState<string[]>(fallbackNoticeCategories);
+  const [noticesLastSeen, setNoticesLastSeen] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.localStorage.getItem(NOTICES_LAST_SEEN_KEY);
+    } catch {
+      return null;
+    }
+  });
   const [backendStatus, setBackendStatus] = useState('프로토타입 데이터');
   const [pushStatus, setPushStatus] = useState('종 버튼을 누르면 이 기기 업무 푸시알림을 켤 수 있습니다.');
   const [pushLoading, setPushLoading] = useState(false);
@@ -1804,7 +1877,7 @@ function App() {
         .order('created_at', { ascending: false }),
       supabase
         .from('push_preferences')
-        .select('task_enabled, report_enabled, project_message_enabled')
+        .select('*')
         .eq('user_id', currentUser.id)
         .maybeSingle(),
       supabase
@@ -2048,11 +2121,14 @@ function App() {
       createdBy: schedule.created_by,
       creatorName: schedule.creator?.name || '알 수 없음',
     }));
-    const nextPushPreferences = pushPreferencesResult.data
+    // push_preferences는 SELECT * 결과를 tolerant하게 매핑 — notice_enabled 컬럼이 아직 없어도 default true로 안전.
+    const pushPrefRow = pushPreferencesResult.data as any;
+    const nextPushPreferences = pushPrefRow
       ? {
-          task: Boolean((pushPreferencesResult.data as any).task_enabled),
-          report: Boolean((pushPreferencesResult.data as any).report_enabled),
-          projectMessage: Boolean((pushPreferencesResult.data as any).project_message_enabled),
+          task: pushPrefRow.task_enabled === undefined ? defaultPushPreferences.task : Boolean(pushPrefRow.task_enabled),
+          report: pushPrefRow.report_enabled === undefined ? defaultPushPreferences.report : Boolean(pushPrefRow.report_enabled),
+          projectMessage: pushPrefRow.project_message_enabled === undefined ? defaultPushPreferences.projectMessage : Boolean(pushPrefRow.project_message_enabled),
+          notice: pushPrefRow.notice_enabled === undefined ? defaultPushPreferences.notice : Boolean(pushPrefRow.notice_enabled),
         }
       : defaultPushPreferences;
     const nextApiKeys: ApiKeyRecord[] = ((apiKeysResult.data || []) as any[]).map((apiKey) => ({
@@ -2081,6 +2157,72 @@ function App() {
     setTaskTypes(nextTaskTypes.length ? nextTaskTypes : fallbackTaskTypes);
     setMeetingMinuteCategories(nextMeetingMinuteCategories.length ? nextMeetingMinuteCategories : fallbackMeetingMinuteCategories);
     setBackendStatus('Supabase 연결됨');
+
+    // ─── 공지/전달사항 (tolerant) ───────────────────────────────────────
+    // 테이블이 아직 마이그레이션 안 됐을 수 있으니 모든 에러를 흡수.
+    // 실패 시 seed/이전 state 유지 — loadBackendData 전체 흐름은 영향 없음.
+    try {
+      const [noticeCategoriesResult, noticesResult, noticeCommentsResult] = await Promise.all([
+        supabase!
+          .from('notice_categories')
+          .select('name')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true }),
+        supabase!
+          .from('notices')
+          .select(`
+            id, category, title, content, important, pinned, allow_comments,
+            popup, popup_until, created_by, created_at, updated_at,
+            creator:profiles!notices_created_by_fkey(name, avatar_url)
+          `)
+          .order('pinned', { ascending: false })
+          .order('created_at', { ascending: false }),
+        supabase!
+          .from('notice_comments')
+          .select('id, notice_id, parent_comment_id, user_id, content, created_at, user:profiles!notice_comments_user_id_fkey(name, avatar_url)')
+          .order('created_at', { ascending: true }),
+      ]);
+      if (noticeCategoriesResult.error || noticesResult.error || noticeCommentsResult.error) {
+        // 마이그레이션 전: 조용히 무시. console에 한 줄만.
+        console.warn('[notices] tolerant load skipped:', noticeCategoriesResult.error?.message || noticesResult.error?.message || noticeCommentsResult.error?.message);
+      } else {
+        const commentsByNotice = ((noticeCommentsResult.data || []) as any[]).reduce<Record<string, NoticeComment[]>>((groups, comment) => {
+          const next: NoticeComment = {
+            id: comment.id,
+            noticeId: comment.notice_id,
+            parentId: comment.parent_comment_id,
+            userId: comment.user_id,
+            author: comment.user?.name || '알 수 없음',
+            avatarUrl: comment.user?.avatar_url || null,
+            content: comment.content,
+            createdAt: comment.created_at,
+          };
+          return { ...groups, [comment.notice_id]: [...(groups[comment.notice_id] || []), next] };
+        }, {});
+        const nextNotices: Notice[] = ((noticesResult.data || []) as any[]).map((row) => ({
+          id: row.id,
+          category: row.category || '없음',
+          title: row.title || '제목 없음',
+          content: row.content || '',
+          important: Boolean(row.important),
+          pinned: Boolean(row.pinned),
+          allowComments: row.allow_comments !== false,
+          popup: Boolean(row.popup),
+          popupUntil: row.popup_until || null,
+          createdBy: row.created_by,
+          author: row.creator?.name || '알 수 없음',
+          authorAvatarUrl: row.creator?.avatar_url || null,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          comments: commentsByNotice[row.id] || [],
+        }));
+        const nextNoticeCategories = ((noticeCategoriesResult.data || []) as any[]).map((c) => c.name).filter(Boolean);
+        setNotices(nextNotices);
+        setNoticeCategories(nextNoticeCategories.length ? nextNoticeCategories : fallbackNoticeCategories);
+      }
+    } catch (error) {
+      console.warn('[notices] tolerant load exception:', (error as Error).message);
+    }
   };
 
   useEffect(() => {
@@ -2111,6 +2253,9 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_schedules' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_minutes' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'meeting_minute_categories' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notices' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notice_categories' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notice_comments' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'push_preferences' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'api_keys' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, queueRefresh)
@@ -2206,6 +2351,15 @@ function App() {
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
   }, [activeView, currentUser]);
+
+  // 공지 페이지 진입 시 새글 배지 초기화 (localStorage 마지막 본 시점 갱신)
+  useEffect(() => {
+    if (activeView === 'notices') {
+      markNoticesSeen();
+    }
+    // markNoticesSeen은 매 렌더마다 새로 만들어지지만 setState만 호출하므로 deps에 안 넣어도 안전.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeView]);
 
   useEffect(() => {
     if (!currentUser || currentUser.isPrototype || !('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -2319,11 +2473,23 @@ function App() {
     sent: sentTasks.length,
     reports: reportTasks.length,
     meetingMinutes: meetingMinutes.length,
+    notices: notices.length,
   };
+  const unreadNoticeCount = useMemo(() => {
+    if (!noticesLastSeen) return notices.length; // 처음 방문이면 전체를 새 글로
+    const cutoff = new Date(noticesLastSeen).getTime();
+    if (!Number.isFinite(cutoff)) return notices.length;
+    return notices.filter((n) => {
+      if (!n.createdAt) return false;
+      const t = new Date(n.createdAt).getTime();
+      return Number.isFinite(t) && t > cutoff;
+    }).length;
+  }, [notices, noticesLastSeen]);
   const navUnreadBadges: Partial<Record<ActiveView, number>> = {
     inbox: inboxTasks.filter((task) => needsTaskAttention(task, currentUser)).length,
     sent: sentTasks.filter((task) => needsTaskAttention(task, currentUser)).length,
     reports: reportTasks.filter((task) => needsTaskAttention(task, currentUser)).length,
+    notices: unreadNoticeCount,
   };
 
   const dashboardStats = useMemo(
@@ -3436,6 +3602,295 @@ function App() {
     return '회의록을 삭제했습니다.';
   };
 
+  // ─── 공지/전달사항 핸들러 ────────────────────────────────────────────
+  const addNoticeCategory: NoticeCategorySubmitHandler = async (name) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    if (currentUser.accountRole !== 'admin') return '관리자만 카테고리를 추가할 수 있습니다.';
+    const trimmed = name.trim();
+    if (!trimmed) return '카테고리 이름을 입력해주세요.';
+    if (noticeCategories.includes(trimmed)) return '이미 존재하는 카테고리입니다.';
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase.from('notice_categories').insert({
+        name: trimmed,
+        sort_order: (noticeCategories.length + 1) * 10,
+      });
+      if (error) {
+        if (error.message.includes('unique')) return '이미 존재하는 카테고리입니다.';
+        const message = `카테고리 추가 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+    }
+
+    setNoticeCategories((current) => [...current, trimmed]);
+    return '공지 카테고리를 추가했습니다.';
+  };
+
+  const deleteNoticeCategory: NoticeCategoryDeleteHandler = async (name) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    if (currentUser.accountRole !== 'admin') return '관리자만 카테고리를 삭제할 수 있습니다.';
+    if (name === '없음') return '기본 카테고리 "없음"은 삭제할 수 없습니다.';
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase.from('notice_categories').delete().eq('name', name);
+      if (error) {
+        const message = `카테고리 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+    }
+
+    setNoticeCategories((current) => current.filter((c) => c !== name));
+    return '공지 카테고리를 삭제했습니다.';
+  };
+
+  const addNotice: NoticeSubmitHandler = async (draft) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    if (currentUser.accountRole !== 'admin') return '관리자만 공지를 작성할 수 있습니다.';
+
+    const title = draft.title.trim();
+    const content = draft.content.trim();
+    if (!title) return '공지 제목을 입력해주세요.';
+    if (!content) return '공지 내용을 입력해주세요.';
+
+    const category = draft.category?.trim() || '없음';
+    const popupUntil = draft.popup && draft.popupUntil ? draft.popupUntil : null;
+
+    if (supabase && !currentUser.isPrototype) {
+      const { data, error } = await supabase
+        .from('notices')
+        .insert({
+          category,
+          title,
+          content,
+          important: draft.important,
+          pinned: draft.pinned,
+          allow_comments: draft.allowComments,
+          popup: draft.popup,
+          popup_until: popupUntil,
+          created_by: currentUser.id,
+        })
+        .select('id')
+        .single();
+
+      if (error || !data) {
+        const message = `공지 저장 실패: ${error?.message || '저장된 공지를 확인할 수 없습니다.'}`;
+        setBackendStatus(message);
+        return message;
+      }
+
+      const { error: notificationError } = await supabase.functions.invoke('send-notice-notification', {
+        body: { noticeId: data.id },
+      });
+      if (notificationError) {
+        setBackendStatus(`공지 알림 실패: ${notificationError.message}`);
+      }
+
+      await loadBackendData();
+      return '공지를 등록했습니다.';
+    }
+
+    const nowIso = new Date().toISOString();
+    setNotices((current) => [
+      {
+        id: `notice-${Date.now()}`,
+        category,
+        title,
+        content,
+        important: draft.important,
+        pinned: draft.pinned,
+        allowComments: draft.allowComments,
+        popup: draft.popup,
+        popupUntil,
+        author: currentUser.name,
+        authorAvatarUrl: currentUser.avatarUrl || null,
+        createdBy: currentUser.id,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        comments: [],
+      },
+      ...current,
+    ]);
+    return '공지를 등록했습니다.';
+  };
+
+  const updateNotice: NoticeUpdateHandler = async (noticeId, draft) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    if (currentUser.accountRole !== 'admin') return '관리자만 공지를 수정할 수 있습니다.';
+    const existing = notices.find((n) => n.id === noticeId);
+    if (!existing) return '수정할 공지를 찾을 수 없습니다.';
+
+    const title = draft.title.trim();
+    const content = draft.content.trim();
+    if (!title) return '공지 제목을 입력해주세요.';
+    if (!content) return '공지 내용을 입력해주세요.';
+
+    const category = draft.category?.trim() || '없음';
+    const popupUntil = draft.popup && draft.popupUntil ? draft.popupUntil : null;
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('notices')
+        .update({
+          category,
+          title,
+          content,
+          important: draft.important,
+          pinned: draft.pinned,
+          allow_comments: draft.allowComments,
+          popup: draft.popup,
+          popup_until: popupUntil,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', noticeId);
+      if (error) {
+        const message = `공지 수정 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+      await loadBackendData();
+      return '공지를 수정했습니다.';
+    }
+
+    setNotices((current) =>
+      current.map((n) =>
+        n.id === noticeId
+          ? {
+              ...n,
+              category,
+              title,
+              content,
+              important: draft.important,
+              pinned: draft.pinned,
+              allowComments: draft.allowComments,
+              popup: draft.popup,
+              popupUntil,
+              updatedAt: new Date().toISOString(),
+            }
+          : n,
+      ),
+    );
+    return '공지를 수정했습니다.';
+  };
+
+  const deleteNotice: NoticeDeleteHandler = async (notice) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    if (currentUser.accountRole !== 'admin') return '관리자만 공지를 삭제할 수 있습니다.';
+    if (!(await requestActionConfirm(`${notice.title} 공지를 삭제할까요?`))) return '취소했습니다.';
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase.from('notices').delete().eq('id', notice.id);
+      if (error) {
+        const message = `공지 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+      await loadBackendData();
+      return '공지를 삭제했습니다.';
+    }
+
+    setNotices((current) => current.filter((n) => n.id !== notice.id));
+    return '공지를 삭제했습니다.';
+  };
+
+  const togglePinNotice: NoticeTogglePinHandler = async (notice) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    if (currentUser.accountRole !== 'admin') return '관리자만 고정할 수 있습니다.';
+    const nextPinned = !notice.pinned;
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase
+        .from('notices')
+        .update({ pinned: nextPinned, updated_at: new Date().toISOString() })
+        .eq('id', notice.id);
+      if (error) {
+        const message = `상단고정 변경 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+      await loadBackendData();
+      return nextPinned ? '공지를 상단고정했습니다.' : '상단고정을 해제했습니다.';
+    }
+
+    setNotices((current) => current.map((n) => (n.id === notice.id ? { ...n, pinned: nextPinned } : n)));
+    return nextPinned ? '공지를 상단고정했습니다.' : '상단고정을 해제했습니다.';
+  };
+
+  const addNoticeComment: NoticeCommentSubmitHandler = async (notice, content, parentCommentId) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    if (!notice.allowComments) return '이 공지는 댓글이 허용되지 않습니다.';
+    const trimmed = content.trim();
+    if (!trimmed) return '댓글 내용을 입력해주세요.';
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase.from('notice_comments').insert({
+        notice_id: notice.id,
+        parent_comment_id: parentCommentId || null,
+        user_id: currentUser.id,
+        content: trimmed,
+      });
+      if (error) {
+        const message = `댓글 등록 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+      await loadBackendData();
+      return '댓글을 등록했습니다.';
+    }
+
+    const newComment: NoticeComment = {
+      id: `nc-${Date.now()}`,
+      noticeId: notice.id,
+      parentId: parentCommentId || null,
+      userId: currentUser.id,
+      author: currentUser.name,
+      avatarUrl: currentUser.avatarUrl || null,
+      content: trimmed,
+      createdAt: new Date().toISOString(),
+    };
+    setNotices((current) =>
+      current.map((n) => (n.id === notice.id ? { ...n, comments: [...n.comments, newComment] } : n)),
+    );
+    return '댓글을 등록했습니다.';
+  };
+
+  const deleteNoticeComment: NoticeCommentDeleteHandler = async (notice, comment) => {
+    if (!currentUser) return '로그인이 필요합니다.';
+    if (comment.userId !== currentUser.id && currentUser.accountRole !== 'admin') {
+      return '본인이 작성한 댓글 또는 관리자만 삭제할 수 있습니다.';
+    }
+    if (!(await requestActionConfirm('이 댓글을 삭제할까요?'))) return '취소했습니다.';
+
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase.from('notice_comments').delete().eq('id', comment.id);
+      if (error) {
+        const message = `댓글 삭제 실패: ${error.message}`;
+        setBackendStatus(message);
+        return message;
+      }
+      await loadBackendData();
+      return '댓글을 삭제했습니다.';
+    }
+
+    setNotices((current) =>
+      current.map((n) =>
+        n.id === notice.id ? { ...n, comments: n.comments.filter((c) => c.id !== comment.id) } : n,
+      ),
+    );
+    return '댓글을 삭제했습니다.';
+  };
+
+  const markNoticesSeen = () => {
+    const nowIso = new Date().toISOString();
+    setNoticesLastSeen(nowIso);
+    try {
+      window.localStorage.setItem(NOTICES_LAST_SEEN_KEY, nowIso);
+    } catch {
+      /* localStorage 차단 환경은 무시 */
+    }
+  };
+
   const addEmployee = async (employee: NewEmployee): Promise<string> => {
     if (supabase && currentUser && !currentUser.isPrototype) {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -3623,6 +4078,7 @@ function App() {
           task_enabled: preferences.task,
           report_enabled: preferences.report,
           project_message_enabled: preferences.projectMessage,
+          notice_enabled: preferences.notice,
         },
         { onConflict: 'user_id' },
       );
@@ -4190,7 +4646,7 @@ function App() {
     onRegisterPush: handleRegisterPush,
     onThemeChange: changeThemeMode,
   };
-  const isImmersiveView = ['project', 'reports', 'allTasks', 'inbox', 'sent', 'clients', 'operations', 'calendar', 'meetingMinutes'].includes(activeView);
+  const isImmersiveView = ['project', 'reports', 'allTasks', 'inbox', 'sent', 'clients', 'operations', 'calendar', 'meetingMinutes', 'notices'].includes(activeView);
 
   return (
     <div className="app">
@@ -4281,17 +4737,20 @@ function App() {
         />
 
         {activeView === 'dashboard' ? (
-          <Dashboard
-            stats={dashboardStats}
-            tasks={inboxTasks}
-            sentTasks={sentTasks}
-            reportTasks={reportTasks}
-            clients={clients}
-            employees={employees}
-            onNavigate={navigateTo}
-            onOpenTask={openDashboardTask}
-            currentUser={currentUser}
-          />
+          <>
+            <Dashboard
+              stats={dashboardStats}
+              tasks={inboxTasks}
+              sentTasks={sentTasks}
+              reportTasks={reportTasks}
+              clients={clients}
+              employees={employees}
+              onNavigate={navigateTo}
+              onOpenTask={openDashboardTask}
+              currentUser={currentUser}
+            />
+            <NoticePopup notices={notices} onOpenNotices={() => navigateTo('notices')} />
+          </>
         ) : null}
         {activeView === 'inbox' ? (
           <TaskListPage {...immersiveChromeProps} title="받은 업무" initialStatus={taskListFilters.inbox || '전체'} initialFocusedTaskId={focusTaskId} tasks={inboxTasks} employees={employees} onAddComment={addTaskComment} onDeleteComment={deleteTaskComment} onDownloadFile={openTaskFile} onEditTask={(task) => setEditingTaskId(task.id)} onMarkTaskRead={markTaskRead} onOpenTask={(task) => setSelectedTaskId(task.id)} onDeleteTask={deleteTask} onUpdateTaskStatus={updateTaskStatus} />
@@ -4326,6 +4785,21 @@ function App() {
             onCreateMinute={addMeetingMinute}
             onDeleteMinute={deleteMeetingMinute}
             onUpdateMinute={updateMeetingMinute}
+          />
+        ) : null}
+        {activeView === 'notices' ? (
+          <NoticesPage
+            {...immersiveChromeProps}
+            categories={noticeCategories}
+            notices={notices}
+            currentUserId={currentUser?.id || null}
+            isAdmin={isAdmin}
+            onCreateNotice={addNotice}
+            onUpdateNotice={updateNotice}
+            onDeleteNotice={deleteNotice}
+            onTogglePin={togglePinNotice}
+            onAddComment={addNoticeComment}
+            onDeleteComment={deleteNoticeComment}
           />
         ) : null}
         {activeView === 'allTasks' ? (
@@ -4444,6 +4918,9 @@ function App() {
             meetingMinuteCategories={meetingMinuteCategories}
             onAddMeetingMinuteCategory={addMeetingMinuteCategory}
             onDeleteMeetingMinuteCategory={deleteMeetingMinuteCategory}
+            noticeCategories={noticeCategories}
+            onAddNoticeCategory={addNoticeCategory}
+            onDeleteNoticeCategory={deleteNoticeCategory}
             onCreateApiKey={createApiKey}
             onDeleteApiKey={deleteApiKey}
             onRevokeApiKey={revokeApiKey}
@@ -7862,6 +8339,611 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#039;');
 }
 
+function NoticesPage({
+  categories,
+  notices,
+  currentUserId,
+  isAdmin,
+  currentUser,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
+  showThemeSwitcher,
+  themeMode,
+  onCreateNotice,
+  onUpdateNotice,
+  onDeleteNotice,
+  onTogglePin,
+  onAddComment,
+  onDeleteComment,
+  onClosePage,
+  onLogout,
+  onMenuClick,
+  onNavigate,
+  onOpenProfile,
+  onRegisterPush,
+  onThemeChange,
+}: ImmersiveChromeProps & {
+  categories: string[];
+  notices: Notice[];
+  currentUserId: string | null;
+  isAdmin: boolean;
+  onCreateNotice: NoticeSubmitHandler;
+  onUpdateNotice: NoticeUpdateHandler;
+  onDeleteNotice: NoticeDeleteHandler;
+  onTogglePin: NoticeTogglePinHandler;
+  onAddComment: NoticeCommentSubmitHandler;
+  onDeleteComment: NoticeCommentDeleteHandler;
+}) {
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [editingNoticeId, setEditingNoticeId] = useState<string | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState('전체');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+  const [pinLoadingId, setPinLoadingId] = useState<string | null>(null);
+
+  // 정렬: pinned desc → created_at desc. (이미 서버에서 정렬되긴 하지만 프로토타입/낙관적 업데이트 대비)
+  const sortedNotices = useMemo(
+    () =>
+      [...notices].sort((a, b) => {
+        if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return bTime - aTime;
+      }),
+    [notices],
+  );
+  const visibleNotices = sortedNotices.filter((n) => categoryFilter === '전체' || n.category === categoryFilter);
+  const editingNotice = notices.find((n) => n.id === editingNoticeId) || null;
+
+  const removeNotice = async (notice: Notice) => {
+    if (deleteLoadingId) return;
+    setDeleteLoadingId(notice.id);
+    const message = await onDeleteNotice(notice);
+    setDeleteLoadingId(null);
+    showActionPopup(message);
+    if (!message.includes('실패') && !message.includes('취소')) {
+      setExpandedId((current) => (current === notice.id ? null : current));
+    }
+  };
+
+  const togglePin = async (notice: Notice) => {
+    if (pinLoadingId) return;
+    setPinLoadingId(notice.id);
+    const message = await onTogglePin(notice);
+    setPinLoadingId(null);
+    showActionPopup(message);
+  };
+
+  return (
+    <ImmersivePageFrame
+      action={isAdmin ? (
+        <button className="primary-action" onClick={() => setComposeOpen(true)} type="button">
+          <Plus size={17} />
+          공지 작성
+        </button>
+      ) : null}
+      className="meeting-mode-shell notice-mode-shell"
+      currentUser={currentUser}
+      folderIcon={Megaphone}
+      folderLabel="공지/전달사항"
+      heading="공지/전달사항"
+      pushEnabled={pushEnabled}
+      pushLoading={pushLoading}
+      pushStatus={pushStatus}
+      searchLabel="공지 검색"
+      searchPlaceholder="공지 제목, 카테고리, 작성자 검색"
+      showThemeSwitcher={showThemeSwitcher}
+      subheading={`관리자가 등록한 공지와 전달사항입니다. · 전체 ${notices.length}건`}
+      themeMode={themeMode}
+      onClosePage={onClosePage}
+      onLogout={onLogout}
+      onMenuClick={onMenuClick}
+      onNavigate={onNavigate}
+      onOpenProfile={onOpenProfile}
+      onRegisterPush={onRegisterPush}
+      onThemeChange={onThemeChange}
+    >
+      <div className="meeting-filter-row">
+        {['전체', ...categories].map((category) => (
+          <button className="filter-chip" data-active={categoryFilter === category} key={category} onClick={() => setCategoryFilter(category)} type="button">
+            {category}
+          </button>
+        ))}
+      </div>
+      <div className="task-board list-surface project-task-board meeting-board notice-board">
+        <div className="project-board-toolbar">
+          <div>
+            <h2>공지 목록</h2>
+            <span>{visibleNotices.length}</span>
+          </div>
+        </div>
+        <div className="meeting-minute-list notice-list">
+          {visibleNotices.length ? (
+            visibleNotices.map((notice) => {
+              const expanded = expandedId === notice.id;
+              return (
+                <article className="meeting-minute-card notice-card" data-expanded={expanded} data-pinned={notice.pinned} data-important={notice.important} key={notice.id}>
+                  <button className="meeting-minute-summary notice-summary" onClick={() => setExpandedId((current) => (current === notice.id ? null : notice.id))} type="button">
+                    <span className="meeting-minute-category notice-category">{notice.category}</span>
+                    <div>
+                      <strong>
+                        {notice.pinned ? <Pin size={13} className="notice-pinned-marker" aria-label="상단고정" /> : null}
+                        {notice.important ? <span className="notice-important-badge">중요</span> : null}
+                        {notice.title}
+                      </strong>
+                      <small>
+                        {notice.createdAt ? formatDueDate(notice.createdAt) : '일시 미정'}
+                        {notice.allowComments ? ' · 댓글 가능' : ' · 댓글 비공개'}
+                        {notice.popup ? ` · 팝업 ${notice.popupUntil ? `~${notice.popupUntil}` : '무기한'}` : ''}
+                      </small>
+                    </div>
+                    <span className="meeting-minute-author notice-author">
+                      <Avatar name={notice.author} src={notice.authorAvatarUrl} size="xs" />
+                      {notice.author}
+                    </span>
+                  </button>
+                  {expanded ? (
+                    <div className="meeting-minute-detail notice-detail">
+                      {isAdmin ? (
+                        <div className="meeting-minute-detail-actions notice-actions">
+                          <button
+                            aria-label={notice.pinned ? '상단고정 해제' : '상단고정'}
+                            className="secondary-action icon-only-action"
+                            disabled={pinLoadingId === notice.id}
+                            onClick={() => togglePin(notice)}
+                            title={notice.pinned ? '상단고정 해제' : '상단고정'}
+                            type="button"
+                          >
+                            <Pin size={16} />
+                          </button>
+                          <button aria-label="공지 수정" className="secondary-action icon-only-action" onClick={() => setEditingNoticeId(notice.id)} title="수정" type="button">
+                            <Pencil size={16} />
+                          </button>
+                          <button
+                            aria-label="공지 삭제"
+                            className="secondary-action danger-action icon-only-action"
+                            disabled={deleteLoadingId === notice.id}
+                            onClick={() => removeNotice(notice)}
+                            title="삭제"
+                            type="button"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      ) : null}
+                      <section>
+                        <p>{renderLinkedText(notice.content)}</p>
+                      </section>
+                      {notice.allowComments ? (
+                        <NoticeCommentBlock
+                          notice={notice}
+                          currentUserId={currentUserId}
+                          isAdmin={isAdmin}
+                          onAddComment={onAddComment}
+                          onDeleteComment={onDeleteComment}
+                        />
+                      ) : (
+                        <p className="mini-empty notice-comments-disabled">이 공지는 댓글이 허용되지 않습니다.</p>
+                      )}
+                    </div>
+                  ) : null}
+                </article>
+              );
+            })
+          ) : (
+            <EmptyState text="등록된 공지가 없습니다." />
+          )}
+        </div>
+      </div>
+      {composeOpen ? (
+        <div className="modal-backdrop meeting-modal-backdrop" role="presentation" onClick={(event) => {
+          if (event.target === event.currentTarget) setComposeOpen(false);
+        }}>
+          <article
+            className="modal-card meeting-compose-modal notice-compose-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+            onTouchMove={(event) => event.stopPropagation()}
+            onWheel={(event) => event.stopPropagation()}
+          >
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Notice</p>
+                <h2>공지 작성</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setComposeOpen(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <NoticeForm
+              categories={categories}
+              onSubmitNotice={onCreateNotice}
+              onSuccess={() => setComposeOpen(false)}
+            />
+          </article>
+        </div>
+      ) : null}
+      {editingNotice ? (
+        <div className="modal-backdrop meeting-modal-backdrop" role="presentation" onClick={(event) => {
+          if (event.target === event.currentTarget) setEditingNoticeId(null);
+        }}>
+          <article
+            className="modal-card meeting-compose-modal notice-compose-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+            onTouchMove={(event) => event.stopPropagation()}
+            onWheel={(event) => event.stopPropagation()}
+          >
+            <div className="modal-head">
+              <div>
+                <p className="eyebrow">Edit Notice</p>
+                <h2>공지 수정</h2>
+              </div>
+              <button className="icon-button" aria-label="닫기" onClick={() => setEditingNoticeId(null)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <NoticeForm
+              categories={categories}
+              notice={editingNotice}
+              submitLabel="공지 수정"
+              onSubmitNotice={(draft) => onUpdateNotice(editingNotice.id, draft)}
+              onSuccess={() => setEditingNoticeId(null)}
+            />
+          </article>
+        </div>
+      ) : null}
+    </ImmersivePageFrame>
+  );
+}
+
+function NoticeCommentBlock({
+  notice,
+  currentUserId,
+  isAdmin,
+  onAddComment,
+  onDeleteComment,
+}: {
+  notice: Notice;
+  currentUserId: string | null;
+  isAdmin: boolean;
+  onAddComment: NoticeCommentSubmitHandler;
+  onDeleteComment: NoticeCommentDeleteHandler;
+}) {
+  const [comment, setComment] = useState('');
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentStatus, setCommentStatus] = useState('');
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replyLoading, setReplyLoading] = useState(false);
+  const [deleteLoadingId, setDeleteLoadingId] = useState<string | null>(null);
+
+  const rootComments = notice.comments.filter((c) => !c.parentId);
+  const getReplies = (parentId: string) => notice.comments.filter((c) => c.parentId === parentId);
+
+  const submitComment = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!comment.trim()) return;
+    setCommentLoading(true);
+    const message = await onAddComment(notice, comment);
+    setCommentLoading(false);
+    setCommentStatus(message);
+    if (!message.includes('실패')) {
+      setComment('');
+      showActionPopup(message);
+    }
+  };
+
+  const submitReply = async (event: React.FormEvent, parentId: string) => {
+    event.preventDefault();
+    if (!replyText.trim()) return;
+    setReplyLoading(true);
+    const message = await onAddComment(notice, replyText, parentId);
+    setReplyLoading(false);
+    if (!message.includes('실패')) {
+      setReplyText('');
+      setReplyTargetId(null);
+      showActionPopup(message);
+    } else {
+      setCommentStatus(message);
+    }
+  };
+
+  const removeComment = async (item: NoticeComment) => {
+    if (deleteLoadingId) return;
+    setDeleteLoadingId(item.id);
+    const message = await onDeleteComment(notice, item);
+    setDeleteLoadingId(null);
+    setCommentStatus(message);
+    if (!message.includes('실패') && !message.includes('취소')) showActionPopup(message);
+  };
+
+  const renderComment = (item: NoticeComment, isReply = false) => (
+    <article className="comment-item" data-own={item.userId === currentUserId} data-reply={isReply} key={item.id}>
+      <div className="comment-head">
+        <div className="comment-author">
+          <Avatar name={item.author} src={item.avatarUrl} size="sm" />
+          <div>
+            <strong>{item.author}</strong>
+            <small>{new Date(item.createdAt).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</small>
+          </div>
+        </div>
+        <div className="comment-actions">
+          {!isReply ? (
+            <button className="icon-button" aria-label="답글" onClick={() => setReplyTargetId(replyTargetId === item.id ? null : item.id)} type="button">
+              <Reply size={15} />
+            </button>
+          ) : null}
+          {item.userId === currentUserId || isAdmin ? (
+            <button className="icon-button danger-icon" aria-label="삭제" disabled={deleteLoadingId === item.id} onClick={() => removeComment(item)} type="button">
+              <Trash2 size={15} />
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <p>{item.content}</p>
+      {!isReply && replyTargetId === item.id ? (
+        <form className="comment-form reply-form" onSubmit={(event) => submitReply(event, item.id)}>
+          <textarea
+            value={replyText}
+            onChange={(event) => setReplyText(event.target.value)}
+            placeholder={`${item.author}에게 답글`}
+            rows={2}
+          />
+          <div className="comment-form-actions">
+            <button className="secondary-action" disabled={replyLoading} onClick={() => setReplyTargetId(null)} type="button">
+              취소
+            </button>
+            <button className="primary-action" disabled={replyLoading} type="submit">
+              {replyLoading ? '진행중...' : '답글 등록'}
+            </button>
+          </div>
+        </form>
+      ) : null}
+    </article>
+  );
+
+  return (
+    <div className="project-inspector-comments notice-comments">
+      <strong>댓글 <span>{notice.comments.length}</span></strong>
+      <div className="comment-list">
+        {rootComments.length ? (
+          rootComments.map((item) => (
+            <div className="comment-thread" key={item.id}>
+              {renderComment(item)}
+              {getReplies(item.id).length ? (
+                <div className="reply-list">
+                  {getReplies(item.id).map((reply) => renderComment(reply, true))}
+                </div>
+              ) : null}
+            </div>
+          ))
+        ) : (
+          <p className="mini-empty">아직 댓글이 없습니다.</p>
+        )}
+      </div>
+      <form className="comment-form" onSubmit={submitComment}>
+        <div className="comment-input-row">
+          <textarea
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="댓글을 입력하세요"
+            rows={2}
+          />
+          <button className="primary-action comment-submit-button" disabled={commentLoading} type="submit">
+            <MessageSquareText size={16} />
+            {commentLoading ? '진행중...' : '등록'}
+          </button>
+        </div>
+        {commentStatus ? <p className="admin-note">{commentStatus}</p> : null}
+      </form>
+    </div>
+  );
+}
+
+function NoticePopup({ notices, onOpenNotices }: { notices: Notice[]; onOpenNotices: () => void }) {
+  // popup=true + (popup_until null or >= today) + not dismissed (localStorage, 24h) 중에서
+  // important 우선 → 최신순으로 1개만.
+  const candidate = useMemo(() => {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const now = Date.now();
+    const eligible = notices
+      .filter((n) => n.popup)
+      .filter((n) => !n.popupUntil || n.popupUntil >= todayIso)
+      .filter((n) => {
+        try {
+          const stored = window.localStorage.getItem(NOTICE_POPUP_DISMISS_PREFIX + n.id);
+          if (!stored) return true;
+          const dismissedAt = Number(stored);
+          if (!Number.isFinite(dismissedAt)) return true;
+          return now - dismissedAt > 24 * 60 * 60 * 1000;
+        } catch {
+          return true;
+        }
+      });
+    if (!eligible.length) return null;
+    // important 우선 → createdAt desc
+    return [...eligible].sort((a, b) => {
+      if (a.important !== b.important) return a.important ? -1 : 1;
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return bTime - aTime;
+    })[0];
+  }, [notices]);
+
+  const [hideThisSession, setHideThisSession] = useState<Record<string, boolean>>({});
+  const [dontShowToday, setDontShowToday] = useState(false);
+
+  // 후보가 바뀌면 "오늘 안보기" 체크박스도 초기화.
+  useEffect(() => {
+    setDontShowToday(false);
+  }, [candidate?.id]);
+
+  if (!candidate || hideThisSession[candidate.id]) return null;
+
+  const closePopup = () => {
+    if (dontShowToday) {
+      try {
+        window.localStorage.setItem(NOTICE_POPUP_DISMISS_PREFIX + candidate.id, String(Date.now()));
+      } catch {
+        /* ignore */
+      }
+    }
+    setHideThisSession((current) => ({ ...current, [candidate.id]: true }));
+  };
+
+  const handleOpen = () => {
+    closePopup();
+    onOpenNotices();
+  };
+
+  return (
+    <div className="modal-backdrop notice-popup-backdrop" role="presentation" onClick={(event) => {
+      if (event.target === event.currentTarget) closePopup();
+    }}>
+      <article className="modal-card notice-popup-card" role="dialog" aria-modal="true" data-important={candidate.important}>
+        <div className="modal-head notice-popup-head">
+          <div>
+            <p className="eyebrow">
+              {candidate.important ? '중요 공지' : '공지'} · {candidate.category}
+            </p>
+            <h2>{candidate.title}</h2>
+            <small>{candidate.author} · {candidate.createdAt ? formatDueDate(candidate.createdAt) : ''}</small>
+          </div>
+          <button className="icon-button" aria-label="닫기" onClick={closePopup} type="button">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="notice-popup-body">
+          <p>{renderLinkedText(candidate.content)}</p>
+        </div>
+        <div className="notice-popup-foot">
+          <label className="notice-popup-hide-today">
+            <input type="checkbox" checked={dontShowToday} onChange={(event) => setDontShowToday(event.target.checked)} />
+            <span>하루동안 안보이게</span>
+          </label>
+          <div className="notice-popup-actions">
+            <button className="secondary-action" onClick={closePopup} type="button">닫기</button>
+            <button className="primary-action" onClick={handleOpen} type="button">공지로 이동</button>
+          </div>
+        </div>
+      </article>
+    </div>
+  );
+}
+
+function NoticeForm({
+  categories,
+  notice,
+  submitLabel = '공지 등록',
+  onSubmitNotice,
+  onSuccess,
+}: {
+  categories: string[];
+  notice?: Notice;
+  submitLabel?: string;
+  onSubmitNotice: NoticeSubmitHandler;
+  onSuccess: () => void;
+}) {
+  const defaultCategory = notice?.category || (categories.includes('없음') ? '없음' : categories[0] || '없음');
+  const [category, setCategory] = useState(defaultCategory);
+  const [title, setTitle] = useState(notice?.title || '');
+  const [content, setContent] = useState(notice?.content || '');
+  const [important, setImportant] = useState(notice?.important || false);
+  const [pinned, setPinned] = useState(notice?.pinned || false);
+  const [allowComments, setAllowComments] = useState(notice ? notice.allowComments : true);
+  const [popup, setPopup] = useState(notice?.popup || false);
+  const [popupUntil, setPopupUntil] = useState<string>(notice?.popupUntil || '');
+  const [submitting, setSubmitting] = useState(false);
+  const [status, setStatus] = useState('');
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!title.trim() || !content.trim()) {
+      setStatus('제목과 내용을 입력해주세요.');
+      return;
+    }
+    setSubmitting(true);
+    const message = await onSubmitNotice({
+      category,
+      title: title.trim(),
+      content: content.trim(),
+      important,
+      pinned,
+      allowComments,
+      popup,
+      popupUntil: popup && popupUntil ? popupUntil : null,
+    });
+    setSubmitting(false);
+    setStatus(message);
+    if (!message.includes('실패')) {
+      showActionPopup(message);
+      onSuccess();
+    }
+  };
+
+  return (
+    <form className="meeting-minute-form notice-form" onSubmit={handleSubmit}>
+      <div className="form-grid notice-form-grid">
+        <label className="field">
+          <span>카테고리</span>
+          <select value={category} onChange={(event) => setCategory(event.target.value)}>
+            {categories.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </label>
+        <label className="field field-grow">
+          <span>제목</span>
+          <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="공지 제목" maxLength={200} required />
+        </label>
+      </div>
+      <div className="notice-flags-row">
+        <label className="notice-flag">
+          <input type="checkbox" checked={important} onChange={(event) => setImportant(event.target.checked)} />
+          <span>중요</span>
+          <small>중요 공지는 푸시알림을 전원 강제 발송합니다.</small>
+        </label>
+        <label className="notice-flag">
+          <input type="checkbox" checked={pinned} onChange={(event) => setPinned(event.target.checked)} />
+          <span>상단 고정</span>
+          <small>목록 상단에 고정합니다.</small>
+        </label>
+        <label className="notice-flag">
+          <input type="checkbox" checked={allowComments} onChange={(event) => setAllowComments(event.target.checked)} />
+          <span>댓글 허용</span>
+          <small>전원이 댓글을 달 수 있게 합니다.</small>
+        </label>
+        <label className="notice-flag">
+          <input type="checkbox" checked={popup} onChange={(event) => setPopup(event.target.checked)} />
+          <span>메인 접속 팝업</span>
+          <small>대시보드 진입 시 팝업으로 띄웁니다.</small>
+        </label>
+      </div>
+      {popup ? (
+        <label className="field notice-popup-until-field">
+          <span>팝업 종료 날짜</span>
+          <input type="date" value={popupUntil} onChange={(event) => setPopupUntil(event.target.value)} />
+          <small>비워두면 무기한 표시됩니다.</small>
+        </label>
+      ) : null}
+      <label className="field">
+        <span>내용</span>
+        <textarea value={content} onChange={(event) => setContent(event.target.value)} rows={10} placeholder="공지 내용을 입력하세요." required />
+      </label>
+      {status ? <p className="admin-note">{status}</p> : null}
+      <div className="form-actions">
+        <button className="primary-action" disabled={submitting} type="submit">
+          {submitting ? '진행중...' : submitLabel}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function CalendarPage({
   currentUser,
   pushEnabled,
@@ -9860,6 +10942,7 @@ function SettingsPage({
   googleCalendarSettings,
   jobTypes,
   meetingMinuteCategories,
+  noticeCategories,
   taskTypes,
   pushEnabled,
   pushLoading,
@@ -9874,8 +10957,10 @@ function SettingsPage({
   onInstallApp,
   onAddJobType,
   onAddMeetingMinuteCategory,
+  onAddNoticeCategory,
   onDeleteJobType,
   onDeleteMeetingMinuteCategory,
+  onDeleteNoticeCategory,
   onAddTaskType,
   onCreateApiKey,
   onDeleteApiKey,
@@ -9894,6 +10979,7 @@ function SettingsPage({
   googleCalendarSettings: GoogleCalendarSettings;
   jobTypes: string[];
   meetingMinuteCategories: string[];
+  noticeCategories: string[];
   taskTypes: string[];
   pushEnabled: boolean;
   pushLoading: boolean;
@@ -9908,8 +10994,10 @@ function SettingsPage({
   onInstallApp: () => void;
   onAddJobType: JobTypeSubmitHandler;
   onAddMeetingMinuteCategory: MeetingMinuteCategorySubmitHandler;
+  onAddNoticeCategory: NoticeCategorySubmitHandler;
   onDeleteJobType: JobTypeDeleteHandler;
   onDeleteMeetingMinuteCategory: MeetingMinuteCategoryDeleteHandler;
+  onDeleteNoticeCategory: NoticeCategoryDeleteHandler;
   onAddTaskType: TaskTypeSubmitHandler;
   onCreateApiKey: ApiKeyCreateHandler;
   onDeleteApiKey: ApiKeyDeleteHandler;
@@ -9937,6 +11025,7 @@ function SettingsPage({
   const [jobTypeOpen, setJobTypeOpen] = useState(false);
   const [taskTypeOpen, setTaskTypeOpen] = useState(false);
   const [meetingMinuteCategoryOpen, setMeetingMinuteCategoryOpen] = useState(false);
+  const [noticeCategoryOpen, setNoticeCategoryOpen] = useState(false);
   const [googleForm, setGoogleForm] = useState<GoogleCalendarSettings>(googleCalendarSettings);
   const [googleStatus, setGoogleStatus] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -10079,6 +11168,7 @@ function SettingsPage({
                 { key: 'task' as const, label: '업무전달' },
                 { key: 'report' as const, label: '보고·제안' },
                 { key: 'projectMessage' as const, label: '채팅창 메시지' },
+                { key: 'notice' as const, label: '공지 (중요는 항상 발송)' },
               ].map((item) => (
                 <label className="toggle-row" key={item.key}>
                   <span>{item.label}</span>
@@ -10182,6 +11272,7 @@ function SettingsPage({
             <button className="secondary-action" onClick={() => setJobTypeOpen(true)} type="button">담당업무 관리</button>
             <button className="secondary-action" onClick={() => setTaskTypeOpen(true)} type="button">업무유형 추가/삭제</button>
             <button className="secondary-action" onClick={() => setMeetingMinuteCategoryOpen(true)} type="button">회의록 카테고리 관리</button>
+            <button className="secondary-action" onClick={() => setNoticeCategoryOpen(true)} type="button">공지 카테고리 관리</button>
           </div>
         </div>
         <div className="page-card settings-card settings-backend">
@@ -10284,6 +11375,17 @@ function SettingsPage({
           onAdd={onAddMeetingMinuteCategory}
           onClose={() => setMeetingMinuteCategoryOpen(false)}
           onDelete={onDeleteMeetingMinuteCategory}
+        />
+      ) : null}
+      {noticeCategoryOpen ? (
+        <SimpleTypeModal
+          items={noticeCategories}
+          title="공지 카테고리 관리"
+          eyebrow="Notice Category"
+          addLabel="카테고리명"
+          onAdd={onAddNoticeCategory}
+          onClose={() => setNoticeCategoryOpen(false)}
+          onDelete={onDeleteNoticeCategory}
         />
       ) : null}
     </section>
