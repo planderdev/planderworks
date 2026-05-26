@@ -1533,6 +1533,8 @@ function App() {
   const [taskTypes, setTaskTypes] = useState(fallbackTaskTypes);
   const [meetingMinuteCategories, setMeetingMinuteCategories] = useState(fallbackMeetingMinuteCategories);
   const [noticeCategories, setNoticeCategories] = useState<string[]>(fallbackNoticeCategories);
+  // 실제 DB 로드(또는 프로토타입 모드)가 끝나기 전엔 NoticePopup이 seed로 깜빡 뜨는 걸 막기 위한 플래그.
+  const [noticesReady, setNoticesReady] = useState(false);
   const [noticesLastSeen, setNoticesLastSeen] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     try {
@@ -2161,6 +2163,8 @@ function App() {
     // ─── 공지/전달사항 (tolerant) ───────────────────────────────────────
     // 테이블이 아직 마이그레이션 안 됐을 수 있으니 모든 에러를 흡수.
     // 실패 시 seed/이전 state 유지 — loadBackendData 전체 흐름은 영향 없음.
+    // 실제 사용자 로드 시작 시점에 seedNotices를 즉시 비워서 팝업 깜빡 방지.
+    setNotices([]);
     try {
       const [noticeCategoriesResult, noticesResult, noticeCommentsResult] = await Promise.all([
         supabase!
@@ -2223,9 +2227,18 @@ function App() {
     } catch (error) {
       console.warn('[notices] tolerant load exception:', (error as Error).message);
     }
+    setNoticesReady(true);
   };
 
   useEffect(() => {
+    // 프로토타입 모드는 loadBackendData가 즉시 early-return하므로
+    // 여기서 ready를 켜준다 (seedNotices가 그대로 노출).
+    if (currentUser?.isPrototype) {
+      setNoticesReady(true);
+    } else {
+      // 실제 로그인 사용자 변경 시 새 로드가 끝날 때까지 팝업 숨김.
+      setNoticesReady(false);
+    }
     loadBackendData();
   }, [currentUser?.id, currentUser?.isPrototype]);
 
@@ -4749,7 +4762,7 @@ function App() {
               onOpenTask={openDashboardTask}
               currentUser={currentUser}
             />
-            <NoticePopup notices={notices} onOpenNotices={() => navigateTo('notices')} />
+            <NoticePopup notices={notices} ready={noticesReady} onOpenNotices={() => navigateTo('notices')} />
           </>
         ) : null}
         {activeView === 'inbox' ? (
@@ -8744,7 +8757,7 @@ function NoticeCommentBlock({
   );
 }
 
-function NoticePopup({ notices, onOpenNotices }: { notices: Notice[]; onOpenNotices: () => void }) {
+function NoticePopup({ notices, ready, onOpenNotices }: { notices: Notice[]; ready: boolean; onOpenNotices: () => void }) {
   // popup=true + (popup_until null or >= today) + not dismissed (localStorage, 24h) 중에서
   // important 우선 → 최신순으로 1개만.
   const candidate = useMemo(() => {
@@ -8782,7 +8795,7 @@ function NoticePopup({ notices, onOpenNotices }: { notices: Notice[]; onOpenNoti
     setDontShowToday(false);
   }, [candidate?.id]);
 
-  if (!candidate || hideThisSession[candidate.id]) return null;
+  if (!ready || !candidate || hideThisSession[candidate.id]) return null;
 
   const closePopup = () => {
     if (dontShowToday) {
