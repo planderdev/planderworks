@@ -1482,6 +1482,7 @@ function App() {
   const [confirmRequest, setConfirmRequest] = useState<{ id: number; message: string } | null>(null);
   const [forwardHistory, setForwardHistory] = useState<ActiveView[]>([]);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [swipeDragging, setSwipeDragging] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
   // focusTaskId is a one-shot signal: the destination page captures it on navigation, then it is cleared
@@ -2428,17 +2429,26 @@ function App() {
     const deltaX = touch.clientX - swipeStart.current.x;
     const deltaY = Math.abs(touch.clientY - swipeStart.current.y);
 
-    if (deltaY > 50) return;
+    if (deltaY > 50) {
+      setSwipeDragging(false);
+      setSwipeOffset(0);
+      return;
+    }
 
     const canSwipeBack = deltaX > 0 && activeView !== 'dashboard' && viewHistory.length > 0;
     const canSwipeForward = deltaX < 0 && forwardHistory.length > 0;
 
     if (!canSwipeBack && !canSwipeForward) {
+      setSwipeDragging(false);
       setSwipeOffset(0);
       return;
     }
 
-    setSwipeOffset(Math.max(-72, Math.min(72, deltaX * 0.35)));
+    if (Math.abs(deltaX) < 8) return;
+    event.preventDefault();
+    setSwipeDragging(true);
+    const maxOffset = Math.min(window.innerWidth * 0.42, 180);
+    setSwipeOffset(Math.max(-maxOffset, Math.min(maxOffset, deltaX * 0.72)));
   };
 
   const handleWorkspaceTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
@@ -2446,17 +2456,23 @@ function App() {
     const touch = event.changedTouches[0];
     const deltaX = touch.clientX - swipeStart.current.x;
     const deltaY = Math.abs(touch.clientY - swipeStart.current.y);
-    swipeStart.current = null;
-    setSwipeOffset(0);
+    const shouldGoBack = deltaX > 80 && deltaY < 60 && activeView !== 'dashboard' && viewHistory.length > 0;
+    const shouldGoForward = deltaX < -80 && deltaY < 60 && forwardHistory.length > 0;
 
-    if (deltaX > 80 && deltaY < 60 && activeView !== 'dashboard' && viewHistory.length > 0) {
-      navigateBack();
+    swipeStart.current = null;
+    setSwipeDragging(false);
+
+    if (shouldGoBack || shouldGoForward) {
+      setSwipeOffset((shouldGoBack ? 1 : -1) * window.innerWidth);
+      window.setTimeout(() => {
+        if (shouldGoBack) navigateBack();
+        if (shouldGoForward) navigateForward();
+        setSwipeOffset(0);
+      }, 170);
       return;
     }
 
-    if (deltaX < -80 && deltaY < 60 && forwardHistory.length > 0) {
-      navigateForward();
-    }
+    setSwipeOffset(0);
   };
 
   const handleLogout = async () => {
@@ -4242,7 +4258,7 @@ function App() {
       <main
         className="workspace"
         data-immersive={isImmersiveView}
-        data-swiping={swipeOffset !== 0}
+        data-swiping={swipeDragging}
         onTouchStart={handleWorkspaceTouchStart}
         onTouchMove={handleWorkspaceTouchMove}
         onTouchEnd={handleWorkspaceTouchEnd}

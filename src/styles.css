@@ -7512,25 +7512,11 @@ h4,
   height: 0;
 }
 
-.project-folder-tabs::after {
-  content: '';
-  position: absolute;
-  left: var(--folder-scroll-left, 0%);
-  bottom: 3px;
-  z-index: 4;
-  width: var(--folder-scroll-width, 0%);
-  height: 3px;
-  pointer-events: none;
-  background: rgba(158, 232, 240, 0.72);
-  opacity: 0;
-  transform: translateY(4px);
-  transition: opacity 180ms ease, transform 180ms ease;
-}
-
+.project-folder-tabs::after,
 .project-folder-tabs[data-scrolling='true']::after,
 .project-folder-tabs[data-dragging='true']::after {
-  opacity: 1;
-  transform: translateY(0);
+  content: none !important;
+  display: none !important;
 }
 
 /* Settings page compact dashboard-style layout */
