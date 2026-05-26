@@ -8899,18 +8899,18 @@ function NoticeForm({
   };
 
   return (
-    <form className="meeting-minute-form notice-form" onSubmit={handleSubmit}>
-      <div className="form-grid notice-form-grid">
-        <label className="field">
-          <span>카테고리</span>
+    <form className="form-stack meeting-minute-form notice-form" onSubmit={handleSubmit}>
+      <div className="form-grid two">
+        <label>
+          카테고리
           <select value={category} onChange={(event) => setCategory(event.target.value)}>
             {categories.map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
         </label>
-        <label className="field field-grow">
-          <span>제목</span>
+        <label>
+          제목 <span className="required-mark">*</span>
           <input type="text" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="공지 제목" maxLength={200} required />
         </label>
       </div>
@@ -8937,15 +8937,15 @@ function NoticeForm({
         </label>
       </div>
       {popup ? (
-        <label className="field notice-popup-until-field">
-          <span>팝업 종료 날짜</span>
+        <label className="notice-popup-until-field">
+          팝업 종료 날짜
           <input type="date" value={popupUntil} onChange={(event) => setPopupUntil(event.target.value)} />
           <small>비워두면 무기한 표시됩니다.</small>
         </label>
       ) : null}
-      <label className="field notice-content-field">
-        <span>내용</span>
-        <textarea value={content} onChange={(event) => setContent(event.target.value)} rows={14} placeholder="공지 내용을 입력하세요." required />
+      <label className="notice-content-field">
+        내용 <span className="required-mark">*</span>
+        <textarea className="modal-scroll-field" value={content} onChange={(event) => setContent(event.target.value)} rows={10} placeholder="공지 내용을 입력하세요." required />
       </label>
       {status ? <p className="admin-note">{status}</p> : null}
       <div className="form-actions">
