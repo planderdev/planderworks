@@ -370,11 +370,11 @@ function resolveActionConfirm(id: number, confirmed: boolean) {
 
 const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
+  { id: 'notices', label: '공지/전달사항', icon: Megaphone },
   { id: 'inbox', label: '받은업무', icon: Inbox },
   { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'meetingMinutes', label: '회의록', icon: ClipboardList },
-  { id: 'notices', label: '공지/전달사항', icon: Megaphone },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
   { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
   { id: 'calendar', label: '캘린더', icon: CalendarClock },
