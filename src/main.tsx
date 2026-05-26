@@ -8930,9 +8930,9 @@ function NoticeForm({
           <small>비워두면 무기한 표시됩니다.</small>
         </label>
       ) : null}
-      <label className="field">
+      <label className="field notice-content-field">
         <span>내용</span>
-        <textarea value={content} onChange={(event) => setContent(event.target.value)} rows={10} placeholder="공지 내용을 입력하세요." required />
+        <textarea value={content} onChange={(event) => setContent(event.target.value)} rows={14} placeholder="공지 내용을 입력하세요." required />
       </label>
       {status ? <p className="admin-note">{status}</p> : null}
       <div className="form-actions">

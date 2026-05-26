@@ -8246,9 +8246,45 @@ h4,
   color: var(--text-secondary, #6f7480);
 }
 
+/* 공지 작성 모달 — 본문 textarea 충분히 크게 */
+.notice-compose-modal {
+  display: flex;
+  flex-direction: column;
+}
+.notice-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.notice-content-field {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.notice-content-field textarea {
+  flex: 1;
+  min-height: 320px;
+  resize: vertical;
+  font-size: 15px;
+  line-height: 1.55;
+  padding: 14px 14px;
+}
+
 @media (max-width: 720px) {
   .notice-form-grid { grid-template-columns: 1fr; }
   .notice-flags-row { grid-template-columns: 1fr; }
+  /* 모바일에선 모달이 거의 풀스크린 + 본문이 화면 대부분 차지 */
+  .notice-compose-modal {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 24px) !important;
+    min-height: calc(100dvh - 24px) !important;
+  }
+  .notice-content-field textarea {
+    min-height: 260px;
+  }
 }
 
 /* 메인 접속 팝업 */
