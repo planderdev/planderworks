@@ -8226,7 +8226,17 @@ h4,
   gap: 6px 10px;
   cursor: pointer;
 }
-.notice-flag input { margin-top: 3px; }
+.notice-flag input[type='checkbox'] {
+  /* form-stack input 의 width:100%/padding/border 무력화 — 기본 체크박스 스타일로 */
+  width: auto !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  margin: 3px 0 0;
+  box-shadow: none !important;
+  appearance: auto;
+  -webkit-appearance: checkbox;
+}
 .notice-flag span {
   font-weight: 600;
   font-size: 14px;
