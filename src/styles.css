@@ -427,6 +427,7 @@ button:disabled {
   border-color: rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.05);
 }
+.nav-button[data-bold='true'] span { font-weight: 800; }
 
 .nav-button small {
   min-width: 24px;

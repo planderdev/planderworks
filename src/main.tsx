@@ -377,17 +377,17 @@ function resolveActionConfirm(id: number, confirmed: boolean) {
   confirmResolvers.delete(id);
 }
 
-const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
+const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType; bold?: boolean }> = [
   { id: 'dashboard', label: '대시보드', icon: LayoutDashboard },
   { id: 'notices', label: '공지/전달사항', icon: Megaphone },
   { id: 'inbox', label: '받은업무', icon: Inbox },
   { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'meetingMinutes', label: '회의록', icon: ClipboardList },
-  { id: 'journal', label: '주간업무일지', icon: NotebookPen },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
   { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
   { id: 'calendar', label: '캘린더', icon: CalendarClock },
+  { id: 'journal', label: '주간업무일지', icon: NotebookPen, bold: true },
 ];
 
 const adminNavItems: Array<{ id: ActiveView; label: string; icon: React.ElementType }> = [
@@ -5841,7 +5841,7 @@ function Sidebar({
           const Icon = item.icon;
           const unreadBadge = unreadBadges[item.id] || 0;
           return (
-            <button className="nav-button" data-active={activeView === item.id} data-featured={item.id === 'create'} key={item.id} onClick={() => onNavigate(item.id)}>
+            <button className="nav-button" data-active={activeView === item.id} data-featured={item.id === 'create'} data-bold={item.bold || false} key={item.id} onClick={() => onNavigate(item.id)}>
               <Icon size={18} />
               <span>{item.label}</span>
               <span className="nav-badges">
