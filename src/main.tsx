@@ -5052,6 +5052,7 @@ function App() {
           <JournalPage
             {...immersiveChromeProps}
             entries={journalEntries}
+            employees={employees}
             projects={projects}
             statusPalette={journalStatusPalette}
             contracts={weeklyContracts}
@@ -9343,6 +9344,7 @@ function JournalEntryRow({
   projects,
   statusPalette,
   editing,
+  readOnly,
   onStartEdit,
   onEndEdit,
   onPatch,
@@ -9352,18 +9354,23 @@ function JournalEntryRow({
   projects: Project[];
   statusPalette: JournalStatusDef[];
   editing: JournalEditTarget;
+  readOnly: boolean;
   onStartEdit: (target: NonNullable<JournalEditTarget>) => void;
   onEndEdit: () => void;
   onPatch: JournalPatchHandler;
   onDelete: (entry: WorkJournalEntry) => void;
 }) {
   const isEditing = (field: NonNullable<JournalEditTarget>['field']) =>
-    editing !== null && editing.entryId === entry.id && editing.field === field;
+    !readOnly && editing !== null && editing.entryId === entry.id && editing.field === field;
   const matchedProject = entry.projectId ? projects.find((p) => p.id === entry.projectId) : null;
   const statusPhase = lookupStatusPhase(statusPalette, entry.status);
   const saveField = (patch: Partial<WorkJournalEntry>) => {
     onPatch(entry.id, patch);
     onEndEdit();
+  };
+  const handleStartEdit = (target: NonNullable<JournalEditTarget>) => {
+    if (readOnly) return;
+    onStartEdit(target);
   };
 
   return (
@@ -9378,7 +9385,7 @@ function JournalEntryRow({
       ) : (
         <button
           className="journal-view journal-view-kind"
-          onClick={() => onStartEdit({ entryId: entry.id, field: 'kind' })}
+          onClick={() => handleStartEdit({ entryId: entry.id, field: 'kind' })}
           type="button"
           aria-label="종류 수정"
         >{entry.kind}</button>
@@ -9396,7 +9403,7 @@ function JournalEntryRow({
         ) : (
           <button
             className="journal-view journal-view-title"
-            onClick={() => onStartEdit({ entryId: entry.id, field: 'title' })}
+            onClick={() => handleStartEdit({ entryId: entry.id, field: 'title' })}
             type="button"
           >
             {entry.title || <em className="journal-placeholder">제목을 입력하세요</em>}
@@ -9415,7 +9422,7 @@ function JournalEntryRow({
           ) : (
             <button
               className="journal-view journal-view-label"
-              onClick={() => onStartEdit({ entryId: entry.id, field: 'label' })}
+              onClick={() => handleStartEdit({ entryId: entry.id, field: 'label' })}
               type="button"
             >
               {entry.label || <em className="journal-placeholder">+ 라벨</em>}
@@ -9433,7 +9440,7 @@ function JournalEntryRow({
           ) : (
             <button
               className="journal-view journal-view-detail"
-              onClick={() => onStartEdit({ entryId: entry.id, field: 'detail' })}
+              onClick={() => handleStartEdit({ entryId: entry.id, field: 'detail' })}
               type="button"
             >
               {entry.detail || <em className="journal-placeholder">+ 기타사항</em>}
@@ -9451,14 +9458,14 @@ function JournalEntryRow({
           ) : matchedProject ? (
             <button
               className="journal-view journal-view-project"
-              onClick={() => onStartEdit({ entryId: entry.id, field: 'project' })}
+              onClick={() => handleStartEdit({ entryId: entry.id, field: 'project' })}
               type="button"
               aria-label="프로젝트 매칭 변경"
             >📁 {matchedProject.name}</button>
           ) : (
             <button
               className="journal-view journal-view-project-empty"
-              onClick={() => onStartEdit({ entryId: entry.id, field: 'project' })}
+              onClick={() => handleStartEdit({ entryId: entry.id, field: 'project' })}
               type="button"
             >+ 매칭</button>
           )}
@@ -9478,18 +9485,20 @@ function JournalEntryRow({
         <button
           className="journal-view journal-status-badge"
           data-phase={statusPhase}
-          onClick={() => onStartEdit({ entryId: entry.id, field: 'status' })}
+          onClick={() => handleStartEdit({ entryId: entry.id, field: 'status' })}
           type="button"
           aria-label="상태 수정"
         >{entry.status}</button>
       </div>
 
-      <button
-        aria-label="삭제"
-        className="icon-only-action danger-action journal-delete-btn"
-        onClick={() => onDelete(entry)}
-        type="button"
-      ><Trash2 size={14} /></button>
+      {readOnly ? <span /> : (
+        <button
+          aria-label="삭제"
+          className="icon-only-action danger-action journal-delete-btn"
+          onClick={() => onDelete(entry)}
+          type="button"
+        ><Trash2 size={14} /></button>
+      )}
     </li>
   );
 }
@@ -9497,12 +9506,14 @@ function JournalEntryRow({
 function WeeklyContractsTable({
   contracts,
   weekStart,
+  readOnly,
   onAdd,
   onPatch,
   onDelete,
 }: {
   contracts: WeeklyContract[];
   weekStart: string;
+  readOnly: boolean;
   onAdd: (weekStart: string) => Promise<string>;
   onPatch: (id: string, patch: Partial<WeeklyContract>) => void;
   onDelete: (contract: WeeklyContract) => string;
@@ -9512,7 +9523,7 @@ function WeeklyContractsTable({
 
   const cell = (contract: WeeklyContract, field: 'company' | 'dueDate' | 'notes', placeholder: string) => {
     const value = contract[field];
-    const isEditing = editing?.id === contract.id && editing.field === field;
+    const isEditing = !readOnly && editing?.id === contract.id && editing.field === field;
     if (isEditing) {
       return (
         <JournalTextEditor
@@ -9529,7 +9540,7 @@ function WeeklyContractsTable({
     return (
       <button
         className="journal-view journal-contract-cell"
-        onClick={() => setEditing({ id: contract.id, field })}
+        onClick={() => { if (!readOnly) setEditing({ id: contract.id, field }); }}
         type="button"
       >
         {value || <em className="journal-placeholder">{placeholder}</em>}
@@ -9546,8 +9557,8 @@ function WeeklyContractsTable({
       <div className="journal-contracts-table">
         <div className="journal-contracts-row journal-contracts-row-head">
           <span>순번</span>
-          <span>상호</span>
-          <span>마감일</span>
+          <span>상호/업무</span>
+          <span>진행상황</span>
           <span>기타사항</span>
           <span />
         </div>
@@ -9555,21 +9566,25 @@ function WeeklyContractsTable({
           <div className="journal-contracts-row" key={contract.id}>
             <span className="journal-contract-seq">{idx + 1}</span>
             {cell(contract, 'company', '상호 / 업무명')}
-            {cell(contract, 'dueDate', '날짜 또는 상태')}
+            {cell(contract, 'dueDate', '진행 상황')}
             {cell(contract, 'notes', '메모')}
-            <button
-              aria-label="삭제"
-              className="icon-only-action danger-action journal-delete-btn"
-              onClick={() => onDelete(contract)}
-              type="button"
-            ><Trash2 size={14} /></button>
+            {readOnly ? <span /> : (
+              <button
+                aria-label="삭제"
+                className="icon-only-action danger-action journal-delete-btn"
+                onClick={() => onDelete(contract)}
+                type="button"
+              ><Trash2 size={14} /></button>
+            )}
           </div>
         ))}
-        <button
-          className="journal-add-inline journal-contracts-add"
-          onClick={() => onAdd(weekStart)}
-          type="button"
-        ><Plus size={14} /> 행 추가</button>
+        {readOnly ? null : (
+          <button
+            className="journal-add-inline journal-contracts-add"
+            onClick={() => onAdd(weekStart)}
+            type="button"
+          ><Plus size={14} /> 행 추가</button>
+        )}
       </div>
     </section>
   );
@@ -9578,6 +9593,7 @@ function WeeklyContractsTable({
 function JournalPage({
   currentUser,
   entries,
+  employees,
   projects,
   statusPalette,
   contracts,
@@ -9604,6 +9620,7 @@ function JournalPage({
   onDeleteWeeklyContract,
 }: ImmersiveChromeProps & {
   entries: WorkJournalEntry[];
+  employees: Employee[];
   projects: Project[];
   statusPalette: JournalStatusDef[];
   contracts: WeeklyContract[];
@@ -9633,11 +9650,17 @@ function JournalPage({
   const [newStatusName, setNewStatusName] = useState('');
   const [newStatusPhase, setNewStatusPhase] = useState<JournalStatusPhase>('plan');
   const [editing, setEditing] = useState<JournalEditTarget>(null);
+  const [viewingUserId, setViewingUserId] = useState<string>(currentUser.id);
+
+  const viewingEmployee = employees.find((emp) => emp.id === viewingUserId);
+  const viewingOwn = viewingUserId === currentUser.id;
+  const viewingName = viewingOwn ? '내 일지' : viewingEmployee?.name || '직원';
+  const readOnly = !viewingOwn;
 
   const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const weekEnd = weekDays[6];
 
-  const myEntries = entries.filter((entry) => entry.userId === currentUser.id && !entry.hidden);
+  const myEntries = entries.filter((entry) => entry.userId === viewingUserId && !entry.hidden);
   const weekEntries = myEntries.filter((entry) => entry.weekStart === weekStart);
 
   const entriesByDate: Record<string, WorkJournalEntry[]> = {};
@@ -9715,13 +9738,28 @@ function JournalPage({
             <ChevronDown size={16} style={{ transform: paletteOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms' }} />
             상태 팔레트 {paletteOpen ? '닫기' : '보기'} ({statusPalette.length})
           </button>
-          {paletteOpen ? (
+          {paletteOpen && !readOnly ? (
             <button
               className="journal-palette-edit-toggle"
               onClick={() => setPaletteEditing((v) => !v)}
               type="button"
             >{paletteEditing ? '완료' : '편집'}</button>
           ) : null}
+          <div className="journal-viewer-picker">
+            {readOnly ? <span className="journal-viewer-readonly">읽기 전용</span> : null}
+            <select
+              aria-label="일지 작성자 선택"
+              className="journal-viewer-select"
+              data-readonly={readOnly}
+              value={viewingUserId}
+              onChange={(event) => { setViewingUserId(event.target.value); setEditing(null); setPaletteEditing(false); }}
+            >
+              <option value={currentUser.id}>내 일지</option>
+              {employees.filter((emp) => emp.id !== currentUser.id).map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.name} 일지</option>
+              ))}
+            </select>
+          </div>
         </div>
         {paletteOpen ? (
           <div className="journal-palette">
@@ -9805,8 +9843,9 @@ function JournalPage({
       </div>
 
       <WeeklyContractsTable
-        contracts={contracts.filter((c) => c.userId === currentUser.id)}
+        contracts={contracts.filter((c) => c.userId === viewingUserId)}
         weekStart={weekStart}
+        readOnly={readOnly}
         onAdd={onAddWeeklyContract}
         onPatch={onPatchWeeklyContract}
         onDelete={onDeleteWeeklyContract}
@@ -9830,6 +9869,7 @@ function JournalPage({
                       projects={projects}
                       statusPalette={statusPalette}
                       editing={editing}
+                      readOnly={readOnly}
                       onStartEdit={(target) => setEditing(target)}
                       onEndEdit={() => setEditing(null)}
                       onPatch={onPatchJournalEntry}
@@ -9838,9 +9878,11 @@ function JournalPage({
                   ))}
                 </ul>
               ) : null}
-              <button className="journal-add-inline" onClick={() => addRow(day)} type="button">
-                <Plus size={14} /> 새 항목
-              </button>
+              {readOnly ? null : (
+                <button className="journal-add-inline" onClick={() => addRow(day)} type="button">
+                  <Plus size={14} /> 새 항목
+                </button>
+              )}
             </section>
           );
         })}

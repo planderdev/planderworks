@@ -8399,6 +8399,38 @@ h4,
   align-items: center;
   gap: 8px;
 }
+.journal-viewer-picker {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.journal-viewer-readonly {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(214, 151, 49, 0.16);
+  color: #c0822f;
+  border: 1px solid rgba(214, 151, 49, 0.4);
+}
+:root[data-theme='dark'] .journal-viewer-readonly {
+  background: rgba(236, 191, 133, 0.12);
+  color: #ecbf85;
+  border-color: rgba(236, 191, 133, 0.35);
+}
+.journal-viewer-select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  color: var(--text);
+  font-family: inherit;
+  cursor: pointer;
+}
+.journal-viewer-select:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 .journal-palette-edit-toggle {
   background: transparent;
   border: 1px solid var(--border);
@@ -8537,9 +8569,13 @@ h4,
   font-weight: 800;
   color: var(--text-muted);
   letter-spacing: 0.02em;
-  padding: 4px 8px;
+  padding: 4px 4px;
   border-bottom: 1px solid var(--border);
 }
+.journal-contracts-row-head > span:nth-child(1) { text-align: center; }
+.journal-contracts-row-head > span:nth-child(2),
+.journal-contracts-row-head > span:nth-child(3),
+.journal-contracts-row-head > span:nth-child(4) { padding-left: 6px; }
 .journal-contract-seq {
   text-align: center;
   font-size: 0.82rem;
