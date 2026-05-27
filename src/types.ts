@@ -314,7 +314,13 @@ export type MeetingMinuteCategorySubmitHandler = (name: string) => Promise<strin
 export type MeetingMinuteCategoryDeleteHandler = (name: string) => Promise<string>;
 export type MeetingMinuteExportFormat = 'pdf' | 'xls' | 'hwp';
 
-export type JournalKind = '작업' | '미팅' | '작성' | '요청' | '견적' | '출근' | '문서' | '확인' | '기타';
+// 자유 문자열 — 팔레트(JournalKindDef[])에 등록된 이름이거나 임의 값
+export type JournalKind = string;
+
+export type JournalKindDef = {
+  id: string;
+  name: string;
+};
 
 // 자유 문자열 — 팔레트(JournalStatusDef[])에 등록된 이름이거나 임의 값일 수 있음
 export type JournalStatus = string;

@@ -8625,6 +8625,7 @@ h4,
   gap: 6px;
 }
 .journal-entry-row {
+  position: relative; /* picker가 row 기준으로 위치잡게 */
   display: grid;
   grid-template-columns: 64px 1fr auto auto;
   gap: 10px;
@@ -8785,6 +8786,37 @@ h4,
   display: inline-flex;
 }
 
+/* 종류(kind) 칩 — 색상 없는 단순 회색톤 (상태칩은 phase 색상) */
+.journal-kind-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  transition: transform 80ms, background 120ms;
+}
+.journal-kind-chip:hover { transform: translateY(-1px); background: var(--surface-strong); }
+.journal-kind-chip[data-selected='true'] { box-shadow: 0 0 0 2px var(--accent); }
+.journal-kind-chip-empty { color: var(--text-muted); border-style: dashed; }
+
+/* 팔레트 — 종류/상태 섹션 구분 */
+.journal-palette-section { margin-bottom: 14px; }
+.journal-palette-section:last-child { margin-bottom: 0; }
+.journal-palette-section-title {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  margin: 0 0 6px;
+  letter-spacing: 0.02em;
+}
+
 /* 상태 편집은 native select 대신 색상칩 그리드 팝오버 사용 */
 .journal-status-picker {
   position: absolute;
@@ -8854,11 +8886,41 @@ h4,
   .journal-palette-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  /* 모바일 행 정렬 — 종류 | 본문 stack (한 줄짜리 종류칩 + 본문) */
   .journal-entry-row {
-    grid-template-columns: 54px 1fr auto;
-    grid-template-rows: auto auto;
+    grid-template-columns: 56px minmax(0, 1fr);
+    grid-template-rows: auto;
+    gap: 8px;
+    align-items: start;
+    padding: 10px;
   }
-  .journal-entry-row .journal-status-select { grid-column: 2; }
-  .journal-entry-row .journal-delete-btn { grid-column: 3; grid-row: 1; }
-  .journal-entry-meta-row { grid-template-columns: 1fr; }
+  .journal-entry-row .journal-view-kind {
+    height: 32px;
+    align-self: start;
+    margin-top: 2px;
+  }
+  .journal-entry-meta-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  /* 픽커 모바일 — row 전체 폭으로 펼침, viewport 안 짤리게 */
+  .journal-status-picker {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    top: calc(100% + 4px);
+    min-width: 0;
+    max-width: calc(100vw - 32px);
+    width: auto;
+    z-index: 50;
+  }
+
+  /* 팔레트 편집 모드 — 모바일에서 input/select 너비 컴팩트 */
+  .journal-palette-edit-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .journal-palette-edit-name { flex: 1 1 120px; min-width: 100px; }
+  .journal-palette-edit-phase { flex: 0 1 130px; }
 }

@@ -131,6 +131,7 @@ import type {
   NoticeCategorySubmitHandler,
   NoticeCategoryDeleteHandler,
   JournalKind,
+  JournalKindDef,
   JournalStatus,
   JournalStatusPhase,
   JournalStatusDef,
@@ -880,7 +881,18 @@ function addDays(dateStr: string, n: number): string {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-const journalKinds: JournalKind[] = ['작업', '미팅', '작성', '요청', '견적', '출근', '문서', '확인', '기타'];
+// 시드 종류 팔레트 — DB 마이그레이션 안 됐을 때 fallback
+const seedJournalKindPalette: JournalKindDef[] = [
+  { id: 'k-1', name: '작업' },
+  { id: 'k-2', name: '미팅' },
+  { id: 'k-3', name: '작성' },
+  { id: 'k-4', name: '요청' },
+  { id: 'k-5', name: '견적' },
+  { id: 'k-6', name: '출근' },
+  { id: 'k-7', name: '문서' },
+  { id: 'k-8', name: '확인' },
+  { id: 'k-9', name: '기타' },
+];
 
 // 색상 phase 메타 (UI 표시용 라벨 + 색상은 CSS data-phase 로 적용)
 const journalPhases: { value: JournalStatusPhase; label: string }[] = [
@@ -1655,6 +1667,7 @@ function App() {
   const [workSchedules, setWorkSchedules] = useState<WorkSchedule[]>(seedWorkSchedules);
   const [journalEntries, setJournalEntries] = useState<WorkJournalEntry[]>(seedWorkJournalEntries);
   const [journalStatusPalette, setJournalStatusPalette] = useState<JournalStatusDef[]>(seedJournalStatusPalette);
+  const [journalKindPalette, setJournalKindPalette] = useState<JournalKindDef[]>(seedJournalKindPalette);
   const [weeklyContracts, setWeeklyContracts] = useState<WeeklyContract[]>(seedWeeklyContracts);
   const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>(seedMeetingMinutes);
   const [notices, setNotices] = useState<Notice[]>(seedNotices);
@@ -2367,7 +2380,7 @@ function App() {
     setJournalEntries([]);
     setWeeklyContracts([]);
     try {
-      const [journalEntriesResult, journalStatusResult, weeklyContractsResult] = await Promise.all([
+      const [journalEntriesResult, journalStatusResult, journalKindResult, weeklyContractsResult] = await Promise.all([
         supabase!
           .from('work_journal_entries')
           .select('id, user_id, week_start, date, kind, title, detail, status, project_id, client_id, source, source_ref, edited, hidden, created_at, updated_at')
@@ -2379,11 +2392,16 @@ function App() {
           .select('id, name, phase, sort_order')
           .order('sort_order', { ascending: true }),
         supabase!
+          .from('journal_kind_defs')
+          .select('id, name, sort_order')
+          .order('sort_order', { ascending: true }),
+        supabase!
           .from('weekly_contracts')
           .select('id, user_id, week_start, sequence, company, due_date, notes')
           .order('week_start', { ascending: false })
           .order('sequence', { ascending: true }),
       ]);
+      // kind는 별도 try — kind 마이그 안 됐어도 entry/status는 살려야 함
       if (journalEntriesResult.error || journalStatusResult.error || weeklyContractsResult.error) {
         console.warn('[journal] tolerant load skipped:', journalEntriesResult.error?.message || journalStatusResult.error?.message || weeklyContractsResult.error?.message);
       } else {
@@ -2422,6 +2440,16 @@ function App() {
         setJournalEntries(nextEntries);
         setJournalStatusPalette(nextStatusPalette.length ? nextStatusPalette : seedJournalStatusPalette);
         setWeeklyContracts(nextWeeklyContracts);
+      }
+      // kind 팔레트 — 마이그 안 됐어도 seed로 fallback
+      if (journalKindResult.error) {
+        console.warn('[journal/kind] tolerant load skipped:', journalKindResult.error.message);
+      } else {
+        const nextKindPalette: JournalKindDef[] = ((journalKindResult.data || []) as any[]).map((row) => ({
+          id: row.id,
+          name: row.name,
+        }));
+        setJournalKindPalette(nextKindPalette.length ? nextKindPalette : seedJournalKindPalette);
       }
     } catch (error) {
       console.warn('[journal] tolerant load exception:', (error as Error).message);
@@ -2469,6 +2497,7 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notice_comments' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'work_journal_entries' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_status_defs' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_kind_defs' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_contracts' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'push_preferences' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'api_keys' }, queueRefresh)
@@ -5048,6 +5077,92 @@ function App() {
     return '상태를 삭제했습니다.';
   };
 
+  // ─── 종류(kind) 팔레트 핸들러 — 관리자 권한 ───────────────────────
+  const addJournalKind = (name: string): string => {
+    const trimmed = name.trim();
+    if (!trimmed) return '종류 이름을 입력해주세요.';
+    if (journalKindPalette.some((k) => k.name === trimmed)) return '이미 같은 이름의 종류가 있습니다.';
+    const id = `k-${Math.random().toString(36).slice(2, 8)}`;
+    setJournalKindPalette((current) => [...current, { id, name: trimmed }]);
+
+    if (supabase && !currentUser.isPrototype) {
+      const sortOrder = (journalKindPalette.length + 1) * 10;
+      void supabase
+        .from('journal_kind_defs')
+        .insert({ id, name: trimmed, sort_order: sortOrder })
+        .then(({ error }) => {
+          if (error) {
+            setJournalKindPalette((current) => current.filter((k) => k.id !== id));
+            setBackendStatus(`종류 추가 실패: ${error.message}`);
+          }
+        });
+    }
+    return '종류를 추가했습니다.';
+  };
+
+  const updateJournalKind = (id: string, patch: { name?: string }): string => {
+    const trimmedName = patch.name?.trim();
+    if (trimmedName !== undefined && !trimmedName) return '종류 이름을 입력해주세요.';
+    if (trimmedName) {
+      const conflict = journalKindPalette.find((k) => k.name === trimmedName && k.id !== id);
+      if (conflict) return '이미 같은 이름의 종류가 있습니다.';
+    }
+    const before = journalKindPalette.find((k) => k.id === id);
+    if (!before) return '종류를 찾을 수 없습니다.';
+    const nextName = trimmedName ?? before.name;
+    setJournalKindPalette((current) =>
+      current.map((k) => (k.id === id ? { ...k, name: nextName } : k)),
+    );
+    // 이름 변경 시 entries.kind 일괄 동기화
+    if (trimmedName && trimmedName !== before.name) {
+      setJournalEntries((current) =>
+        current.map((entry) => (entry.kind === before.name ? { ...entry, kind: trimmedName } : entry)),
+      );
+    }
+
+    if (supabase && !currentUser.isPrototype) {
+      if (patch.name !== undefined) {
+        void supabase
+          .from('journal_kind_defs')
+          .update({ name: nextName })
+          .eq('id', id)
+          .then(({ error }) => {
+            if (error) setBackendStatus(`종류 수정 실패: ${error.message}`);
+          });
+      }
+      if (trimmedName && trimmedName !== before.name) {
+        void supabase
+          .from('work_journal_entries')
+          .update({ kind: trimmedName })
+          .eq('kind', before.name)
+          .then(({ error }) => {
+            if (error) setBackendStatus(`종류 이름 동기화 실패: ${error.message}`);
+          });
+      }
+    }
+    return '종류를 수정했습니다.';
+  };
+
+  const deleteJournalKind = (id: string): string => {
+    const target = journalKindPalette.find((k) => k.id === id);
+    if (!target) return '종류를 찾을 수 없습니다.';
+    setJournalKindPalette((current) => current.filter((k) => k.id !== id));
+
+    if (supabase && !currentUser.isPrototype) {
+      void supabase
+        .from('journal_kind_defs')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) {
+            setJournalKindPalette((current) => [...current, target]);
+            setBackendStatus(`종류 삭제 실패: ${error.message}`);
+          }
+        });
+    }
+    return '종류를 삭제했습니다.';
+  };
+
   // 이번주 진행중 계약·할일 (간단 테이블)
   const addWeeklyContract = async (weekStart: string): Promise<string> => {
     const userContracts = weeklyContracts.filter((c) => c.userId === currentUser.id && c.weekStart === weekStart);
@@ -5290,6 +5405,7 @@ function App() {
             employees={employees}
             projects={projects}
             statusPalette={journalStatusPalette}
+            kindPalette={journalKindPalette}
             contracts={weeklyContracts}
             onAddJournalEntry={addJournalEntry}
             onPatchJournalEntry={patchJournalEntry}
@@ -5297,6 +5413,9 @@ function App() {
             onAddJournalStatus={addJournalStatus}
             onUpdateJournalStatus={updateJournalStatus}
             onDeleteJournalStatus={deleteJournalStatus}
+            onAddJournalKind={addJournalKind}
+            onUpdateJournalKind={updateJournalKind}
+            onDeleteJournalKind={deleteJournalKind}
             onAddWeeklyContract={addWeeklyContract}
             onPatchWeeklyContract={patchWeeklyContract}
             onDeleteWeeklyContract={deleteWeeklyContract}
@@ -9491,24 +9610,38 @@ function JournalTextEditor({ initial, placeholder, onSave, onCancel }: {
   );
 }
 
-function JournalKindEditor({ initial, onSave, onCancel }: {
+function JournalKindEditor({ initial, palette, onSave, onCancel }: {
   initial: JournalKind;
+  palette: JournalKindDef[];
   onSave: (value: JournalKind) => void;
   onCancel: () => void;
 }) {
-  const [draft, setDraft] = useState<JournalKind>(initial);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) onCancel();
+    };
+    const keyHandler = (event: KeyboardEvent) => { if (event.key === 'Escape') onCancel(); };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', keyHandler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', keyHandler);
+    };
+  }, [onCancel]);
   return (
-    <div className="journal-edit-wrap journal-edit-wrap-kind">
-      <select
-        autoFocus
-        className="journal-edit-select journal-kind-select"
-        value={draft}
-        onChange={(event) => setDraft(event.target.value as JournalKind)}
-        onKeyDown={(event) => { if (event.key === 'Escape') onCancel(); if (event.key === 'Enter') onSave(draft); }}
-      >
-        {journalKinds.map((k) => <option key={k} value={k}>{k}</option>)}
-      </select>
-      <button aria-label="저장" className="journal-save-btn" onClick={() => onSave(draft)} type="button"><Check size={14} /></button>
+    <div className="journal-status-picker journal-kind-picker" ref={ref}>
+      <div className="journal-status-picker-flow">
+        {palette.map((def) => (
+          <button
+            className="journal-kind-chip journal-status-picker-chip"
+            data-selected={def.name === initial}
+            key={def.id}
+            onClick={() => onSave(def.name)}
+            type="button"
+          >{def.name}</button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -9578,6 +9711,7 @@ function JournalEntryRow({
   entry,
   projects,
   statusPalette,
+  kindPalette,
   editing,
   readOnly,
   onStartEdit,
@@ -9588,6 +9722,7 @@ function JournalEntryRow({
   entry: WorkJournalEntry;
   projects: Project[];
   statusPalette: JournalStatusDef[];
+  kindPalette: JournalKindDef[];
   editing: JournalEditTarget;
   readOnly: boolean;
   onStartEdit: (target: NonNullable<JournalEditTarget>) => void;
@@ -9614,6 +9749,7 @@ function JournalEntryRow({
       {isEditing('kind') ? (
         <JournalKindEditor
           initial={entry.kind}
+          palette={kindPalette}
           onSave={(value) => saveField({ kind: value })}
           onCancel={onEndEdit}
         />
@@ -9813,6 +9949,7 @@ function JournalPage({
   employees,
   projects,
   statusPalette,
+  kindPalette,
   contracts,
   pushEnabled,
   pushLoading,
@@ -9832,6 +9969,9 @@ function JournalPage({
   onAddJournalStatus,
   onUpdateJournalStatus,
   onDeleteJournalStatus,
+  onAddJournalKind,
+  onUpdateJournalKind,
+  onDeleteJournalKind,
   onAddWeeklyContract,
   onPatchWeeklyContract,
   onDeleteWeeklyContract,
@@ -9840,6 +9980,7 @@ function JournalPage({
   employees: Employee[];
   projects: Project[];
   statusPalette: JournalStatusDef[];
+  kindPalette: JournalKindDef[];
   contracts: WeeklyContract[];
   onAddJournalEntry: JournalSubmitHandler;
   onPatchJournalEntry: JournalPatchHandler;
@@ -9847,6 +9988,9 @@ function JournalPage({
   onAddJournalStatus: (name: string, phase: JournalStatusPhase) => string;
   onUpdateJournalStatus: (id: string, patch: Partial<Pick<JournalStatusDef, 'name' | 'phase'>>) => string;
   onDeleteJournalStatus: (id: string) => string;
+  onAddJournalKind: (name: string) => string;
+  onUpdateJournalKind: (id: string, patch: { name?: string }) => string;
+  onDeleteJournalKind: (id: string) => string;
   onAddWeeklyContract: (weekStart: string) => Promise<string>;
   onPatchWeeklyContract: (id: string, patch: Partial<WeeklyContract>) => void;
   onDeleteWeeklyContract: (contract: WeeklyContract) => string;
@@ -9866,6 +10010,7 @@ function JournalPage({
   const [paletteEditing, setPaletteEditing] = useState(false);
   const [newStatusName, setNewStatusName] = useState('');
   const [newStatusPhase, setNewStatusPhase] = useState<JournalStatusPhase>('plan');
+  const [newKindName, setNewKindName] = useState('');
   const [editing, setEditing] = useState<JournalEditTarget>(null);
   const [viewingUserId, setViewingUserId] = useState<string>(currentUser.id);
 
@@ -9952,7 +10097,7 @@ function JournalPage({
         <div className="journal-palette-bar">
           <button className="journal-palette-toggle" onClick={() => setPaletteOpen((v) => !v)} type="button">
             <ChevronDown size={16} style={{ transform: paletteOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms' }} />
-            상태 팔레트 {paletteOpen ? '닫기' : '보기'} ({statusPalette.length})
+            팔레트 {paletteOpen ? '닫기' : '보기'} (종류 {kindPalette.length} · 상태 {statusPalette.length})
           </button>
           {paletteOpen && !readOnly ? (
             <button
@@ -9979,9 +10124,78 @@ function JournalPage({
         </div>
         {paletteOpen ? (
           <div className="journal-palette">
-            {paletteEditing ? (
-              <div className="journal-palette-edit-list">
-                {statusPalette.map((def) => (
+            {/* 종류 (kind) 팔레트 — 상태 팔레트 위 */}
+            <div className="journal-palette-section">
+              <h4 className="journal-palette-section-title">종류</h4>
+              {paletteEditing ? (
+                <div className="journal-palette-edit-list">
+                  {kindPalette.map((def) => (
+                    <div className="journal-palette-edit-row" key={def.id}>
+                      <span className="journal-kind-chip">{def.name}</span>
+                      <input
+                        className="journal-palette-edit-name"
+                        defaultValue={def.name}
+                        placeholder="종류 이름"
+                        onBlur={(event) => {
+                          const next = event.target.value.trim();
+                          if (next && next !== def.name) onUpdateJournalKind(def.id, { name: next });
+                        }}
+                        onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+                      />
+                      <button
+                        aria-label="삭제"
+                        className="icon-only-action danger-action"
+                        onClick={() => onDeleteJournalKind(def.id)}
+                        type="button"
+                      ><Trash2 size={14} /></button>
+                    </div>
+                  ))}
+                  <div className="journal-palette-edit-row journal-palette-edit-row-new">
+                    {newKindName ? (
+                      <span className="journal-kind-chip">{newKindName}</span>
+                    ) : (
+                      <span className="journal-kind-chip journal-kind-chip-empty">새 종류</span>
+                    )}
+                    <input
+                      className="journal-palette-edit-name"
+                      value={newKindName}
+                      placeholder="새 종류 이름"
+                      onChange={(event) => setNewKindName(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' && newKindName.trim()) {
+                          onAddJournalKind(newKindName);
+                          setNewKindName('');
+                        }
+                      }}
+                    />
+                    <button
+                      aria-label="추가"
+                      className="icon-only-action primary-action"
+                      disabled={!newKindName.trim()}
+                      onClick={() => {
+                        if (!newKindName.trim()) return;
+                        onAddJournalKind(newKindName);
+                        setNewKindName('');
+                      }}
+                      type="button"
+                    ><Plus size={14} /></button>
+                  </div>
+                </div>
+              ) : (
+                <div className="journal-palette-flow">
+                  {kindPalette.map((def) => (
+                    <span className="journal-kind-chip" key={def.id}>{def.name}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 상태 (status) 팔레트 */}
+            <div className="journal-palette-section">
+              <h4 className="journal-palette-section-title">상태</h4>
+              {paletteEditing ? (
+                <div className="journal-palette-edit-list">
+                  {statusPalette.map((def) => (
                   <div className="journal-palette-edit-row" key={def.id}>
                     <span className="journal-status-badge" data-phase={def.phase}>{def.name}</span>
                     <input
@@ -10054,6 +10268,7 @@ function JournalPage({
                 ))}
               </div>
             )}
+            </div>
           </div>
         ) : null}
       </div>
@@ -10084,6 +10299,7 @@ function JournalPage({
                       entry={entry}
                       projects={projects}
                       statusPalette={statusPalette}
+                      kindPalette={kindPalette}
                       editing={editing}
                       readOnly={readOnly}
                       onStartEdit={(target) => setEditing(target)}
