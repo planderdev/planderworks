@@ -341,8 +341,7 @@ export type WorkJournalEntry = {
   title: string;
   detail?: string;
   status: JournalStatus;
-  label: string;              // 자유텍스트 업체/프로젝트 라벨
-  projectId?: string | null;  // 매칭되면
+  projectId?: string | null;  // 프로젝트 직접 매칭
   clientId?: string | null;
   source: JournalSource;
   sourceRef?: string;
@@ -358,7 +357,6 @@ export type WorkJournalEntryDraft = {
   title: string;
   detail?: string;
   status: JournalStatus;
-  label: string;
   projectId?: string | null;
 };
 

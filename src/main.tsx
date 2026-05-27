@@ -823,23 +823,23 @@ const seedWorkSchedules: WorkSchedule[] = [
 
 // 5/25(월) ~ 5/31(일) 기준, 인성이형(id: 1) 본인 일지로 시드
 const seedWorkJournalEntries: WorkJournalEntry[] = [
-  { id: 'jrn-1',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '송회장님 미팅',                         status: '미팅완료', label: '보물섬',          detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-2',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '뉴욕 미팅 14시 인스타그램 설정',         status: '미팅완료', label: '뉴욕',            detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-3',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '구대표님 미팅 15시',                    status: '미팅완료', label: '온고',            detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-4',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '확인', title: '이팀장님 뷰티 마케팅 제안서 생성',        status: '인성팀장과진행', label: 'B뷰티샵',     detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-5',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '탐라곳간 마케팅 제안서 생성',             status: '작업완료', label: '탐라곳간',        detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-6',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '탐라곳간 18시 미팅',                    status: '미팅완료', label: '탐라곳간',        detail: '제안서 생성 및 결제',     source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-7',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '신화 20시 미팅',                       status: '미팅완료', label: '신화',            detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-8',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '미쓰족발 영수증',                      status: '마케팅실행중', label: '미쓰족발',       detail: '사진 필요',               source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-9',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '하윤이네 본점·이도점 사진 정리',          status: '마케팅실행중', label: '하윤이네',       detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-10', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '플랜더 홈페이지 리뉴얼 기획·생성',       status: '인성팀장과진행', label: '플랜더',         detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-11', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-26', kind: '작업', title: 'SGL 4월 정산 자료 정리',                status: '작업진행중', label: 'SGL',             detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-12', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-26', kind: '미팅', title: '제트시티 서류작업 — 플랜더·퀸메이커',     status: '미팅중',   label: '제트시티',        detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-13', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-26', kind: '작성', title: '지원사업 신청서 초안',                  status: '작성중',   label: '지원사업',        detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-14', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-27', kind: '견적', title: '루비 개발 견적안',                     status: '견적예정', label: '루비 개발',       detail: '이동욱 작업분 포함',      source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-15', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-27', kind: '요청', title: '리메이드 제주 예약리뷰 작업',            status: '요청확인', label: '리메이드 제주',   detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-16', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-28', kind: '출근', title: '카페 출근',                            status: '필수',     label: '',               detail: '',                       source: 'manual', edited: false, hidden: false },
-  { id: 'jrn-17', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-28', kind: '문서', title: '법무부 출입국 서류 안내',                status: '내일작업', label: '',               detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-1',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '송회장님 미팅',                         status: '미팅완료',          detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-2',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '뉴욕 미팅 14시 인스타그램 설정',         status: '미팅완료',            detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-3',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '구대표님 미팅 15시',                    status: '미팅완료',            detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-4',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '확인', title: '이팀장님 뷰티 마케팅 제안서 생성',        status: '인성팀장과진행',     detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-5',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '탐라곳간 마케팅 제안서 생성',             status: '작업완료',        detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-6',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '탐라곳간 18시 미팅',                    status: '미팅완료',        detail: '제안서 생성 및 결제',     source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-7',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '신화 20시 미팅',                       status: '미팅완료',            detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-8',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '미쓰족발 영수증',                      status: '마케팅실행중',       detail: '사진 필요',               source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-9',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '하윤이네 본점·이도점 사진 정리',          status: '마케팅실행중',       detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-10', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '플랜더 홈페이지 리뉴얼 기획·생성',       status: '인성팀장과진행',         detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-11', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-26', kind: '작업', title: 'SGL 4월 정산 자료 정리',                status: '작업진행중',             detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-12', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-26', kind: '미팅', title: '제트시티 서류작업 — 플랜더·퀸메이커',     status: '미팅중',        detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-13', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-26', kind: '작성', title: '지원사업 신청서 초안',                  status: '작성중',        detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-14', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-27', kind: '견적', title: '루비 개발 견적안',                     status: '견적예정',       detail: '이동욱 작업분 포함',      source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-15', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-27', kind: '요청', title: '리메이드 제주 예약리뷰 작업',            status: '요청확인',   detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-16', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-28', kind: '출근', title: '카페 출근',                            status: '필수',               detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-17', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-28', kind: '문서', title: '법무부 출입국 서류 안내',                status: '내일작업',               detail: '',                       source: 'manual', edited: false, hidden: false },
 ];
 
 // 이번주 진행중 계약·할일 시드 (시트 5/25 주차 기준)
@@ -4794,7 +4794,6 @@ function App() {
         title: draft.title.trim(),
         detail: draft.detail?.trim() || '',
         status: draft.status,
-        label: draft.label.trim(),
         projectId: draft.projectId ?? null,
         source: 'manual',
         edited: false,
@@ -9228,7 +9227,7 @@ type JournalSubmitHandler = (draft: WorkJournalEntryDraft) => Promise<string>;
 type JournalPatchHandler = (entryId: string, patch: Partial<WorkJournalEntry>) => void;
 type JournalDeleteHandler = (entry: WorkJournalEntry) => Promise<string>;
 
-type JournalEditTarget = { entryId: string; field: 'kind' | 'title' | 'label' | 'detail' | 'status' | 'project' } | null;
+type JournalEditTarget = { entryId: string; field: 'kind' | 'title' | 'detail' | 'status' | 'project' } | null;
 
 function JournalTextEditor({ initial, placeholder, onSave, onCancel }: {
   initial: string;
@@ -9411,24 +9410,6 @@ function JournalEntryRow({
         )}
 
         <div className="journal-entry-meta-row">
-          {/* 라벨 */}
-          {isEditing('label') ? (
-            <JournalTextEditor
-              initial={entry.label}
-              placeholder="라벨 (예: 카온, 탐라곳간)"
-              onSave={(value) => saveField({ label: value })}
-              onCancel={onEndEdit}
-            />
-          ) : (
-            <button
-              className="journal-view journal-view-label"
-              onClick={() => handleStartEdit({ entryId: entry.id, field: 'label' })}
-              type="button"
-            >
-              {entry.label || <em className="journal-placeholder">+ 라벨</em>}
-            </button>
-          )}
-
           {/* 기타사항 */}
           {isEditing('detail') ? (
             <JournalTextEditor
@@ -9689,7 +9670,6 @@ function JournalPage({
       title: '',
       detail: '',
       status: '작업진행중',
-      label: '',
       projectId: null,
     });
     setEditing({ entryId: newId, field: 'title' });

@@ -8666,7 +8666,7 @@ h4,
 }
 .journal-view-kind:hover { color: var(--text); border-color: var(--text-muted); }
 .journal-view-title { font-weight: 700; }
-.journal-view-label, .journal-view-detail { font-size: 0.78rem; color: var(--text-muted); }
+.journal-view-detail { font-size: 0.78rem; color: var(--text-muted); }
 .journal-view-project {
   font-size: 0.74rem;
   font-weight: 700;
