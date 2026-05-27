@@ -5,6 +5,7 @@ import {
   Bell,
   BellOff,
   BriefcaseBusiness,
+  Check,
   Building2,
   CalendarClock,
   CheckCircle2,
@@ -25,6 +26,7 @@ import {
   Monitor,
   Moon,
   MoreHorizontal,
+  NotebookPen,
   Paperclip,
   Pencil,
   Pin,
@@ -128,9 +130,16 @@ import type {
   NoticeCommentDeleteHandler,
   NoticeCategorySubmitHandler,
   NoticeCategoryDeleteHandler,
+  JournalKind,
+  JournalStatus,
+  JournalStatusPhase,
+  JournalStatusDef,
+  WorkJournalEntry,
+  WorkJournalEntryDraft,
+  WeeklyContract,
 } from './types';
 
-const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'project', 'create', 'meetingMinutes', 'notices', 'reports', 'clients', 'employees', 'operations', 'settings'];
+const appViews: ActiveView[] = ['dashboard', 'calendar', 'allTasks', 'inbox', 'sent', 'project', 'create', 'meetingMinutes', 'notices', 'reports', 'journal', 'clients', 'employees', 'operations', 'settings'];
 const fallbackTaskTypes: TaskType[] = ['영업 브리핑', '디자인 요청', '보고', '제안', '확인 요청', '촬영 요청', '시장 조사'];
 const fallbackMeetingMinuteCategories = ['프로젝트회의', '내부회의', '신규브리핑'];
 const fallbackNoticeCategories = ['없음', '일반', '이벤트', '긴급'];
@@ -375,6 +384,7 @@ const primaryNavItems: Array<{ id: ActiveView; label: string; icon: React.Elemen
   { id: 'clients', label: '업체관리', icon: Building2 },
   { id: 'reports', label: '보고·제안', icon: FileText },
   { id: 'meetingMinutes', label: '회의록', icon: ClipboardList },
+  { id: 'journal', label: '주간업무일지', icon: NotebookPen },
   { id: 'allTasks', label: '전체 업무보기', icon: BriefcaseBusiness },
   { id: 'operations', label: '구독/정산관리', icon: ShieldCheck },
   { id: 'calendar', label: '캘린더', icon: CalendarClock },
@@ -810,6 +820,126 @@ const seedWorkSchedules: WorkSchedule[] = [
   { id: 'sch-2', title: '월간 전략 회의', startAt: '2026-05-08T01:00:00.000Z', endAt: '2026-05-08T02:00:00.000Z', allDay: false, memo: '5월 운영 점검', createdBy: '2', creatorName: '대표' },
   { id: 'sch-3', title: '디자인 워크샵', startAt: '2026-05-20T05:00:00.000Z', endAt: '2026-05-20T08:00:00.000Z', allDay: false, memo: 'B뷰티샵 비주얼 컨셉', createdBy: '3', creatorName: '디자인팀장' },
 ];
+
+// 5/25(월) ~ 5/31(일) 기준, 인성이형(id: 1) 본인 일지로 시드
+const seedWorkJournalEntries: WorkJournalEntry[] = [
+  { id: 'jrn-1',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '송회장님 미팅',                         status: '미팅완료', label: '보물섬',          detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-2',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '뉴욕 미팅 14시 인스타그램 설정',         status: '미팅완료', label: '뉴욕',            detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-3',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '구대표님 미팅 15시',                    status: '미팅완료', label: '온고',            detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-4',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '확인', title: '이팀장님 뷰티 마케팅 제안서 생성',        status: '인성팀장과진행', label: 'B뷰티샵',     detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-5',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '탐라곳간 마케팅 제안서 생성',             status: '작업완료', label: '탐라곳간',        detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-6',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '탐라곳간 18시 미팅',                    status: '미팅완료', label: '탐라곳간',        detail: '제안서 생성 및 결제',     source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-7',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '미팅', title: '신화 20시 미팅',                       status: '미팅완료', label: '신화',            detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-8',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '미쓰족발 영수증',                      status: '마케팅실행중', label: '미쓰족발',       detail: '사진 필요',               source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-9',  userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '하윤이네 본점·이도점 사진 정리',          status: '마케팅실행중', label: '하윤이네',       detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-10', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-25', kind: '작업', title: '플랜더 홈페이지 리뉴얼 기획·생성',       status: '인성팀장과진행', label: '플랜더',         detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-11', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-26', kind: '작업', title: 'SGL 4월 정산 자료 정리',                status: '작업진행중', label: 'SGL',             detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-12', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-26', kind: '미팅', title: '제트시티 서류작업 — 플랜더·퀸메이커',     status: '미팅중',   label: '제트시티',        detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-13', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-26', kind: '작성', title: '지원사업 신청서 초안',                  status: '작성중',   label: '지원사업',        detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-14', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-27', kind: '견적', title: '루비 개발 견적안',                     status: '견적예정', label: '루비 개발',       detail: '이동욱 작업분 포함',      source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-15', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-27', kind: '요청', title: '리메이드 제주 예약리뷰 작업',            status: '요청확인', label: '리메이드 제주',   detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-16', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-28', kind: '출근', title: '카페 출근',                            status: '필수',     label: '',               detail: '',                       source: 'manual', edited: false, hidden: false },
+  { id: 'jrn-17', userId: 'prototype', weekStart: '2026-05-25', date: '2026-05-28', kind: '문서', title: '법무부 출입국 서류 안내',                status: '내일작업', label: '',               detail: '',                       source: 'manual', edited: false, hidden: false },
+];
+
+// 이번주 진행중 계약·할일 시드 (시트 5/25 주차 기준)
+const seedWeeklyContracts: WeeklyContract[] = [
+  { id: 'wc-1',  userId: 'prototype', weekStart: '2026-05-25', sequence: 1,  company: '카온',                                                  dueDate: '작업진행중',     notes: '' },
+  { id: 'wc-2',  userId: 'prototype', weekStart: '2026-05-25', sequence: 2,  company: '픽제주',                                                dueDate: '작업진행중',     notes: '' },
+  { id: 'wc-3',  userId: 'prototype', weekStart: '2026-05-25', sequence: 3,  company: 'SGL',                                                  dueDate: '마케팅실행중',   notes: '' },
+  { id: 'wc-4',  userId: 'prototype', weekStart: '2026-05-25', sequence: 4,  company: '제트시티 - 서류작업 (플랜더, 퀸메이커)',                    dueDate: '완료',           notes: '개발자와 진행' },
+  { id: 'wc-5',  userId: 'prototype', weekStart: '2026-05-25', sequence: 5,  company: '제트시티 - 마케팅 실행 미팅',                              dueDate: '마케팅실행중',   notes: '신이사와 진행' },
+  { id: 'wc-6',  userId: 'prototype', weekStart: '2026-05-25', sequence: 6,  company: '지원사업 정리',                                          dueDate: '매니저와진행',   notes: '' },
+  { id: 'wc-7',  userId: 'prototype', weekStart: '2026-05-25', sequence: 7,  company: '리메이드 제주 - 예약리뷰 작업',                            dueDate: '마케팅실행중',   notes: '최실장과 진행' },
+  { id: 'wc-8',  userId: 'prototype', weekStart: '2026-05-25', sequence: 8,  company: '스톰배팅센터 리뷰작업',                                    dueDate: '마케팅실행중',   notes: '인성팀장과 진행' },
+  { id: 'wc-9',  userId: 'prototype', weekStart: '2026-05-25', sequence: 9,  company: '미쓰족발/감자탕/솥뚜껑삼겹살 — 중국·일본 마케팅 체험단',         dueDate: '마케팅실행중',   notes: '이슬팀장과 진행' },
+  { id: 'wc-10', userId: 'prototype', weekStart: '2026-05-25', sequence: 10, company: '플랜더 명함 수정 제작',                                   dueDate: '인성팀장과진행', notes: '' },
+  { id: 'wc-11', userId: 'prototype', weekStart: '2026-05-25', sequence: 11, company: '루비 개발',                                              dueDate: '이동욱작업',     notes: '' },
+];
+
+// ISO 주(월~일) 시작일 계산. input: YYYY-MM-DD → output: 그 날짜가 속한 월요일 YYYY-MM-DD
+function getJournalWeekStart(dateStr: string): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  const day = d.getDay(); // 0=일 ~ 6=토
+  const offset = day === 0 ? -6 : 1 - day; // 월요일까지 거슬러
+  d.setDate(d.getDate() + offset);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// 주 시작 기준 N일 후
+function addDays(dateStr: string, n: number): string {
+  const d = new Date(`${dateStr}T00:00:00`);
+  d.setDate(d.getDate() + n);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+const journalKinds: JournalKind[] = ['작업', '미팅', '작성', '요청', '견적', '출근', '문서', '확인', '기타'];
+
+// 색상 phase 메타 (UI 표시용 라벨 + 색상은 CSS data-phase 로 적용)
+const journalPhases: { value: JournalStatusPhase; label: string }[] = [
+  { value: 'plan',     label: '예정 (회색)' },
+  { value: 'progress', label: '진행중 (파랑)' },
+  { value: 'done',     label: '완료 (초록)' },
+  { value: 'coop',     label: '협업/대기 (노랑)' },
+  { value: 'execute',  label: '실행중 (주황)' },
+  { value: 'must',     label: '긴급/필수 (빨강)' },
+  { value: 'next',     label: '다음 (보라)' },
+  { value: 'change',   label: '변경 (옅은 보라)' },
+  { value: 'continue', label: '이어서 (청록)' },
+  { value: 'stop',     label: '중지 (짙은 회색)' },
+];
+
+// 시드 팔레트 — 시트 우측상단 + 실데이터 기반
+const seedJournalStatusPalette: JournalStatusDef[] = [
+  // 작업
+  { id: 'st-1',  name: '작업예정',     phase: 'plan' },
+  { id: 'st-2',  name: '작업진행중',   phase: 'progress' },
+  { id: 'st-3',  name: '작업완료',     phase: 'done' },
+  // 미팅
+  { id: 'st-4',  name: '미팅예정',     phase: 'plan' },
+  { id: 'st-5',  name: '미팅중',       phase: 'progress' },
+  { id: 'st-6',  name: '미팅완료',     phase: 'done' },
+  // 작성
+  { id: 'st-7',  name: '작성예정',     phase: 'plan' },
+  { id: 'st-8',  name: '작성중',       phase: 'progress' },
+  { id: 'st-9',  name: '제출완료',     phase: 'done' },
+  // 요청
+  { id: 'st-10', name: '요청예정',     phase: 'plan' },
+  { id: 'st-11', name: '요청확인',     phase: 'progress' },
+  { id: 'st-12', name: '수행완료',     phase: 'done' },
+  // 견적
+  { id: 'st-13', name: '견적예정',     phase: 'plan' },
+  { id: 'st-14', name: '견적중',       phase: 'progress' },
+  { id: 'st-15', name: '견적완료',     phase: 'done' },
+  // 기타
+  { id: 'st-16', name: '마케팅실행중',  phase: 'execute' },
+  { id: 'st-17', name: '필수',          phase: 'must' },
+  { id: 'st-18', name: '내일작업',      phase: 'next' },
+  { id: 'st-19', name: '일정변경',      phase: 'change' },
+  { id: 'st-20', name: '이어서',        phase: 'continue' },
+  { id: 'st-21', name: '중지',          phase: 'stop' },
+  // ~와/과 진행
+  { id: 'st-22', name: '매니저와진행',     phase: 'coop' },
+  { id: 'st-23', name: '신이사와진행',     phase: 'coop' },
+  { id: 'st-24', name: '최실장과진행',     phase: 'coop' },
+  { id: 'st-25', name: '인성팀장과진행',   phase: 'coop' },
+  { id: 'st-26', name: '이슬팀장과진행',   phase: 'coop' },
+  { id: 'st-27', name: '개발자와진행',     phase: 'coop' },
+  { id: 'st-28', name: '이동욱작업',       phase: 'coop' },
+];
+
+// 상태 이름 → phase 룩업 (팔레트 기반, fallback='plan')
+function lookupStatusPhase(palette: JournalStatusDef[], status: string): JournalStatusPhase {
+  const def = palette.find((d) => d.name === status);
+  return def?.phase || 'plan';
+}
 
 const seedJobTypes = ['일본 마케팅', '국내 마케팅', '디자인', '개발', '영업', '운영', '대표', '회계·정산'];
 const operationStorageKey = 'plander-operations-items';
@@ -1523,6 +1653,9 @@ function App() {
   const [projects, setProjects] = useState<Project[]>(seedProjects);
   const [projectMessages, setProjectMessages] = useState<ProjectMessage[]>([]);
   const [workSchedules, setWorkSchedules] = useState<WorkSchedule[]>(seedWorkSchedules);
+  const [journalEntries, setJournalEntries] = useState<WorkJournalEntry[]>(seedWorkJournalEntries);
+  const [journalStatusPalette, setJournalStatusPalette] = useState<JournalStatusDef[]>(seedJournalStatusPalette);
+  const [weeklyContracts, setWeeklyContracts] = useState<WeeklyContract[]>(seedWeeklyContracts);
   const [meetingMinutes, setMeetingMinutes] = useState<MeetingMinute[]>(seedMeetingMinutes);
   const [notices, setNotices] = useState<Notice[]>(seedNotices);
   const [employees, setEmployees] = useState<Employee[]>(seedEmployees);
@@ -4644,6 +4777,121 @@ function App() {
 
   const isAdmin = currentUser.accountRole === 'admin';
   const canControlThemeMode = true;
+
+  // 인라인 편집 — 빈 제목 허용(드래프트 상태 가능). 토스트 없이 조용히 반영.
+  const addJournalEntry = async (draft: WorkJournalEntryDraft): Promise<string> => {
+    const weekStart = getJournalWeekStart(draft.date);
+    const id = `jrn-${Math.random().toString(36).slice(2, 10)}`;
+    const now = new Date().toISOString();
+    setJournalEntries((current) => [
+      ...current,
+      {
+        id,
+        userId: currentUser.id,
+        weekStart,
+        date: draft.date,
+        kind: draft.kind,
+        title: draft.title.trim(),
+        detail: draft.detail?.trim() || '',
+        status: draft.status,
+        label: draft.label.trim(),
+        projectId: draft.projectId ?? null,
+        source: 'manual',
+        edited: false,
+        hidden: false,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+    return id;
+  };
+
+  const patchJournalEntry = (entryId: string, patch: Partial<WorkJournalEntry>) => {
+    const now = new Date().toISOString();
+    setJournalEntries((current) =>
+      current.map((entry) => {
+        if (entry.id !== entryId) return entry;
+        const next: WorkJournalEntry = { ...entry, ...patch, updatedAt: now };
+        if (patch.date !== undefined) {
+          next.weekStart = getJournalWeekStart(next.date);
+        }
+        if (entry.source !== 'manual') {
+          next.edited = true;
+        }
+        return next;
+      }),
+    );
+  };
+
+  const deleteJournalEntry = async (entry: WorkJournalEntry): Promise<string> => {
+    setJournalEntries((current) => current.filter((item) => item.id !== entry.id));
+    return '일지 항목을 삭제했습니다.';
+  };
+
+  const addJournalStatus = (name: string, phase: JournalStatusPhase): string => {
+    const trimmed = name.trim();
+    if (!trimmed) return '상태 이름을 입력해주세요.';
+    if (journalStatusPalette.some((s) => s.name === trimmed)) return '이미 같은 이름의 상태가 있습니다.';
+    const id = `st-${Math.random().toString(36).slice(2, 8)}`;
+    setJournalStatusPalette((current) => [...current, { id, name: trimmed, phase }]);
+    return '상태를 추가했습니다.';
+  };
+
+  const updateJournalStatus = (id: string, patch: Partial<Pick<JournalStatusDef, 'name' | 'phase'>>): string => {
+    const trimmedName = patch.name?.trim();
+    if (trimmedName !== undefined && !trimmedName) return '상태 이름을 입력해주세요.';
+    if (trimmedName) {
+      const conflict = journalStatusPalette.find((s) => s.name === trimmedName && s.id !== id);
+      if (conflict) return '이미 같은 이름의 상태가 있습니다.';
+    }
+    const before = journalStatusPalette.find((s) => s.id === id);
+    if (!before) return '상태를 찾을 수 없습니다.';
+    const nextName = trimmedName ?? before.name;
+    setJournalStatusPalette((current) =>
+      current.map((s) => (s.id === id ? { ...s, ...(patch.name !== undefined ? { name: nextName } : {}), ...(patch.phase ? { phase: patch.phase } : {}) } : s)),
+    );
+    // 이름이 변경되면 기존 일지 항목도 같이 갱신
+    if (trimmedName && trimmedName !== before.name) {
+      setJournalEntries((current) =>
+        current.map((entry) => (entry.status === before.name ? { ...entry, status: trimmedName } : entry)),
+      );
+    }
+    return '상태를 수정했습니다.';
+  };
+
+  const deleteJournalStatus = (id: string): string => {
+    const target = journalStatusPalette.find((s) => s.id === id);
+    if (!target) return '상태를 찾을 수 없습니다.';
+    setJournalStatusPalette((current) => current.filter((s) => s.id !== id));
+    return '상태를 삭제했습니다.';
+  };
+
+  // 이번주 진행중 계약·할일 (간단 테이블)
+  const addWeeklyContract = async (weekStart: string): Promise<string> => {
+    const userContracts = weeklyContracts.filter((c) => c.userId === currentUser.id && c.weekStart === weekStart);
+    const nextSeq = userContracts.length ? Math.max(...userContracts.map((c) => c.sequence)) + 1 : 1;
+    const id = `wc-${Math.random().toString(36).slice(2, 10)}`;
+    setWeeklyContracts((current) => [...current, {
+      id,
+      userId: currentUser.id,
+      weekStart,
+      sequence: nextSeq,
+      company: '',
+      dueDate: '',
+      notes: '',
+    }]);
+    return id;
+  };
+
+  const patchWeeklyContract = (id: string, patch: Partial<WeeklyContract>): void => {
+    setWeeklyContracts((current) => current.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  };
+
+  const deleteWeeklyContract = (contract: WeeklyContract): string => {
+    setWeeklyContracts((current) => current.filter((c) => c.id !== contract.id));
+    return '항목을 삭제했습니다.';
+  };
+
   const immersiveChromeProps = {
     currentUser,
     pushEnabled,
@@ -4659,7 +4907,7 @@ function App() {
     onRegisterPush: handleRegisterPush,
     onThemeChange: changeThemeMode,
   };
-  const isImmersiveView = ['project', 'reports', 'allTasks', 'inbox', 'sent', 'clients', 'operations', 'calendar', 'meetingMinutes', 'notices'].includes(activeView);
+  const isImmersiveView = ['project', 'reports', 'allTasks', 'inbox', 'sent', 'clients', 'operations', 'calendar', 'meetingMinutes', 'notices', 'journal'].includes(activeView);
 
   return (
     <div className="app">
@@ -4798,6 +5046,24 @@ function App() {
             onCreateMinute={addMeetingMinute}
             onDeleteMinute={deleteMeetingMinute}
             onUpdateMinute={updateMeetingMinute}
+          />
+        ) : null}
+        {activeView === 'journal' ? (
+          <JournalPage
+            {...immersiveChromeProps}
+            entries={journalEntries}
+            projects={projects}
+            statusPalette={journalStatusPalette}
+            contracts={weeklyContracts}
+            onAddJournalEntry={addJournalEntry}
+            onPatchJournalEntry={patchJournalEntry}
+            onDeleteJournalEntry={deleteJournalEntry}
+            onAddJournalStatus={addJournalStatus}
+            onUpdateJournalStatus={updateJournalStatus}
+            onDeleteJournalStatus={deleteJournalStatus}
+            onAddWeeklyContract={addWeeklyContract}
+            onPatchWeeklyContract={patchWeeklyContract}
+            onDeleteWeeklyContract={deleteWeeklyContract}
           />
         ) : null}
         {activeView === 'notices' ? (
@@ -8954,6 +9220,632 @@ function NoticeForm({
         </button>
       </div>
     </form>
+  );
+}
+
+type JournalSubmitHandler = (draft: WorkJournalEntryDraft) => Promise<string>;
+type JournalPatchHandler = (entryId: string, patch: Partial<WorkJournalEntry>) => void;
+type JournalDeleteHandler = (entry: WorkJournalEntry) => Promise<string>;
+
+type JournalEditTarget = { entryId: string; field: 'kind' | 'title' | 'label' | 'detail' | 'status' | 'project' } | null;
+
+function JournalTextEditor({ initial, placeholder, onSave, onCancel }: {
+  initial: string;
+  placeholder?: string;
+  onSave: (value: string) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState(initial);
+  const commit = () => onSave(draft.trim());
+  return (
+    <div className="journal-edit-wrap">
+      <input
+        autoFocus
+        className="journal-edit-input"
+        placeholder={placeholder}
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') commit();
+          if (event.key === 'Escape') onCancel();
+        }}
+      />
+      <button aria-label="저장" className="journal-save-btn" onClick={commit} type="button"><Check size={14} /></button>
+    </div>
+  );
+}
+
+function JournalKindEditor({ initial, onSave, onCancel }: {
+  initial: JournalKind;
+  onSave: (value: JournalKind) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<JournalKind>(initial);
+  return (
+    <div className="journal-edit-wrap journal-edit-wrap-kind">
+      <select
+        autoFocus
+        className="journal-edit-select journal-kind-select"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value as JournalKind)}
+        onKeyDown={(event) => { if (event.key === 'Escape') onCancel(); if (event.key === 'Enter') onSave(draft); }}
+      >
+        {journalKinds.map((k) => <option key={k} value={k}>{k}</option>)}
+      </select>
+      <button aria-label="저장" className="journal-save-btn" onClick={() => onSave(draft)} type="button"><Check size={14} /></button>
+    </div>
+  );
+}
+
+function JournalStatusEditor({ initial, palette, onSave, onCancel }: {
+  initial: JournalStatus;
+  palette: JournalStatusDef[];
+  onSave: (value: JournalStatus) => void;
+  onCancel: () => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const handler = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) onCancel();
+    };
+    const keyHandler = (event: KeyboardEvent) => { if (event.key === 'Escape') onCancel(); };
+    document.addEventListener('mousedown', handler);
+    document.addEventListener('keydown', keyHandler);
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('keydown', keyHandler);
+    };
+  }, [onCancel]);
+  return (
+    <div className="journal-status-picker" ref={ref}>
+      <div className="journal-status-picker-flow">
+        {palette.map((def) => (
+          <button
+            className="journal-status-badge journal-status-picker-chip"
+            data-phase={def.phase}
+            data-selected={def.name === initial}
+            key={def.id}
+            onClick={() => onSave(def.name)}
+            type="button"
+          >{def.name}</button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function JournalProjectEditor({ initial, projects, onSave, onCancel }: {
+  initial: string | null | undefined;
+  projects: Project[];
+  onSave: (value: string | null) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<string>(initial || '');
+  return (
+    <div className="journal-edit-wrap">
+      <select
+        autoFocus
+        className="journal-edit-select journal-project-edit-select"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => { if (event.key === 'Escape') onCancel(); if (event.key === 'Enter') onSave(draft || null); }}
+      >
+        <option value="">— 매칭 안 함 —</option>
+        {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+      </select>
+      <button aria-label="저장" className="journal-save-btn" onClick={() => onSave(draft || null)} type="button"><Check size={14} /></button>
+    </div>
+  );
+}
+
+function JournalEntryRow({
+  entry,
+  projects,
+  statusPalette,
+  editing,
+  onStartEdit,
+  onEndEdit,
+  onPatch,
+  onDelete,
+}: {
+  entry: WorkJournalEntry;
+  projects: Project[];
+  statusPalette: JournalStatusDef[];
+  editing: JournalEditTarget;
+  onStartEdit: (target: NonNullable<JournalEditTarget>) => void;
+  onEndEdit: () => void;
+  onPatch: JournalPatchHandler;
+  onDelete: (entry: WorkJournalEntry) => void;
+}) {
+  const isEditing = (field: NonNullable<JournalEditTarget>['field']) =>
+    editing !== null && editing.entryId === entry.id && editing.field === field;
+  const matchedProject = entry.projectId ? projects.find((p) => p.id === entry.projectId) : null;
+  const statusPhase = lookupStatusPhase(statusPalette, entry.status);
+  const saveField = (patch: Partial<WorkJournalEntry>) => {
+    onPatch(entry.id, patch);
+    onEndEdit();
+  };
+
+  return (
+    <li className="journal-entry-row journal-row-readable">
+      {/* 종류 */}
+      {isEditing('kind') ? (
+        <JournalKindEditor
+          initial={entry.kind}
+          onSave={(value) => saveField({ kind: value })}
+          onCancel={onEndEdit}
+        />
+      ) : (
+        <button
+          className="journal-view journal-view-kind"
+          onClick={() => onStartEdit({ entryId: entry.id, field: 'kind' })}
+          type="button"
+          aria-label="종류 수정"
+        >{entry.kind}</button>
+      )}
+
+      <div className="journal-entry-body">
+        {/* 제목 */}
+        {isEditing('title') ? (
+          <JournalTextEditor
+            initial={entry.title}
+            placeholder="제목을 입력하세요"
+            onSave={(value) => saveField({ title: value })}
+            onCancel={onEndEdit}
+          />
+        ) : (
+          <button
+            className="journal-view journal-view-title"
+            onClick={() => onStartEdit({ entryId: entry.id, field: 'title' })}
+            type="button"
+          >
+            {entry.title || <em className="journal-placeholder">제목을 입력하세요</em>}
+          </button>
+        )}
+
+        <div className="journal-entry-meta-row">
+          {/* 라벨 */}
+          {isEditing('label') ? (
+            <JournalTextEditor
+              initial={entry.label}
+              placeholder="라벨 (예: 카온, 탐라곳간)"
+              onSave={(value) => saveField({ label: value })}
+              onCancel={onEndEdit}
+            />
+          ) : (
+            <button
+              className="journal-view journal-view-label"
+              onClick={() => onStartEdit({ entryId: entry.id, field: 'label' })}
+              type="button"
+            >
+              {entry.label || <em className="journal-placeholder">+ 라벨</em>}
+            </button>
+          )}
+
+          {/* 기타사항 */}
+          {isEditing('detail') ? (
+            <JournalTextEditor
+              initial={entry.detail || ''}
+              placeholder="기타사항"
+              onSave={(value) => saveField({ detail: value })}
+              onCancel={onEndEdit}
+            />
+          ) : (
+            <button
+              className="journal-view journal-view-detail"
+              onClick={() => onStartEdit({ entryId: entry.id, field: 'detail' })}
+              type="button"
+            >
+              {entry.detail || <em className="journal-placeholder">+ 기타사항</em>}
+            </button>
+          )}
+
+          {/* 프로젝트 매칭 */}
+          {isEditing('project') ? (
+            <JournalProjectEditor
+              initial={entry.projectId}
+              projects={projects}
+              onSave={(value) => saveField({ projectId: value })}
+              onCancel={onEndEdit}
+            />
+          ) : matchedProject ? (
+            <button
+              className="journal-view journal-view-project"
+              onClick={() => onStartEdit({ entryId: entry.id, field: 'project' })}
+              type="button"
+              aria-label="프로젝트 매칭 변경"
+            >📁 {matchedProject.name}</button>
+          ) : (
+            <button
+              className="journal-view journal-view-project-empty"
+              onClick={() => onStartEdit({ entryId: entry.id, field: 'project' })}
+              type="button"
+            >+ 매칭</button>
+          )}
+        </div>
+      </div>
+
+      {/* 상태 */}
+      <div className="journal-status-cell">
+        {isEditing('status') ? (
+          <JournalStatusEditor
+            initial={entry.status}
+            palette={statusPalette}
+            onSave={(value) => saveField({ status: value })}
+            onCancel={onEndEdit}
+          />
+        ) : null}
+        <button
+          className="journal-view journal-status-badge"
+          data-phase={statusPhase}
+          onClick={() => onStartEdit({ entryId: entry.id, field: 'status' })}
+          type="button"
+          aria-label="상태 수정"
+        >{entry.status}</button>
+      </div>
+
+      <button
+        aria-label="삭제"
+        className="icon-only-action danger-action journal-delete-btn"
+        onClick={() => onDelete(entry)}
+        type="button"
+      ><Trash2 size={14} /></button>
+    </li>
+  );
+}
+
+function WeeklyContractsTable({
+  contracts,
+  weekStart,
+  onAdd,
+  onPatch,
+  onDelete,
+}: {
+  contracts: WeeklyContract[];
+  weekStart: string;
+  onAdd: (weekStart: string) => Promise<string>;
+  onPatch: (id: string, patch: Partial<WeeklyContract>) => void;
+  onDelete: (contract: WeeklyContract) => string;
+}) {
+  const [editing, setEditing] = useState<{ id: string; field: 'company' | 'dueDate' | 'notes' } | null>(null);
+  const visible = contracts.filter((c) => c.weekStart === weekStart).sort((a, b) => a.sequence - b.sequence);
+
+  const cell = (contract: WeeklyContract, field: 'company' | 'dueDate' | 'notes', placeholder: string) => {
+    const value = contract[field];
+    const isEditing = editing?.id === contract.id && editing.field === field;
+    if (isEditing) {
+      return (
+        <JournalTextEditor
+          initial={value}
+          placeholder={placeholder}
+          onSave={(next) => {
+            onPatch(contract.id, { [field]: next });
+            setEditing(null);
+          }}
+          onCancel={() => setEditing(null)}
+        />
+      );
+    }
+    return (
+      <button
+        className="journal-view journal-contract-cell"
+        onClick={() => setEditing({ id: contract.id, field })}
+        type="button"
+      >
+        {value || <em className="journal-placeholder">{placeholder}</em>}
+      </button>
+    );
+  };
+
+  return (
+    <section className="journal-contracts-section">
+      <header className="journal-contracts-head">
+        <h2>이번주 진행중 계약·할일</h2>
+        <span>{visible.length}건</span>
+      </header>
+      <div className="journal-contracts-table">
+        <div className="journal-contracts-row journal-contracts-row-head">
+          <span>순번</span>
+          <span>상호</span>
+          <span>마감일</span>
+          <span>기타사항</span>
+          <span />
+        </div>
+        {visible.map((contract, idx) => (
+          <div className="journal-contracts-row" key={contract.id}>
+            <span className="journal-contract-seq">{idx + 1}</span>
+            {cell(contract, 'company', '상호 / 업무명')}
+            {cell(contract, 'dueDate', '날짜 또는 상태')}
+            {cell(contract, 'notes', '메모')}
+            <button
+              aria-label="삭제"
+              className="icon-only-action danger-action journal-delete-btn"
+              onClick={() => onDelete(contract)}
+              type="button"
+            ><Trash2 size={14} /></button>
+          </div>
+        ))}
+        <button
+          className="journal-add-inline journal-contracts-add"
+          onClick={() => onAdd(weekStart)}
+          type="button"
+        ><Plus size={14} /> 행 추가</button>
+      </div>
+    </section>
+  );
+}
+
+function JournalPage({
+  currentUser,
+  entries,
+  projects,
+  statusPalette,
+  contracts,
+  pushEnabled,
+  pushLoading,
+  pushStatus,
+  showThemeSwitcher,
+  themeMode,
+  onClosePage,
+  onLogout,
+  onMenuClick,
+  onNavigate,
+  onOpenProfile,
+  onRegisterPush,
+  onThemeChange,
+  onAddJournalEntry,
+  onPatchJournalEntry,
+  onDeleteJournalEntry,
+  onAddJournalStatus,
+  onUpdateJournalStatus,
+  onDeleteJournalStatus,
+  onAddWeeklyContract,
+  onPatchWeeklyContract,
+  onDeleteWeeklyContract,
+}: ImmersiveChromeProps & {
+  entries: WorkJournalEntry[];
+  projects: Project[];
+  statusPalette: JournalStatusDef[];
+  contracts: WeeklyContract[];
+  onAddJournalEntry: JournalSubmitHandler;
+  onPatchJournalEntry: JournalPatchHandler;
+  onDeleteJournalEntry: JournalDeleteHandler;
+  onAddJournalStatus: (name: string, phase: JournalStatusPhase) => string;
+  onUpdateJournalStatus: (id: string, patch: Partial<Pick<JournalStatusDef, 'name' | 'phase'>>) => string;
+  onDeleteJournalStatus: (id: string) => string;
+  onAddWeeklyContract: (weekStart: string) => Promise<string>;
+  onPatchWeeklyContract: (id: string, patch: Partial<WeeklyContract>) => void;
+  onDeleteWeeklyContract: (contract: WeeklyContract) => string;
+}) {
+  const todayIso = useMemo(() => {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }, []);
+
+  // 시드 데이터가 5월 25일 주이므로 그 주를 기본 표시
+  const seedWeekStart = '2026-05-25';
+  const [weekStart, setWeekStart] = useState<string>(seedWeekStart);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [paletteEditing, setPaletteEditing] = useState(false);
+  const [newStatusName, setNewStatusName] = useState('');
+  const [newStatusPhase, setNewStatusPhase] = useState<JournalStatusPhase>('plan');
+  const [editing, setEditing] = useState<JournalEditTarget>(null);
+
+  const weekDays = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const weekEnd = weekDays[6];
+
+  const myEntries = entries.filter((entry) => entry.userId === currentUser.id && !entry.hidden);
+  const weekEntries = myEntries.filter((entry) => entry.weekStart === weekStart);
+
+  const entriesByDate: Record<string, WorkJournalEntry[]> = {};
+  weekDays.forEach((d) => { entriesByDate[d] = []; });
+  weekEntries.forEach((entry) => {
+    if (entriesByDate[entry.date]) entriesByDate[entry.date].push(entry);
+  });
+
+  const formatDayHeader = (iso: string) => {
+    const d = new Date(`${iso}T00:00:00`);
+    const wd = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+    const isToday = iso === todayIso;
+    return `${d.getMonth() + 1}/${d.getDate()} (${wd})${isToday ? ' · 오늘' : ''}`;
+  };
+
+  const weekLabel = `${weekStart.slice(0, 4)}년 ${parseInt(weekStart.slice(5, 7), 10)}월 · ${weekStart.slice(5, 7)}/${weekStart.slice(8, 10)}(월) ~ ${weekEnd.slice(5, 7)}/${weekEnd.slice(8, 10)}(일)`;
+
+  const goPrev = () => setWeekStart(addDays(weekStart, -7));
+  const goNext = () => setWeekStart(addDays(weekStart, 7));
+  const goToday = () => setWeekStart(getJournalWeekStart(todayIso));
+
+  const addRow = async (day: string) => {
+    const newId = await onAddJournalEntry({
+      date: day,
+      kind: '작업',
+      title: '',
+      detail: '',
+      status: '작업진행중',
+      label: '',
+      projectId: null,
+    });
+    setEditing({ entryId: newId, field: 'title' });
+  };
+
+  const handleDelete = (entry: WorkJournalEntry) => {
+    onDeleteJournalEntry(entry);
+  };
+
+  return (
+    <ImmersivePageFrame
+      className="journal-mode-shell"
+      currentUser={currentUser}
+      folderIcon={NotebookPen}
+      folderLabel="주간업무일지"
+      heading="주간업무일지"
+      pushEnabled={pushEnabled}
+      pushLoading={pushLoading}
+      pushStatus={pushStatus}
+      searchLabel="일지 검색"
+      searchPlaceholder="제목·라벨·기타사항 검색"
+      showThemeSwitcher={showThemeSwitcher}
+      subheading="한 주간의 활동을 라벨로 기록하고, 같은 라벨이 누적되면 프로젝트로 승격하세요."
+      themeMode={themeMode}
+      onClosePage={onClosePage}
+      onLogout={onLogout}
+      onMenuClick={onMenuClick}
+      onNavigate={onNavigate}
+      onOpenProfile={onOpenProfile}
+      onRegisterPush={onRegisterPush}
+      onThemeChange={onThemeChange}
+    >
+      <div className="journal-week-nav">
+        <button className="secondary-action icon-only-action" onClick={goPrev} type="button" aria-label="이전 주"><ChevronLeft size={18} /></button>
+        <div className="journal-week-label">
+          <strong>{weekLabel}</strong>
+          <span>{weekEntries.length}건 기록</span>
+        </div>
+        <button className="secondary-action icon-only-action" onClick={goNext} type="button" aria-label="다음 주"><ChevronRight size={18} /></button>
+        <button className="secondary-action" onClick={goToday} type="button">오늘</button>
+      </div>
+
+      <div className="journal-palette-wrap">
+        <div className="journal-palette-bar">
+          <button className="journal-palette-toggle" onClick={() => setPaletteOpen((v) => !v)} type="button">
+            <ChevronDown size={16} style={{ transform: paletteOpen ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 150ms' }} />
+            상태 팔레트 {paletteOpen ? '닫기' : '보기'} ({statusPalette.length})
+          </button>
+          {paletteOpen ? (
+            <button
+              className="journal-palette-edit-toggle"
+              onClick={() => setPaletteEditing((v) => !v)}
+              type="button"
+            >{paletteEditing ? '완료' : '편집'}</button>
+          ) : null}
+        </div>
+        {paletteOpen ? (
+          <div className="journal-palette">
+            {paletteEditing ? (
+              <div className="journal-palette-edit-list">
+                {statusPalette.map((def) => (
+                  <div className="journal-palette-edit-row" key={def.id}>
+                    <span className="journal-status-badge" data-phase={def.phase}>{def.name}</span>
+                    <input
+                      className="journal-palette-edit-name"
+                      defaultValue={def.name}
+                      placeholder="상태 이름"
+                      onBlur={(event) => {
+                        const next = event.target.value.trim();
+                        if (next && next !== def.name) onUpdateJournalStatus(def.id, { name: next });
+                      }}
+                      onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }}
+                    />
+                    <select
+                      className="journal-palette-edit-phase"
+                      value={def.phase}
+                      onChange={(event) => onUpdateJournalStatus(def.id, { phase: event.target.value as JournalStatusPhase })}
+                    >
+                      {journalPhases.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    </select>
+                    <button
+                      aria-label="삭제"
+                      className="icon-only-action danger-action"
+                      onClick={() => onDeleteJournalStatus(def.id)}
+                      type="button"
+                    ><Trash2 size={14} /></button>
+                  </div>
+                ))}
+                <div className="journal-palette-edit-row journal-palette-edit-row-new">
+                  {newStatusName ? (
+                    <span className="journal-status-badge" data-phase={newStatusPhase}>{newStatusName}</span>
+                  ) : (
+                    <span className="journal-status-badge journal-status-badge-empty" data-phase={newStatusPhase}>새 상태</span>
+                  )}
+                  <input
+                    className="journal-palette-edit-name"
+                    value={newStatusName}
+                    placeholder="새 상태 이름"
+                    onChange={(event) => setNewStatusName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && newStatusName.trim()) {
+                        onAddJournalStatus(newStatusName, newStatusPhase);
+                        setNewStatusName('');
+                      }
+                    }}
+                  />
+                  <select
+                    className="journal-palette-edit-phase"
+                    value={newStatusPhase}
+                    onChange={(event) => setNewStatusPhase(event.target.value as JournalStatusPhase)}
+                  >
+                    {journalPhases.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                  </select>
+                  <button
+                    aria-label="추가"
+                    className="icon-only-action primary-action"
+                    disabled={!newStatusName.trim()}
+                    onClick={() => {
+                      if (!newStatusName.trim()) return;
+                      onAddJournalStatus(newStatusName, newStatusPhase);
+                      setNewStatusName('');
+                    }}
+                    type="button"
+                  ><Plus size={14} /></button>
+                </div>
+              </div>
+            ) : (
+              <div className="journal-palette-flow">
+                {statusPalette.map((def) => (
+                  <span className="journal-status-badge" data-phase={def.phase} key={def.id}>{def.name}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+      </div>
+
+      <WeeklyContractsTable
+        contracts={contracts.filter((c) => c.userId === currentUser.id)}
+        weekStart={weekStart}
+        onAdd={onAddWeeklyContract}
+        onPatch={onPatchWeeklyContract}
+        onDelete={onDeleteWeeklyContract}
+      />
+
+      <div className="journal-day-list">
+        {weekDays.map((day) => {
+          const dayEntries = entriesByDate[day] || [];
+          return (
+            <section className="journal-day-group" data-empty={dayEntries.length === 0} key={day}>
+              <header className="journal-day-head">
+                <strong>{formatDayHeader(day)}</strong>
+                <span>{dayEntries.length ? `${dayEntries.length}건` : '비어있음'}</span>
+              </header>
+              {dayEntries.length ? (
+                <ul className="journal-entry-list">
+                  {dayEntries.map((entry) => (
+                    <JournalEntryRow
+                      key={entry.id}
+                      entry={entry}
+                      projects={projects}
+                      statusPalette={statusPalette}
+                      editing={editing}
+                      onStartEdit={(target) => setEditing(target)}
+                      onEndEdit={() => setEditing(null)}
+                      onPatch={onPatchJournalEntry}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </ul>
+              ) : null}
+              <button className="journal-add-inline" onClick={() => addRow(day)} type="button">
+                <Plus size={14} /> 새 항목
+              </button>
+            </section>
+          );
+        })}
+      </div>
+    </ImmersivePageFrame>
   );
 }
 

@@ -16,6 +16,7 @@ export type ActiveView =
   | 'meetingMinutes'
   | 'notices'
   | 'reports'
+  | 'journal'
   | 'clients'
   | 'employees'
   | 'operations'
@@ -312,6 +313,65 @@ export type MeetingMinuteDeleteHandler = (minute: MeetingMinute) => Promise<stri
 export type MeetingMinuteCategorySubmitHandler = (name: string) => Promise<string>;
 export type MeetingMinuteCategoryDeleteHandler = (name: string) => Promise<string>;
 export type MeetingMinuteExportFormat = 'pdf' | 'xls' | 'hwp';
+
+export type JournalKind = '작업' | '미팅' | '작성' | '요청' | '견적' | '출근' | '문서' | '확인' | '기타';
+
+// 자유 문자열 — 팔레트(JournalStatusDef[])에 등록된 이름이거나 임의 값일 수 있음
+export type JournalStatus = string;
+
+// 색상 phase — 추가/이름변경은 허용되지만 phase 집합은 고정(컬러 토큰 매핑용)
+export type JournalStatusPhase =
+  | 'plan' | 'progress' | 'done' | 'coop' | 'execute'
+  | 'must' | 'next' | 'change' | 'continue' | 'stop';
+
+export type JournalStatusDef = {
+  id: string;
+  name: string;
+  phase: JournalStatusPhase;
+};
+
+export type JournalSource = 'manual' | 'task' | 'meeting' | 'schedule' | 'comment';
+
+export type WorkJournalEntry = {
+  id: string;
+  userId: string;
+  weekStart: string;          // YYYY-MM-DD (Monday)
+  date: string;               // YYYY-MM-DD
+  kind: JournalKind;
+  title: string;
+  detail?: string;
+  status: JournalStatus;
+  label: string;              // 자유텍스트 업체/프로젝트 라벨
+  projectId?: string | null;  // 매칭되면
+  clientId?: string | null;
+  source: JournalSource;
+  sourceRef?: string;
+  edited: boolean;
+  hidden: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type WorkJournalEntryDraft = {
+  date: string;
+  kind: JournalKind;
+  title: string;
+  detail?: string;
+  status: JournalStatus;
+  label: string;
+  projectId?: string | null;
+};
+
+// 이번주 진행중 계약·할일 (간단 테이블)
+export type WeeklyContract = {
+  id: string;
+  userId: string;
+  weekStart: string;       // YYYY-MM-DD (Monday)
+  sequence: number;        // 자동부여 (정렬용)
+  company: string;         // 상호
+  dueDate: string;         // 자유 텍스트 (날짜 / 상태 / 메모)
+  notes: string;           // 기타사항
+};
 
 // 공지/전달사항
 export type NoticeComment = {

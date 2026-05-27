@@ -8352,3 +8352,474 @@ h4,
     justify-content: flex-end;
   }
 }
+
+/* === 주간업무일지 === */
+.journal-mode-shell { color: var(--text); }
+
+.journal-week-nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+.journal-week-nav .icon-only-action {
+  min-width: 32px;
+  height: 32px;
+}
+.journal-week-label {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.journal-week-label strong { font-size: 1rem; color: var(--text); }
+.journal-week-label span { font-size: 0.78rem; color: var(--text-muted); }
+
+.journal-palette-wrap { margin: 0 0 14px; }
+.journal-palette-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.journal-palette-toggle:hover { background: var(--surface-soft); color: var(--text); }
+.journal-palette-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.journal-palette-edit-toggle {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.journal-palette-edit-toggle:hover { background: var(--surface-soft); color: var(--text); }
+
+.journal-palette {
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.journal-palette-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.journal-palette-edit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.journal-palette-edit-row {
+  display: grid;
+  grid-template-columns: minmax(140px, auto) 1fr 200px 32px;
+  gap: 10px;
+  align-items: center;
+}
+.journal-palette-edit-row-new {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+}
+.journal-palette-edit-name,
+.journal-palette-edit-phase {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  color: var(--text);
+  font-family: inherit;
+}
+.journal-palette-edit-name:focus,
+.journal-palette-edit-phase:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.journal-status-badge-empty {
+  opacity: 0.55;
+  font-weight: 400;
+}
+
+.journal-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+  background: var(--surface-soft);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.journal-status-badge[data-phase='plan']     { background: #eef0f3; color: #5b6472; border-color: #d8dde4; }
+.journal-status-badge[data-phase='progress'] { background: #e3edff; color: #2856b8; border-color: #c4d6f8; }
+.journal-status-badge[data-phase='done']     { background: #d8f3e3; color: #1a7a4a; border-color: #b8e5cb; }
+.journal-status-badge[data-phase='coop']     { background: #fff2cf; color: #8a6914; border-color: #f0dc94; }
+.journal-status-badge[data-phase='execute']  { background: #fde2c4; color: #a45816; border-color: #f3c98c; }
+.journal-status-badge[data-phase='must']     { background: #fcdcdc; color: #a22a2a; border-color: #f3b9b9; }
+.journal-status-badge[data-phase='next']     { background: #eadbff; color: #5b2a9a; border-color: #d5beff; }
+.journal-status-badge[data-phase='change']   { background: #f0e2ff; color: #6b3aa8; border-color: #ddc5f5; }
+.journal-status-badge[data-phase='continue'] { background: #d6f1f1; color: #186b6b; border-color: #b5dede; }
+.journal-status-badge[data-phase='stop']     { background: #d5d8dd; color: #444b56; border-color: #b8bdc6; }
+
+:root[data-theme='dark'] .journal-status-badge[data-phase='plan']     { background: #2a2f38; color: #c6cbd4; border-color: #3a414c; }
+:root[data-theme='dark'] .journal-status-badge[data-phase='progress'] { background: #1d3160; color: #b8ccf3; border-color: #2b4a8a; }
+:root[data-theme='dark'] .journal-status-badge[data-phase='done']     { background: #1c4030; color: #a9e0bf; border-color: #2c6147; }
+:root[data-theme='dark'] .journal-status-badge[data-phase='coop']     { background: #423315; color: #e9cd7a; border-color: #604a1f; }
+:root[data-theme='dark'] .journal-status-badge[data-phase='execute']  { background: #4a2c14; color: #ecbf85; border-color: #6d4220; }
+:root[data-theme='dark'] .journal-status-badge[data-phase='must']     { background: #4a1f1f; color: #f0b3b3; border-color: #6d2f2f; }
+:root[data-theme='dark'] .journal-status-badge[data-phase='next']     { background: #34204d; color: #d2b9ee; border-color: #4b316c; }
+:root[data-theme='dark'] .journal-status-badge[data-phase='change']   { background: #38214f; color: #d6bbef; border-color: #4f3170; }
+:root[data-theme='dark'] .journal-status-badge[data-phase='continue'] { background: #18373a; color: #a6dadc; border-color: #245558; }
+:root[data-theme='dark'] .journal-status-badge[data-phase='stop']     { background: #353a42; color: #b4b9c2; border-color: #4a5159; }
+
+.journal-contracts-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+.journal-contracts-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.journal-contracts-head h2 { font-size: 0.95rem; color: var(--text); font-weight: 800; margin: 0; }
+.journal-contracts-head span { font-size: 0.74rem; color: var(--text-muted); }
+
+.journal-contracts-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.journal-contracts-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 2fr) minmax(0, 1.1fr) minmax(0, 1.4fr) 32px;
+  gap: 8px;
+  align-items: center;
+  padding: 0 4px;
+  border-radius: 6px;
+}
+.journal-contracts-row .journal-view {
+  padding: 0 6px;
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+}
+.journal-contracts-row:not(.journal-contracts-row-head):hover { background: var(--surface-soft); }
+.journal-contracts-row-head {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+}
+.journal-contract-seq {
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text-muted);
+}
+.journal-contract-cell {
+  min-width: 0;
+  font-size: 0.86rem;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.journal-contracts-add {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
+.journal-day-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.journal-day-group {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+.journal-day-group[data-empty='true'] { opacity: 0.6; }
+.journal-day-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.journal-day-head strong { font-size: 0.95rem; color: var(--text); }
+.journal-day-head span { font-size: 0.74rem; color: var(--text-muted); }
+
+.journal-entry-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.journal-entry-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  background: var(--surface-soft);
+  border-radius: 8px;
+  transition: background 120ms;
+}
+.journal-entry-row:hover { background: var(--surface-strong); }
+
+/* 뷰 모드 — 평소 텍스트 (호버시만 살짝 강조) */
+.journal-view {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-family: inherit;
+  font-size: 0.86rem;
+  color: var(--text);
+  text-align: left;
+  cursor: text;
+  min-width: 0;
+}
+.journal-view:hover {
+  background: var(--bg);
+  border-color: var(--border);
+  cursor: pointer;
+}
+.journal-view-kind {
+  width: 100%;
+  height: 30px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  background: var(--bg);
+  border-color: var(--border);
+}
+.journal-view-kind:hover { color: var(--text); border-color: var(--text-muted); }
+.journal-view-title { font-weight: 700; }
+.journal-view-label, .journal-view-detail { font-size: 0.78rem; color: var(--text-muted); }
+.journal-view-project {
+  font-size: 0.74rem;
+  font-weight: 700;
+  background: rgba(56, 130, 246, 0.08);
+  color: var(--accent, #2856b8);
+  border-color: rgba(56, 130, 246, 0.3);
+}
+.journal-view-project-empty {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  border-style: dashed;
+  border-color: var(--border);
+}
+.journal-view-project-empty:hover { background: var(--bg); color: var(--text); }
+.journal-placeholder {
+  color: var(--text-muted);
+  opacity: 0.55;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.journal-entry-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.journal-entry-meta-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) minmax(110px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 편집 모드 wrap — 인풋·셀렉트 + 체크버튼 */
+.journal-edit-wrap {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+}
+.journal-edit-wrap-kind { width: 100%; }
+/* :where() 로 베이스 특이성 0 → 컬러 배지(data-phase) 규칙이 항상 이김 */
+:where(.journal-edit-input, .journal-edit-select) {
+  flex: 1;
+  min-width: 0;
+  background-color: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.86rem;
+  font-family: inherit;
+  color: var(--text);
+  outline: none;
+}
+.journal-edit-input::placeholder { color: var(--text-muted); opacity: 0.65; }
+:where(.journal-edit-input, .journal-edit-select):focus { box-shadow: 0 0 0 2px rgba(56, 130, 246, 0.25); }
+
+.journal-save-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  background: var(--accent, #2856b8);
+  color: #fff;
+  border: 1px solid var(--accent, #2856b8);
+  border-radius: 6px;
+  cursor: pointer;
+  flex: none;
+  align-self: center;
+}
+.journal-save-btn:hover { filter: brightness(1.08); }
+.journal-save-btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+
+/* 종류 편집용 셀렉트 */
+.journal-edit-wrap .journal-kind-select {
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: center;
+  font-weight: 800;
+  font-size: 0.78rem;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 11px) 50%, calc(100% - 7px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+  padding-right: 18px;
+}
+
+/* 상태 select — 배지 모양 컬러 */
+.journal-status-select {
+  appearance: none;
+  -webkit-appearance: none;
+  border-radius: 999px;
+  padding: 5px 22px 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  min-width: 102px;
+  text-align: center;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 11px) 50%, calc(100% - 7px) 50%;
+  background-size: 4px 4px, 4px 4px;
+  background-repeat: no-repeat;
+}
+/* 상태 셀 — 팝오버 위치 기준 */
+.journal-status-cell {
+  position: relative;
+  display: inline-flex;
+}
+
+/* 상태 편집은 native select 대신 색상칩 그리드 팝오버 사용 */
+.journal-status-picker {
+  position: absolute;
+  z-index: 40;
+  margin-top: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  right: 0;
+  top: 100%;
+  min-width: 520px;
+  max-width: 580px;
+}
+.journal-status-picker-flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.journal-status-picker-chip {
+  cursor: pointer;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
+  transition: transform 80ms;
+}
+.journal-status-picker-chip:hover { transform: translateY(-1px); }
+.journal-status-picker-chip[data-selected='true'] {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* 삭제 버튼 */
+.journal-delete-btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+}
+
+/* 인라인 새 항목 추가 */
+.journal-add-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.journal-add-inline:hover {
+  background: var(--surface-soft);
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+@media (max-width: 720px) {
+  .journal-palette-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .journal-entry-row {
+    grid-template-columns: 54px 1fr auto;
+    grid-template-rows: auto auto;
+  }
+  .journal-entry-row .journal-status-select { grid-column: 2; }
+  .journal-entry-row .journal-delete-btn { grid-column: 3; grid-row: 1; }
+  .journal-entry-meta-row { grid-template-columns: 1fr; }
+}
