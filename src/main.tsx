@@ -2361,6 +2361,71 @@ function App() {
       console.warn('[notices] tolerant load exception:', (error as Error).message);
     }
     setNoticesReady(true);
+
+    // ─── 주간업무일지 (tolerant) ───────────────────────────────────────
+    // notices와 동일하게 try/catch + seed 비우기 + ready 플래그.
+    setJournalEntries([]);
+    setWeeklyContracts([]);
+    try {
+      const [journalEntriesResult, journalStatusResult, weeklyContractsResult] = await Promise.all([
+        supabase!
+          .from('work_journal_entries')
+          .select('id, user_id, week_start, date, kind, title, detail, status, project_id, client_id, source, source_ref, edited, hidden, created_at, updated_at')
+          .order('week_start', { ascending: false })
+          .order('date', { ascending: true })
+          .order('created_at', { ascending: true }),
+        supabase!
+          .from('journal_status_defs')
+          .select('id, name, phase, sort_order')
+          .order('sort_order', { ascending: true }),
+        supabase!
+          .from('weekly_contracts')
+          .select('id, user_id, week_start, sequence, company, due_date, notes')
+          .order('week_start', { ascending: false })
+          .order('sequence', { ascending: true }),
+      ]);
+      if (journalEntriesResult.error || journalStatusResult.error || weeklyContractsResult.error) {
+        console.warn('[journal] tolerant load skipped:', journalEntriesResult.error?.message || journalStatusResult.error?.message || weeklyContractsResult.error?.message);
+      } else {
+        const nextEntries: WorkJournalEntry[] = ((journalEntriesResult.data || []) as any[]).map((row) => ({
+          id: row.id,
+          userId: row.user_id,
+          weekStart: row.week_start,
+          date: row.date,
+          kind: row.kind,
+          title: row.title || '',
+          detail: row.detail || '',
+          status: row.status || '',
+          projectId: row.project_id,
+          clientId: row.client_id,
+          source: row.source,
+          sourceRef: row.source_ref || undefined,
+          edited: Boolean(row.edited),
+          hidden: Boolean(row.hidden),
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+        }));
+        const nextStatusPalette: JournalStatusDef[] = ((journalStatusResult.data || []) as any[]).map((row) => ({
+          id: row.id,
+          name: row.name,
+          phase: row.phase,
+        }));
+        const nextWeeklyContracts: WeeklyContract[] = ((weeklyContractsResult.data || []) as any[]).map((row) => ({
+          id: row.id,
+          userId: row.user_id,
+          weekStart: row.week_start,
+          sequence: row.sequence,
+          company: row.company || '',
+          dueDate: row.due_date || '',
+          notes: row.notes || '',
+        }));
+        setJournalEntries(nextEntries);
+        setJournalStatusPalette(nextStatusPalette.length ? nextStatusPalette : seedJournalStatusPalette);
+        setWeeklyContracts(nextWeeklyContracts);
+      }
+    } catch (error) {
+      console.warn('[journal] tolerant load exception:', (error as Error).message);
+    }
   };
 
   useEffect(() => {
@@ -2402,6 +2467,9 @@ function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notices' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notice_categories' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notice_comments' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_journal_entries' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'journal_status_defs' }, queueRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'weekly_contracts' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'push_preferences' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'api_keys' }, queueRefresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'task_comments' }, queueRefresh)
@@ -4779,40 +4847,70 @@ function App() {
   const canControlThemeMode = true;
 
   // 인라인 편집 — 빈 제목 허용(드래프트 상태 가능). 토스트 없이 조용히 반영.
+  // 낙관적 업데이트: 먼저 state에 추가, Supabase 응답으로 ID 교체.
   const addJournalEntry = async (draft: WorkJournalEntryDraft): Promise<string> => {
     const weekStart = getJournalWeekStart(draft.date);
-    const id = `jrn-${Math.random().toString(36).slice(2, 10)}`;
+    const tempId = `jrn-${Math.random().toString(36).slice(2, 10)}`;
     const now = new Date().toISOString();
-    setJournalEntries((current) => [
-      ...current,
-      {
-        id,
-        userId: currentUser.id,
-        weekStart,
-        date: draft.date,
-        kind: draft.kind,
-        title: draft.title.trim(),
-        detail: draft.detail?.trim() || '',
-        status: draft.status,
-        projectId: draft.projectId ?? null,
-        source: 'manual',
-        edited: false,
-        hidden: false,
-        createdAt: now,
-        updatedAt: now,
-      },
-    ]);
-    return id;
+    const optimistic: WorkJournalEntry = {
+      id: tempId,
+      userId: currentUser.id,
+      weekStart,
+      date: draft.date,
+      kind: draft.kind,
+      title: draft.title.trim(),
+      detail: draft.detail?.trim() || '',
+      status: draft.status,
+      projectId: draft.projectId ?? null,
+      source: 'manual',
+      edited: false,
+      hidden: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    setJournalEntries((current) => [...current, optimistic]);
+
+    if (supabase && !currentUser.isPrototype) {
+      const { data, error } = await supabase
+        .from('work_journal_entries')
+        .insert({
+          user_id: currentUser.id,
+          week_start: weekStart,
+          date: draft.date,
+          kind: draft.kind,
+          title: optimistic.title,
+          detail: optimistic.detail,
+          status: optimistic.status,
+          project_id: optimistic.projectId,
+          source: 'manual',
+        })
+        .select('id')
+        .single();
+      if (error || !data) {
+        // 실패 시 optimistic entry 롤백
+        setJournalEntries((current) => current.filter((e) => e.id !== tempId));
+        setBackendStatus(`일지 추가 실패: ${error?.message || '알 수 없음'}`);
+        return tempId;
+      }
+      // tempId → 실제 id로 교체
+      const realId = data.id;
+      setJournalEntries((current) => current.map((e) => (e.id === tempId ? { ...e, id: realId } : e)));
+      return realId;
+    }
+    return tempId;
   };
 
   const patchJournalEntry = (entryId: string, patch: Partial<WorkJournalEntry>) => {
     const now = new Date().toISOString();
+    // 낙관적: 먼저 state 갱신
+    let nextWeekStart: string | undefined;
     setJournalEntries((current) =>
       current.map((entry) => {
         if (entry.id !== entryId) return entry;
         const next: WorkJournalEntry = { ...entry, ...patch, updatedAt: now };
         if (patch.date !== undefined) {
           next.weekStart = getJournalWeekStart(next.date);
+          nextWeekStart = next.weekStart;
         }
         if (entry.source !== 'manual') {
           next.edited = true;
@@ -4820,10 +4918,42 @@ function App() {
         return next;
       }),
     );
+
+    if (supabase && !currentUser.isPrototype) {
+      // 컬럼명 매핑 — camelCase 패치 → snake_case
+      const dbPatch: Record<string, unknown> = {};
+      if (patch.date !== undefined) {
+        dbPatch.date = patch.date;
+        dbPatch.week_start = nextWeekStart || getJournalWeekStart(patch.date);
+      }
+      if (patch.kind !== undefined) dbPatch.kind = patch.kind;
+      if (patch.title !== undefined) dbPatch.title = patch.title;
+      if (patch.detail !== undefined) dbPatch.detail = patch.detail;
+      if (patch.status !== undefined) dbPatch.status = patch.status;
+      if (patch.projectId !== undefined) dbPatch.project_id = patch.projectId;
+      if (patch.clientId !== undefined) dbPatch.client_id = patch.clientId;
+      if (patch.hidden !== undefined) dbPatch.hidden = patch.hidden;
+      if (Object.keys(dbPatch).length === 0) return;
+
+      void supabase
+        .from('work_journal_entries')
+        .update(dbPatch)
+        .eq('id', entryId)
+        .then(({ error }) => {
+          if (error) setBackendStatus(`일지 수정 실패: ${error.message}`);
+        });
+    }
   };
 
   const deleteJournalEntry = async (entry: WorkJournalEntry): Promise<string> => {
     setJournalEntries((current) => current.filter((item) => item.id !== entry.id));
+    if (supabase && !currentUser.isPrototype) {
+      const { error } = await supabase.from('work_journal_entries').delete().eq('id', entry.id);
+      if (error) {
+        setBackendStatus(`일지 삭제 실패: ${error.message}`);
+        return `일지 삭제 실패: ${error.message}`;
+      }
+    }
     return '일지 항목을 삭제했습니다.';
   };
 
@@ -4833,6 +4963,20 @@ function App() {
     if (journalStatusPalette.some((s) => s.name === trimmed)) return '이미 같은 이름의 상태가 있습니다.';
     const id = `st-${Math.random().toString(36).slice(2, 8)}`;
     setJournalStatusPalette((current) => [...current, { id, name: trimmed, phase }]);
+
+    if (supabase && !currentUser.isPrototype) {
+      const sortOrder = (journalStatusPalette.length + 1) * 10;
+      void supabase
+        .from('journal_status_defs')
+        .insert({ id, name: trimmed, phase, sort_order: sortOrder })
+        .then(({ error }) => {
+          if (error) {
+            // 롤백
+            setJournalStatusPalette((current) => current.filter((s) => s.id !== id));
+            setBackendStatus(`상태 추가 실패: ${error.message}`);
+          }
+        });
+    }
     return '상태를 추가했습니다.';
   };
 
@@ -4849,11 +4993,36 @@ function App() {
     setJournalStatusPalette((current) =>
       current.map((s) => (s.id === id ? { ...s, ...(patch.name !== undefined ? { name: nextName } : {}), ...(patch.phase ? { phase: patch.phase } : {}) } : s)),
     );
-    // 이름이 변경되면 기존 일지 항목도 같이 갱신
+    // 이름이 변경되면 기존 일지 항목도 같이 갱신 (state만 — DB는 status를 자유 텍스트로 저장하므로 일괄 update 필요)
     if (trimmedName && trimmedName !== before.name) {
       setJournalEntries((current) =>
         current.map((entry) => (entry.status === before.name ? { ...entry, status: trimmedName } : entry)),
       );
+    }
+
+    if (supabase && !currentUser.isPrototype) {
+      const dbPatch: Record<string, unknown> = {};
+      if (patch.name !== undefined) dbPatch.name = nextName;
+      if (patch.phase) dbPatch.phase = patch.phase;
+      if (Object.keys(dbPatch).length > 0) {
+        void supabase
+          .from('journal_status_defs')
+          .update(dbPatch)
+          .eq('id', id)
+          .then(({ error }) => {
+            if (error) setBackendStatus(`상태 수정 실패: ${error.message}`);
+          });
+      }
+      // 이름이 변경되면 해당 status를 쓰는 모든 entries도 DB에서 일괄 update
+      if (trimmedName && trimmedName !== before.name) {
+        void supabase
+          .from('work_journal_entries')
+          .update({ status: trimmedName })
+          .eq('status', before.name)
+          .then(({ error }) => {
+            if (error) setBackendStatus(`상태 이름 동기화 실패: ${error.message}`);
+          });
+      }
     }
     return '상태를 수정했습니다.';
   };
@@ -4862,6 +5031,20 @@ function App() {
     const target = journalStatusPalette.find((s) => s.id === id);
     if (!target) return '상태를 찾을 수 없습니다.';
     setJournalStatusPalette((current) => current.filter((s) => s.id !== id));
+
+    if (supabase && !currentUser.isPrototype) {
+      void supabase
+        .from('journal_status_defs')
+        .delete()
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) {
+            // 롤백
+            setJournalStatusPalette((current) => [...current, target]);
+            setBackendStatus(`상태 삭제 실패: ${error.message}`);
+          }
+        });
+    }
     return '상태를 삭제했습니다.';
   };
 
@@ -4869,25 +5052,78 @@ function App() {
   const addWeeklyContract = async (weekStart: string): Promise<string> => {
     const userContracts = weeklyContracts.filter((c) => c.userId === currentUser.id && c.weekStart === weekStart);
     const nextSeq = userContracts.length ? Math.max(...userContracts.map((c) => c.sequence)) + 1 : 1;
-    const id = `wc-${Math.random().toString(36).slice(2, 10)}`;
-    setWeeklyContracts((current) => [...current, {
-      id,
+    const tempId = `wc-${Math.random().toString(36).slice(2, 10)}`;
+    const optimistic: WeeklyContract = {
+      id: tempId,
       userId: currentUser.id,
       weekStart,
       sequence: nextSeq,
       company: '',
       dueDate: '',
       notes: '',
-    }]);
-    return id;
+    };
+    setWeeklyContracts((current) => [...current, optimistic]);
+
+    if (supabase && !currentUser.isPrototype) {
+      const { data, error } = await supabase
+        .from('weekly_contracts')
+        .insert({
+          user_id: currentUser.id,
+          week_start: weekStart,
+          sequence: nextSeq,
+          company: '',
+          due_date: '',
+          notes: '',
+        })
+        .select('id')
+        .single();
+      if (error || !data) {
+        setWeeklyContracts((current) => current.filter((c) => c.id !== tempId));
+        setBackendStatus(`계약 추가 실패: ${error?.message || '알 수 없음'}`);
+        return tempId;
+      }
+      const realId = data.id;
+      setWeeklyContracts((current) => current.map((c) => (c.id === tempId ? { ...c, id: realId } : c)));
+      return realId;
+    }
+    return tempId;
   };
 
   const patchWeeklyContract = (id: string, patch: Partial<WeeklyContract>): void => {
     setWeeklyContracts((current) => current.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+
+    if (supabase && !currentUser.isPrototype) {
+      const dbPatch: Record<string, unknown> = {};
+      if (patch.company !== undefined) dbPatch.company = patch.company;
+      if (patch.dueDate !== undefined) dbPatch.due_date = patch.dueDate;
+      if (patch.notes !== undefined) dbPatch.notes = patch.notes;
+      if (patch.sequence !== undefined) dbPatch.sequence = patch.sequence;
+      if (Object.keys(dbPatch).length === 0) return;
+      void supabase
+        .from('weekly_contracts')
+        .update(dbPatch)
+        .eq('id', id)
+        .then(({ error }) => {
+          if (error) setBackendStatus(`계약 수정 실패: ${error.message}`);
+        });
+    }
   };
 
   const deleteWeeklyContract = (contract: WeeklyContract): string => {
     setWeeklyContracts((current) => current.filter((c) => c.id !== contract.id));
+    if (supabase && !currentUser.isPrototype) {
+      void supabase
+        .from('weekly_contracts')
+        .delete()
+        .eq('id', contract.id)
+        .then(({ error }) => {
+          if (error) {
+            // 롤백
+            setWeeklyContracts((current) => [...current, contract]);
+            setBackendStatus(`계약 삭제 실패: ${error.message}`);
+          }
+        });
+    }
     return '항목을 삭제했습니다.';
   };
 
