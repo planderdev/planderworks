@@ -8900,14 +8900,15 @@ h4,
     align-items: center;
     padding: 10px;
   }
-  .journal-entry-row > .journal-view-kind,
-  .journal-entry-row > .journal-kind-picker {
+  .journal-entry-row > .journal-view-kind {
     grid-area: kind;
     width: auto;
     min-width: 64px;
     padding: 4px 14px;
     height: 30px;
   }
+  /* 픽커는 grid-area 부여 안 함 — row가 positioning 기준이 되게.
+     grid-area 주면 absolute 기준점이 kind 셀로 좁아져서 body를 덮음. */
   .journal-entry-row > .journal-entry-body {
     grid-area: body;
     min-width: 0;
@@ -8915,7 +8916,9 @@ h4,
   .journal-entry-row > .journal-status-cell {
     grid-area: status;
     justify-self: end;
-    position: relative; /* status picker 기준점 */
+    /* status picker는 cell 안에서 absolute지만 cell이 너무 좁으면 right:0 만으로 좁아짐.
+       static으로 두면 picker가 row 기준이 됨 (row가 position:relative). */
+    position: static;
   }
   .journal-entry-row > .journal-delete-btn,
   .journal-entry-row > span {
@@ -8929,25 +8932,17 @@ h4,
   }
 
   /* 픽커 모바일 — row 전체 폭으로 펼침, viewport 안 짤리게.
-     position 기준은 row(relative). */
+     position 기준은 row(relative). grid-area 부여 안 했으니 row 기준으로 잡힘. */
   .journal-status-picker {
     position: absolute;
     left: 0;
     right: 0;
     top: calc(100% + 4px);
     min-width: 0;
-    max-width: calc(100vw - 32px);
+    max-width: 100%;
     width: auto;
     z-index: 50;
-  }
-  /* kind picker는 row 전체에 펼치고 싶지만 grid-area:kind라 col 1에 매여있음 —
-     absolute라서 grid 흐름엔 안 들어가지만 정렬 기준이 kind 영역.
-     row 전체 폭으로 띄우려면 row 기준 left/right로. */
-  .journal-entry-row > .journal-kind-picker {
-    left: -8px;
-    right: auto;
-    width: calc(100vw - 32px);
-    max-width: calc(100vw - 32px);
+    padding: 10px;
   }
 
   /* 팔레트 편집 모드 — 모바일에서 input/select 너비 컴팩트 */
