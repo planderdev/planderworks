@@ -9560,7 +9560,7 @@ function NoticeForm({
       {popup ? (
         <label className="notice-popup-until-field">
           팝업 종료 날짜
-          <input type="date" value={popupUntil} onChange={(event) => setPopupUntil(event.target.value)} />
+          <DateTimeConfirmField dateOnly allowClear placeholder="종료일 선택" value={popupUntil || ''} onChange={(value) => setPopupUntil(value)} />
           <small>비워두면 무기한 표시됩니다.</small>
         </label>
       ) : null}
@@ -10909,7 +10909,7 @@ function ScheduleCreateModal({
         <label>
           시작일
           {form.allDay ? (
-            <input required type="date" value={form.startAt} onChange={(event) => updateForm({ startAt: event.target.value })} />
+            <DateTimeConfirmField required dateOnly placeholder="시작일 선택" value={form.startAt} onChange={(startAt) => updateForm({ startAt })} />
           ) : (
             <DateTimeConfirmField required value={form.startAt} onChange={(startAt) => updateForm({ startAt })} />
           )}
@@ -10917,7 +10917,7 @@ function ScheduleCreateModal({
         <label>
           종료일
           {form.allDay ? (
-            <input required type="date" value={form.endAt} onChange={(event) => updateForm({ endAt: event.target.value })} />
+            <DateTimeConfirmField required dateOnly placeholder="종료일 선택" value={form.endAt} onChange={(endAt) => updateForm({ endAt })} />
           ) : (
             <DateTimeConfirmField required value={form.endAt} onChange={(endAt) => updateForm({ endAt })} />
           )}
@@ -12252,7 +12252,7 @@ function OperationsPage({
             </label>
             <label>
               기준일
-              <input type="date" value={form.dueDate} onChange={(event) => setForm({ ...form, dueDate: event.target.value })} />
+              <DateTimeConfirmField dateOnly placeholder="기준일 선택" value={form.dueDate} onChange={(dueDate) => setForm({ ...form, dueDate })} />
             </label>
             <label>
               반복주기
@@ -13278,12 +13278,14 @@ function ReportForm({
 
 function DateTimeConfirmField({
   allowClear = false,
+  dateOnly = false,
   placeholder = '마감일 선택',
   required = false,
   value,
   onChange,
 }: {
   allowClear?: boolean;
+  dateOnly?: boolean;
   placeholder?: string;
   required?: boolean;
   value: string;
@@ -13324,14 +13326,15 @@ function DateTimeConfirmField({
 
   const openPicker = () => {
     const baseDate = parseDateTimeLocalValue(value) || new Date();
-    const nextDraft = value || toDateTimeLocalValue(baseDate);
+    // dateOnly 모드는 항상 YYYY-MM-DD 드래프트로 시작
+    const nextDraft = value || (dateOnly ? formatDateInputValue(baseDate) : toDateTimeLocalValue(baseDate));
     setDraft(nextDraft);
     setMonthCursor(new Date(baseDate.getFullYear(), baseDate.getMonth(), 1));
     setIsOpen(true);
   };
 
   const updateDraftDate = (day: Date) => {
-    if (draft && dateOnlyValuePattern.test(draft)) {
+    if (dateOnly || (draft && dateOnlyValuePattern.test(draft))) {
       setDraft(formatDateInputValue(day));
       return;
     }
@@ -13421,19 +13424,21 @@ function DateTimeConfirmField({
               );
             })}
           </div>
-          <div className="datetime-time-row">
-            <select value={draftHasTime && draftDate ? String(draftDate.getHours()).padStart(2, '0') : 'none'} onChange={(event) => updateDraftTime('hour', event.target.value)}>
-              <option value="none">시간 선택 안함</option>
-              {hours.map((hour) => (
-                <option key={hour} value={hour}>{hour}시</option>
-              ))}
-            </select>
-            <select disabled={!draftHasTime} value={draftHasTime && draftDate ? String(draftDate.getMinutes()).padStart(2, '0') : '00'} onChange={(event) => updateDraftTime('minute', event.target.value)}>
-              {minutes.map((minute) => (
-                <option key={minute} value={minute}>{minute}분</option>
-              ))}
-            </select>
-          </div>
+          {dateOnly ? null : (
+            <div className="datetime-time-row">
+              <select value={draftHasTime && draftDate ? String(draftDate.getHours()).padStart(2, '0') : 'none'} onChange={(event) => updateDraftTime('hour', event.target.value)}>
+                <option value="none">시간 선택 안함</option>
+                {hours.map((hour) => (
+                  <option key={hour} value={hour}>{hour}시</option>
+                ))}
+              </select>
+              <select disabled={!draftHasTime} value={draftHasTime && draftDate ? String(draftDate.getMinutes()).padStart(2, '0') : '00'} onChange={(event) => updateDraftTime('minute', event.target.value)}>
+                {minutes.map((minute) => (
+                  <option key={minute} value={minute}>{minute}분</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="datetime-popover-actions">
             {allowClear ? (
               <button type="button" onClick={clearDate}>
