@@ -339,15 +339,14 @@ button:disabled {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 2px;
+  scrollbar-width: none; /* Firefox — 스크롤바 숨김 (스크롤은 유지) */
 }
 
+/* 스크롤바 시각적으로 숨김 (다크모드에서 흰 thumb 노출 방지) */
 .sidebar-nav::-webkit-scrollbar {
-  width: 6px;
-}
-
-.sidebar-nav::-webkit-scrollbar-thumb {
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .sidebar-section {
