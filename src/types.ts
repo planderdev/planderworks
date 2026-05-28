@@ -49,6 +49,7 @@ export type Task = {
   projectName?: string;
   client: string;
   dueAt?: string | null;
+  startAt?: string | null;     // 계획 시작일시 (dueAt과 짝). started_at(실제 시작)과 별개.
   startedAt?: string | null;
   readAt?: string | null;
   creatorReadAt?: string | null;
@@ -209,6 +210,7 @@ export type TaskUpdateDraft = {
   clientId: string;
   projectId?: string | null;
   due: string;
+  startAt?: string | null;
   priority: Priority;
   showOnCalendar: boolean;
 };

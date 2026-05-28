@@ -1290,8 +1290,11 @@ const getTaskCalendarRange = (task: Task) => {
   const dueDate = parseTaskDate(task.dueAt);
   if (!dueDate) return null;
 
-  const startedDate = parseTaskDate(task.startedAt);
-  const rangeStart = startedDate && startedDate.getTime() <= dueDate.getTime() ? startedDate : dueDate;
+  // 계획 시작일(startAt) 우선 → 없으면 실제 시작(startedAt) → 둘 다 없으면 마감일 당일
+  const plannedStart = parseTaskDate(task.startAt);
+  const actualStart = parseTaskDate(task.startedAt);
+  const candidateStart = plannedStart || actualStart;
+  const rangeStart = candidateStart && candidateStart.getTime() <= dueDate.getTime() ? candidateStart : dueDate;
   const rangeEnd = dueDate.getTime() >= rangeStart.getTime() ? dueDate : rangeStart;
 
   return {
@@ -2042,6 +2045,7 @@ function App() {
           status,
           priority,
           due_at,
+          start_at,
           started_at,
           read_at,
           creator_read_at,
@@ -2124,6 +2128,7 @@ function App() {
         projectName: task.project?.name || '',
         client: task.client?.name || '내부',
         dueAt: task.due_at,
+        startAt: task.start_at,
         startedAt: task.started_at,
         readAt: task.read_at,
         creatorReadAt: task.creator_read_at,
@@ -2977,6 +2982,7 @@ function App() {
         client_id: clientId,
         project_id: task.projectId && isUuid(task.projectId) ? task.projectId : null,
         due_at: parseDueDate(task.due),
+        start_at: task.startAt ? parseDueDate(task.startAt) : null,
         show_on_calendar: task.showOnCalendar ?? true,
       };
 
@@ -4487,6 +4493,7 @@ function App() {
     }
 
     const nextDueAt = parseDueDate(updates.due);
+    const nextStartAt = updates.startAt ? parseDueDate(updates.startAt) : null;
 
     const nextProjectId = project?.id && isUuid(project.id) ? project.id : null;
     const assigneeChanged = assignee.id !== task.assigneeId;
@@ -4503,6 +4510,7 @@ function App() {
           client_id: isUuid(client.id) ? client.id : null,
           project_id: nextProjectId,
           due_at: nextDueAt,
+          start_at: nextStartAt,
           show_on_calendar: updates.showOnCalendar,
           ...(assigneeChanged ? { read_at: null } : {}),
         })
@@ -4535,6 +4543,7 @@ function App() {
               projectName: project?.name || '',
               due: formatDueDate(nextDueAt),
               dueAt: nextDueAt,
+              startAt: nextStartAt,
               showOnCalendar: updates.showOnCalendar,
               readAt: assigneeChanged ? null : item.readAt,
             }
@@ -7059,6 +7068,7 @@ function TaskDetailModal({
           </span>
           <span>관련 업체: {task.client}</span>
           <span>프로젝트: {task.projectName || '미지정'}</span>
+          {task.startAt ? <span>계획 시작일: {formatDueDate(task.startAt)}</span> : null}
           <span>마감기한: {task.due}</span>
           <span>상태: {task.status}</span>
         </div>
@@ -7153,6 +7163,7 @@ function TaskEditModal({
     clientId: fallbackClientId,
     projectId: fallbackProjectId,
     due: task.dueAt || '',
+    startAt: task.startAt || '',
     priority: task.priority,
     showOnCalendar: task.showOnCalendar ?? true,
   });
@@ -7173,6 +7184,7 @@ function TaskEditModal({
       clientId: nextClientId,
       projectId: nextProjectId,
       due: task.dueAt || '',
+      startAt: task.startAt || '',
       priority: task.priority,
       showOnCalendar: task.showOnCalendar ?? true,
     });
@@ -7235,6 +7247,10 @@ function TaskEditModal({
                 </option>
               ))}
             </select>
+          </label>
+          <label>
+            계획 시작일
+            <DateTimeConfirmField allowClear placeholder="시작일 선택" value={form.startAt || ''} onChange={(startAt) => setForm({ ...form, startAt })} />
           </label>
           <label>
             마감기한
@@ -8278,6 +8294,13 @@ function ProjectTaskInspector({
       </div>
 
       <div className="project-inspector-meta">
+        {task.startAt ? (
+          <span>
+            <CalendarClock size={17} />
+            계획 시작일<br />
+            <strong>{formatDueDate(task.startAt)}</strong>
+          </span>
+        ) : null}
         <span>
           <CalendarClock size={17} />
           마감기한<br />
@@ -12952,6 +12975,7 @@ function TaskForm({
     title: '',
     toIds: employees[1]?.id ? [employees[1].id] : [],
     projectId: fixedProjectId || projects[0]?.id || '',
+    start: '',
     due: '',
     priority: '보통' as Priority,
     summary: '',
@@ -13042,6 +13066,7 @@ function TaskForm({
       projectId: selectedProject?.id || null,
       projectName: selectedProject?.name || '',
       due: form.due,
+      startAt: form.start,
       priority: form.priority,
       type: form.type,
       summary: form.summary,
@@ -13095,6 +13120,10 @@ function TaskForm({
           </select>
         </label>
       ) : null}
+      <label>
+        계획 시작일
+        <DateTimeConfirmField allowClear placeholder="시작일 선택" value={form.start} onChange={(start) => setForm({ ...form, start })} />
+      </label>
       <label>
         마감기한
         <DateTimeConfirmField allowClear value={form.due} onChange={(due) => setForm({ ...form, due })} />
@@ -13478,6 +13507,7 @@ function TaskComposer({
   const [title, setTitle] = useState('A업체 미팅 내용 전달');
   const [summary, setSummary] = useState('미팅 내용, 요청사항, 다음 액션을 정리해서 전달합니다.');
   const [type, setType] = useState<TaskType>(typeOptions[0] || '영업 브리핑');
+  const [start, setStart] = useState('');
   const [due, setDue] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [toIds, setToIds] = useState<string[]>(employees[0]?.id ? [employees[0].id] : []);
@@ -13555,6 +13585,10 @@ function TaskComposer({
           <textarea required value={summary} onChange={(event) => setSummary(event.target.value)} />
         </label>
         <label>
+          계획 시작일
+          <DateTimeConfirmField allowClear placeholder="시작일 선택" value={start} onChange={setStart} />
+        </label>
+        <label>
           마감기한
           <DateTimeConfirmField allowClear value={due} onChange={setDue} />
         </label>
@@ -13599,6 +13633,7 @@ function TaskComposer({
               from: '인성이형',
               client: '내부',
               due,
+              startAt: start,
               priority: '보통',
               files,
             });
