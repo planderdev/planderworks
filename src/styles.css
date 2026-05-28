@@ -8786,6 +8786,22 @@ h4,
   display: inline-flex;
 }
 
+/* 종류 셀 — kind 버튼/picker 고정 wrapper (grid col 1 유지) */
+.journal-kind-cell {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+/* 종류 picker는 셀 왼쪽 앵커 + 컴팩트 (status picker의 right:0/520px 무력화) */
+.journal-kind-picker {
+  left: 0;
+  right: auto;
+  min-width: 0;
+  width: max-content;
+  max-width: min(420px, 70vw);
+}
+
 /* 종류(kind) 칩 — 색상 없는 단순 회색톤 (상태칩은 phase 색상) */
 .journal-kind-chip {
   display: inline-flex;
@@ -8900,15 +8916,18 @@ h4,
     align-items: center;
     padding: 10px;
   }
-  .journal-entry-row > .journal-view-kind {
+  .journal-entry-row > .journal-kind-cell {
     grid-area: kind;
+    width: auto;
+    position: static; /* 안의 kind picker가 row 기준으로 잡히게 */
+  }
+  .journal-kind-cell > .journal-view-kind {
     width: auto;
     min-width: 64px;
     padding: 4px 14px;
     height: 30px;
   }
-  /* 픽커는 grid-area 부여 안 함 — row가 positioning 기준이 되게.
-     grid-area 주면 absolute 기준점이 kind 셀로 좁아져서 body를 덮음. */
+  /* 모바일에선 kind/status picker 모두 row 전체 폭 (아래 .journal-status-picker 규칙) */
   .journal-entry-row > .journal-entry-body {
     grid-area: body;
     min-width: 0;
@@ -8932,8 +8951,9 @@ h4,
   }
 
   /* 픽커 모바일 — row 전체 폭으로 펼침, viewport 안 짤리게.
-     position 기준은 row(relative). grid-area 부여 안 했으니 row 기준으로 잡힘. */
-  .journal-status-picker {
+     position 기준은 row(relative). kind/status 둘 다 동일. */
+  .journal-status-picker,
+  .journal-kind-picker {
     position: absolute;
     left: 0;
     right: 0;

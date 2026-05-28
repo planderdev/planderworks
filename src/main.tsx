@@ -9745,22 +9745,24 @@ function JournalEntryRow({
 
   return (
     <li className="journal-entry-row journal-row-readable">
-      {/* 종류 */}
-      {isEditing('kind') ? (
-        <JournalKindEditor
-          initial={entry.kind}
-          palette={kindPalette}
-          onSave={(value) => saveField({ kind: value })}
-          onCancel={onEndEdit}
-        />
-      ) : (
-        <button
-          className="journal-view journal-view-kind"
-          onClick={() => handleStartEdit({ entryId: entry.id, field: 'kind' })}
-          type="button"
-          aria-label="종류 수정"
-        >{entry.kind}</button>
-      )}
+      {/* 종류 — 고정 wrapper 셀로 감싸서 편집(picker absolute) 시 grid 안 무너지게 */}
+      <div className="journal-kind-cell">
+        {isEditing('kind') ? (
+          <JournalKindEditor
+            initial={entry.kind}
+            palette={kindPalette}
+            onSave={(value) => saveField({ kind: value })}
+            onCancel={onEndEdit}
+          />
+        ) : (
+          <button
+            className="journal-view journal-view-kind"
+            onClick={() => handleStartEdit({ entryId: entry.id, field: 'kind' })}
+            type="button"
+            aria-label="종류 수정"
+          >{entry.kind}</button>
+        )}
+      </div>
 
       <div className="journal-entry-body">
         {/* 제목 */}
