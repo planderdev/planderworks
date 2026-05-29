@@ -2865,8 +2865,14 @@ function App() {
     if (Math.abs(deltaX) < 8) return;
     event.preventDefault();
     setSwipeDragging(true);
-    const maxOffset = Math.min(window.innerWidth * 0.42, 180);
-    setSwipeOffset(Math.max(-maxOffset, Math.min(maxOffset, deltaX * 0.72)));
+    // 1:1 손가락 트래킹 + 85vw 넘어가면 살짝 저항 (iOS 러버밴드 느낌)
+    const vw = window.innerWidth;
+    const softCap = vw * 0.85;
+    const abs = Math.abs(deltaX);
+    const offset = abs <= softCap
+      ? deltaX
+      : Math.sign(deltaX) * (softCap + (abs - softCap) * 0.28);
+    setSwipeOffset(offset);
   };
 
   const handleWorkspaceTouchEnd = (event: React.TouchEvent<HTMLElement>) => {
@@ -2886,7 +2892,7 @@ function App() {
         if (shouldGoBack) navigateBack();
         if (shouldGoForward) navigateForward();
         setSwipeOffset(0);
-      }, 170);
+      }, 220);
       return;
     }
 
