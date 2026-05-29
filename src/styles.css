@@ -9031,3 +9031,43 @@ h4,
   .journal-palette-edit-name { flex: 1 1 120px; min-width: 100px; }
   .journal-palette-edit-phase { flex: 0 1 130px; }
 }
+
+/* ─── 텍스트 선택 정책 ───────────────────────────────────────────────
+   드래그 인터랙션(일지 행 등)에서 글자가 함께 선택되어 거슬리는 문제 방지.
+   기본은 선택 차단, 입력 요소와 게시물/댓글 본문만 허용. */
+html,
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none; /* iOS 길게누름 액션 메뉴 차단 */
+}
+
+input,
+textarea,
+select,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* 게시물/댓글 본문 — 복사 가능하게 */
+.task-detail-body,
+.task-detail-body p,
+.project-inspector-summary,
+.project-inspector-summary p,
+.meeting-minute-detail,
+.meeting-minute-detail section,
+.meeting-minute-detail p,
+.meeting-minute-meta dd,
+.notice-detail,
+.notice-detail section,
+.notice-detail p,
+.notice-popup-body,
+.notice-popup-body p,
+.project-message,
+.project-message p,
+.comment-item p {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
