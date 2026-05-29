@@ -2582,13 +2582,16 @@ function App() {
 
     const handlePopState = (event: PopStateEvent) => {
       const state = event.state as { plander?: boolean; view?: unknown; filter?: TaskListFilter; guard?: boolean } | null;
-      if (!state?.plander) return;
 
-      if (state.guard) {
+      // 로그인 상태에서만 이 핸들러가 등록됨. 뒤로가기가 앱을 벗어나려 하면
+      // (가드 엔트리 OR plander 아닌 외부 히스토리) 현재 뷰를 다시 푸시해서 가둠.
+      // → 로그아웃 전까지 로그인/확인중 화면으로 절대 못 감.
+      if (!state?.plander || state.guard) {
         window.history.pushState({ plander: true, view: activeView }, '', getAppHistoryUrl(activeView));
         return;
       }
 
+      // 앱 내부 뷰 간 뒤로가기는 정상 동작
       if (!isActiveView(state.view)) return;
       setActiveView(state.view);
       setSidebarOpen(false);
