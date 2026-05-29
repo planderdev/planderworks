@@ -17,6 +17,7 @@ import {
   ClipboardList,
   FileText,
   FolderKanban,
+  GripVertical,
   Inbox,
   LayoutDashboard,
   LogOut,
@@ -9740,6 +9741,8 @@ function JournalEntryRow({
   kindPalette,
   editing,
   readOnly,
+  dragging = false,
+  onDragHandle,
   onStartEdit,
   onEndEdit,
   onPatch,
@@ -9751,6 +9754,8 @@ function JournalEntryRow({
   kindPalette: JournalKindDef[];
   editing: JournalEditTarget;
   readOnly: boolean;
+  dragging?: boolean;
+  onDragHandle?: (entry: WorkJournalEntry, event: React.PointerEvent) => void;
   onStartEdit: (target: NonNullable<JournalEditTarget>) => void;
   onEndEdit: () => void;
   onPatch: JournalPatchHandler;
@@ -9770,7 +9775,17 @@ function JournalEntryRow({
   };
 
   return (
-    <li className="journal-entry-row journal-row-readable">
+    <li className="journal-entry-row journal-row-readable" data-dragging={dragging}>
+      {/* 드래그 핸들 — 끌어서 다른 날로 이동 (마우스 즉시 / 터치 롱프레스) */}
+      {readOnly ? null : (
+        <button
+          className="journal-drag-handle"
+          type="button"
+          aria-label="끌어서 이동"
+          onPointerDown={(event) => onDragHandle?.(entry, event)}
+          onClick={(event) => event.preventDefault()}
+        ><GripVertical size={15} /></button>
+      )}
       {/* 종류 — status 패턴 동일: 버튼은 항상 렌더, 편집 시 picker를 위에 띄움 */}
       <div className="journal-kind-cell">
         {isEditing('kind') ? (
@@ -10087,6 +10102,102 @@ function JournalPage({
     onDeleteJournalEntry(entry);
   };
 
+  // ─── 드래그 이동 (마우스=즉시, 터치=롱프레스+햅틱) ───────────────────
+  const [dragEntry, setDragEntry] = useState<WorkJournalEntry | null>(null);
+  const [dragPos, setDragPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const dragRef = useRef<{
+    entry: WorkJournalEntry | null;
+    armed: boolean;
+    longPress: number | null;
+    startX: number;
+    startY: number;
+    overDate: string | null;
+    weekFlipAt: number;
+  }>({ entry: null, armed: false, longPress: null, startX: 0, startY: 0, overDate: null, weekFlipAt: 0 });
+
+  const beginDrag = (entry: WorkJournalEntry, event: React.PointerEvent) => {
+    if (readOnly) return;
+    const meta = dragRef.current;
+    meta.entry = entry;
+    meta.armed = false;
+    meta.startX = event.clientX;
+    meta.startY = event.clientY;
+    meta.overDate = entry.date;
+    if (event.pointerType === 'touch') {
+      // 터치: 롱프레스(280ms) 후 햅틱 + 드래그 시작
+      meta.longPress = window.setTimeout(() => {
+        meta.armed = true;
+        try { navigator.vibrate?.(25); } catch { /* 진동 미지원 무시 */ }
+        setDragEntry(entry);
+        setDragPos({ x: meta.startX, y: meta.startY });
+        setDragOverDate(entry.date);
+      }, 280);
+    } else {
+      // 마우스: 즉시 드래그
+      meta.armed = true;
+      setDragEntry(entry);
+      setDragPos({ x: event.clientX, y: event.clientY });
+      setDragOverDate(entry.date);
+    }
+  };
+
+  useEffect(() => {
+    const move = (event: PointerEvent) => {
+      const meta = dragRef.current;
+      if (!meta.entry) return;
+      if (!meta.armed) {
+        // 롱프레스 전 이동이 크면 스크롤로 간주 → 취소
+        if (Math.abs(event.clientX - meta.startX) > 10 || Math.abs(event.clientY - meta.startY) > 10) {
+          if (meta.longPress) { window.clearTimeout(meta.longPress); meta.longPress = null; }
+          meta.entry = null;
+        }
+        return;
+      }
+      event.preventDefault();
+      setDragPos({ x: event.clientX, y: event.clientY });
+      const el = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+      // 주 네비 위 hover → 주 전환 (cross-week, 700ms throttle)
+      const nav = el?.closest('[data-weeknav]') as HTMLElement | null;
+      if (nav) {
+        const now = Date.now();
+        if (now - meta.weekFlipAt > 700) {
+          meta.weekFlipAt = now;
+          if (nav.dataset.weeknav === 'prev') goPrev(); else goNext();
+        }
+        meta.overDate = null;
+        setDragOverDate(null);
+        return;
+      }
+      const group = el?.closest('.journal-day-group') as HTMLElement | null;
+      const date = group?.dataset.date || null;
+      meta.overDate = date;
+      setDragOverDate(date);
+    };
+    const finish = () => {
+      const meta = dragRef.current;
+      if (meta.longPress) { window.clearTimeout(meta.longPress); meta.longPress = null; }
+      if (meta.armed && meta.entry && meta.overDate && meta.overDate !== meta.entry.date) {
+        onPatchJournalEntry(meta.entry.id, { date: meta.overDate });
+        try { navigator.vibrate?.(15); } catch { /* 무시 */ }
+      }
+      meta.entry = null;
+      meta.armed = false;
+      meta.overDate = null;
+      setDragEntry(null);
+      setDragOverDate(null);
+    };
+    document.addEventListener('pointermove', move, { passive: false });
+    document.addEventListener('pointerup', finish);
+    document.addEventListener('pointercancel', finish);
+    return () => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', finish);
+      document.removeEventListener('pointercancel', finish);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onPatchJournalEntry, weekStart]);
+
   return (
     <ImmersivePageFrame
       className="journal-mode-shell"
@@ -10111,12 +10222,12 @@ function JournalPage({
       onThemeChange={onThemeChange}
     >
       <div className="journal-week-nav">
-        <button className="secondary-action icon-only-action" onClick={goPrev} type="button" aria-label="이전 주"><ChevronLeft size={18} /></button>
+        <button className="secondary-action icon-only-action" data-weeknav="prev" data-drag-active={Boolean(dragEntry)} onClick={goPrev} type="button" aria-label="이전 주"><ChevronLeft size={18} /></button>
         <div className="journal-week-label">
           <strong>{weekLabel}</strong>
           <span>{weekEntries.length}건 기록</span>
         </div>
-        <button className="secondary-action icon-only-action" onClick={goNext} type="button" aria-label="다음 주"><ChevronRight size={18} /></button>
+        <button className="secondary-action icon-only-action" data-weeknav="next" data-drag-active={Boolean(dragEntry)} onClick={goNext} type="button" aria-label="다음 주"><ChevronRight size={18} /></button>
         <button className="secondary-action" onClick={goToday} type="button">오늘</button>
       </div>
 
@@ -10312,8 +10423,15 @@ function JournalPage({
       <div className="journal-day-list">
         {weekDays.map((day) => {
           const dayEntries = entriesByDate[day] || [];
+          const isDropTarget = Boolean(dragEntry) && dragOverDate === day && dragEntry?.date !== day;
           return (
-            <section className="journal-day-group" data-empty={dayEntries.length === 0} key={day}>
+            <section
+              className="journal-day-group"
+              data-empty={dayEntries.length === 0}
+              data-date={day}
+              data-drop-target={isDropTarget}
+              key={day}
+            >
               <header className="journal-day-head">
                 <strong>{formatDayHeader(day)}</strong>
                 <span>{dayEntries.length ? `${dayEntries.length}건` : '비어있음'}</span>
@@ -10329,6 +10447,8 @@ function JournalPage({
                       kindPalette={kindPalette}
                       editing={editing}
                       readOnly={readOnly}
+                      dragging={dragEntry?.id === entry.id}
+                      onDragHandle={beginDrag}
                       onStartEdit={(target) => setEditing(target)}
                       onEndEdit={() => setEditing(null)}
                       onPatch={onPatchJournalEntry}
@@ -10346,6 +10466,12 @@ function JournalPage({
           );
         })}
       </div>
+      {dragEntry ? (
+        <div className="journal-drag-ghost" style={{ left: dragPos.x + 14, top: dragPos.y + 14 }}>
+          <span className="journal-kind-chip">{dragEntry.kind}</span>
+          <span className="journal-drag-ghost-title">{dragEntry.title || '(제목 없음)'}</span>
+        </div>
+      ) : null}
     </ImmersivePageFrame>
   );
 }

@@ -8629,12 +8629,71 @@ h4,
   grid-template-columns: 64px 1fr auto auto;
   gap: 10px;
   align-items: center;
-  padding: 8px 10px;
+  padding: 8px 10px 8px 26px; /* 좌측 패딩 = 드래그 핸들 자리 */
   background: var(--surface-soft);
   border-radius: 8px;
-  transition: background 120ms;
+  transition: background 120ms, opacity 120ms;
 }
 .journal-entry-row:hover { background: var(--surface-strong); }
+.journal-entry-row[data-dragging='true'] { opacity: 0.4; }
+
+/* 드래그 핸들 — 좌측 패딩 영역에 absolute */
+.journal-drag-handle {
+  position: absolute;
+  left: 2px;
+  top: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: grab;
+  opacity: 0.5;
+  touch-action: none; /* 터치 시 스크롤 대신 드래그 */
+  z-index: 2;
+}
+.journal-drag-handle:hover { opacity: 1; }
+.journal-drag-handle:active { cursor: grabbing; }
+
+/* 드롭 타겟 day 그룹 강조 */
+.journal-day-group[data-drop-target='true'] {
+  outline: 2px dashed var(--accent, #2856b8);
+  outline-offset: 2px;
+  background: rgba(56, 130, 246, 0.06);
+}
+
+/* 주 네비 — 드래그 중 hover하면 주 전환 가능 표시 */
+.journal-week-nav [data-weeknav][data-drag-active='true'] {
+  border-color: var(--accent, #2856b8);
+  color: var(--accent, #2856b8);
+}
+
+/* 드래그 고스트 — 포인터 따라다님 */
+.journal-drag-ghost {
+  position: fixed;
+  z-index: 1300;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 70vw;
+  padding: 6px 12px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--accent, #2856b8);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+.journal-drag-ghost-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 
 /* 뷰 모드 — 평소 텍스트 (호버시만 살짝 강조) */
 .journal-view {
@@ -8913,7 +8972,7 @@ h4,
     column-gap: 8px;
     row-gap: 8px;
     align-items: center;
-    padding: 10px;
+    padding: 10px 10px 10px 26px; /* 좌측 = 드래그 핸들 */
   }
   .journal-entry-row > .journal-kind-cell {
     grid-area: kind;
