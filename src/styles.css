@@ -8639,6 +8639,11 @@ h4,
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* 마지막 row에서 상태/종류 picker가 아래로 펼침. 잘리지 않게 스크롤 여유 */
+  padding-bottom: 320px;
+}
+@media (max-width: 720px) {
+  .journal-day-list { padding-bottom: 360px; }
 }
 .journal-day-group {
   background: var(--surface);
