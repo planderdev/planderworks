@@ -2865,13 +2865,14 @@ function App() {
     if (Math.abs(deltaX) < 8) return;
     event.preventDefault();
     setSwipeDragging(true);
-    // 1:1 손가락 트래킹 + 85vw 넘어가면 살짝 저항 (iOS 러버밴드 느낌)
+    // 0.88 살짝 weight + 80vw 이후 0.25 저항(iOS 러버밴드) — 손가락 따라오되 묵직한 느낌
     const vw = window.innerWidth;
-    const softCap = vw * 0.85;
-    const abs = Math.abs(deltaX);
+    const softCap = vw * 0.8;
+    const damped = deltaX * 0.88;
+    const abs = Math.abs(damped);
     const offset = abs <= softCap
-      ? deltaX
-      : Math.sign(deltaX) * (softCap + (abs - softCap) * 0.28);
+      ? damped
+      : Math.sign(damped) * (softCap + (abs - softCap) * 0.25);
     setSwipeOffset(offset);
   };
 
@@ -2892,7 +2893,7 @@ function App() {
         if (shouldGoBack) navigateBack();
         if (shouldGoForward) navigateForward();
         setSwipeOffset(0);
-      }, 220);
+      }, 280);
       return;
     }
 
@@ -5338,6 +5339,14 @@ function App() {
           onCreateProject={createProject}
           onUpdateProject={updateProject}
           project={editingProject}
+        />
+      ) : null}
+
+      {swipeOffset !== 0 ? (
+        <SwipePreview
+          direction={swipeOffset > 0 ? 'back' : 'forward'}
+          offset={Math.abs(swipeOffset)}
+          targetView={swipeOffset > 0 ? viewHistory[viewHistory.length - 1] : forwardHistory[0]}
         />
       ) : null}
 
@@ -13938,6 +13947,28 @@ function Avatar({ name, src, size = 'md' }: { name: string; src?: string | null;
 
 function EmptyState({ text }: { text: string }) {
   return <div className="empty-state">{text}</div>;
+}
+
+// 스와이프 중 destination 뷰의 icon+label을 측면에서 슬라이드인으로 미리보기
+function SwipePreview({ direction, offset, targetView }: {
+  direction: 'back' | 'forward';
+  offset: number;
+  targetView: ActiveView | undefined;
+}) {
+  if (!targetView) return null;
+  const nav =
+    primaryNavItems.find((item) => item.id === targetView) ||
+    adminNavItems.find((item) => item.id === targetView) ||
+    { id: targetView, label: targetView, icon: LayoutDashboard };
+  const Icon = nav.icon;
+  return (
+    <div className="swipe-preview" data-direction={direction} style={{ width: `${offset}px` }}>
+      <div className="swipe-preview-card">
+        <Icon size={32} />
+        <strong>{nav.label}</strong>
+      </div>
+    </div>
+  );
 }
 
 createRoot(document.getElementById('root')!).render(<App />);
