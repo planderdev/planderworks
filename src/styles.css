@@ -838,30 +838,30 @@ button:disabled {
   will-change: transform;
 }
 
-/* 스와이프 중 destination 뷰 미리보기 — 측면에서 슬라이드인 */
+/* 스와이프 중 destination 뷰 미리보기 — 측면에서 슬라이드인.
+   z-index 50: 사이드바(30) 위로. 배경은 workspace surface (사이드바와
+   확연히 구분되는 톤). */
 .swipe-preview {
   position: fixed;
   top: 0;
   bottom: 0;
-  background: var(--bg, var(--surface-soft));
-  border: 1px solid var(--border);
+  background: var(--surface, #fff);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 5;
+  z-index: 50;
   overflow: hidden;
   pointer-events: none;
-  box-shadow: 0 0 24px rgba(0, 0, 0, 0.18) inset;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12) inset;
 }
 .swipe-preview[data-direction='back'] {
   left: 0;
-  border-right: 1px solid var(--border);
-  border-left: none;
 }
 .swipe-preview[data-direction='forward'] {
   right: 0;
-  border-left: 1px solid var(--border);
-  border-right: none;
+}
+:root[data-theme='dark'] .swipe-preview {
+  background: #131416; /* 사이드바 짙은 톤과 명확히 구분되는 카드 톤 */
 }
 .swipe-preview-card {
   display: flex;
