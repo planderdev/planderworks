@@ -9659,6 +9659,7 @@ function JournalKindEditor({ initial, palette, onSave, onCancel }: {
   onCancel: () => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const chipsRef = useRef<(HTMLButtonElement | null)[]>([]);
   useEffect(() => {
     const handler = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) onCancel();
@@ -9671,11 +9672,31 @@ function JournalKindEditor({ initial, palette, onSave, onCancel }: {
       document.removeEventListener('keydown', keyHandler);
     };
   }, [onCancel]);
+  // 초기 포커스: 현재 선택된 chip 또는 첫번째 (open 시 1회)
+  useEffect(() => {
+    const idx = palette.findIndex((d) => d.name === initial);
+    const focusIdx = idx >= 0 ? idx : 0;
+    chipsRef.current[focusIdx]?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const onKeyNav = (event: React.KeyboardEvent) => {
+    const chips = chipsRef.current.filter((c): c is HTMLButtonElement => Boolean(c));
+    if (!chips.length) return;
+    const currentIdx = chips.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      chips[currentIdx <= 0 ? chips.length - 1 : currentIdx - 1]?.focus();
+    } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      chips[currentIdx >= chips.length - 1 ? 0 : currentIdx + 1]?.focus();
+    }
+  };
   return (
-    <div className="journal-status-picker journal-kind-picker" ref={ref}>
+    <div className="journal-status-picker journal-kind-picker" ref={ref} onKeyDown={onKeyNav}>
       <div className="journal-status-picker-flow">
-        {palette.map((def) => (
+        {palette.map((def, i) => (
           <button
+            ref={(el) => { chipsRef.current[i] = el; }}
             className="journal-kind-chip journal-status-picker-chip"
             data-selected={def.name === initial}
             key={def.id}
@@ -9695,6 +9716,7 @@ function JournalStatusEditor({ initial, palette, onSave, onCancel }: {
   onCancel: () => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const chipsRef = useRef<(HTMLButtonElement | null)[]>([]);
   useEffect(() => {
     const handler = (event: MouseEvent) => {
       if (ref.current && !ref.current.contains(event.target as Node)) onCancel();
@@ -9707,11 +9729,31 @@ function JournalStatusEditor({ initial, palette, onSave, onCancel }: {
       document.removeEventListener('keydown', keyHandler);
     };
   }, [onCancel]);
+  // 초기 포커스: 현재 선택된 chip 또는 첫번째
+  useEffect(() => {
+    const idx = palette.findIndex((d) => d.name === initial);
+    const focusIdx = idx >= 0 ? idx : 0;
+    chipsRef.current[focusIdx]?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const onKeyNav = (event: React.KeyboardEvent) => {
+    const chips = chipsRef.current.filter((c): c is HTMLButtonElement => Boolean(c));
+    if (!chips.length) return;
+    const currentIdx = chips.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      chips[currentIdx <= 0 ? chips.length - 1 : currentIdx - 1]?.focus();
+    } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      chips[currentIdx >= chips.length - 1 ? 0 : currentIdx + 1]?.focus();
+    }
+  };
   return (
-    <div className="journal-status-picker" ref={ref}>
+    <div className="journal-status-picker" ref={ref} onKeyDown={onKeyNav}>
       <div className="journal-status-picker-flow">
-        {palette.map((def) => (
+        {palette.map((def, i) => (
           <button
+            ref={(el) => { chipsRef.current[i] = el; }}
             className="journal-status-badge journal-status-picker-chip"
             data-phase={def.phase}
             data-selected={def.name === initial}
@@ -9780,8 +9822,18 @@ function JournalEntryRow({
     !readOnly && editing !== null && editing.entryId === entry.id && editing.field === field;
   const matchedProject = entry.projectId ? projects.find((p) => p.id === entry.projectId) : null;
   const statusPhase = lookupStatusPhase(statusPalette, entry.status);
-  const saveField = (patch: Partial<WorkJournalEntry>) => {
+  // 엔터로 저장하면 다음 필드로 자동 이동하는 순서
+  const FIELD_ORDER: NonNullable<JournalEditTarget>['field'][] = ['kind', 'title', 'detail', 'project', 'status'];
+  const saveField = (patch: Partial<WorkJournalEntry>, currentField?: NonNullable<JournalEditTarget>['field']) => {
     onPatch(entry.id, patch);
+    if (currentField) {
+      const idx = FIELD_ORDER.indexOf(currentField);
+      const next = FIELD_ORDER[idx + 1];
+      if (next) {
+        onStartEdit({ entryId: entry.id, field: next });
+        return;
+      }
+    }
     onEndEdit();
   };
   const handleStartEdit = (target: NonNullable<JournalEditTarget>) => {
@@ -9807,7 +9859,7 @@ function JournalEntryRow({
           <JournalKindEditor
             initial={entry.kind}
             palette={kindPalette}
-            onSave={(value) => saveField({ kind: value })}
+            onSave={(value) => saveField({ kind: value }, 'kind')}
             onCancel={onEndEdit}
           />
         ) : null}
@@ -9825,7 +9877,7 @@ function JournalEntryRow({
           <JournalTextEditor
             initial={entry.title}
             placeholder="제목을 입력하세요"
-            onSave={(value) => saveField({ title: value })}
+            onSave={(value) => saveField({ title: value }, 'title')}
             onCancel={onEndEdit}
           />
         ) : (
@@ -9844,7 +9896,7 @@ function JournalEntryRow({
             <JournalTextEditor
               initial={entry.detail || ''}
               placeholder="기타사항"
-              onSave={(value) => saveField({ detail: value })}
+              onSave={(value) => saveField({ detail: value }, 'detail')}
               onCancel={onEndEdit}
             />
           ) : (
@@ -9862,7 +9914,7 @@ function JournalEntryRow({
             <JournalProjectEditor
               initial={entry.projectId}
               projects={projects}
-              onSave={(value) => saveField({ projectId: value })}
+              onSave={(value) => saveField({ projectId: value }, 'project')}
               onCancel={onEndEdit}
             />
           ) : matchedProject ? (
@@ -9888,7 +9940,7 @@ function JournalEntryRow({
           <JournalStatusEditor
             initial={entry.status}
             palette={statusPalette}
-            onSave={(value) => saveField({ status: value })}
+            onSave={(value) => saveField({ status: value }, 'status')}
             onCancel={onEndEdit}
           />
         ) : null}
