@@ -2837,6 +2837,13 @@ function App() {
 
   const handleWorkspaceTouchStart = (event: React.TouchEvent<HTMLElement>) => {
     if (window.innerWidth > 760) return;
+    // 본문/댓글 등 텍스트 선택 가능 영역에서 시작한 터치는 스와이프 비활성
+    // (글자 드래그 선택이 페이지 스와이프로 잘못 인식되는 문제 방지)
+    const target = event.target as HTMLElement | null;
+    if (target?.closest?.('.task-detail-body, .project-inspector-summary, .meeting-minute-detail, .notice-detail, .notice-popup-body, .project-message, .comment-item')) {
+      swipeStart.current = null;
+      return;
+    }
     const touch = event.touches[0];
     swipeStart.current = { x: touch.clientX, y: touch.clientY };
   };
