@@ -10121,9 +10121,8 @@ function JournalPage({
     return `${yyyy}-${mm}-${dd}`;
   }, []);
 
-  // 시드 데이터가 5월 25일 주이므로 그 주를 기본 표시
-  const seedWeekStart = '2026-05-25';
-  const [weekStart, setWeekStart] = useState<string>(seedWeekStart);
+  // 항상 오늘 기준 이번 주(월요일) 시작으로 초기화
+  const [weekStart, setWeekStart] = useState<string>(() => getJournalWeekStart(todayIso));
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteEditing, setPaletteEditing] = useState(false);
   const [newStatusName, setNewStatusName] = useState('');
