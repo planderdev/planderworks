@@ -545,8 +545,8 @@ button:disabled {
   place-items: center;
   border-radius: 999px;
   padding: 0 6px;
-  color: #050506;
-  background: #ecff1f;
+  color: #fff;
+  background: #df3f3f;
   font-size: 0.68rem;
   font-weight: 900;
   line-height: 1;
@@ -631,7 +631,7 @@ button:disabled {
   bottom: 10px;
   width: 2px;
   border-radius: 99px;
-  background: #ecff1f;
+  background: #df3f3f;
 }
 
 .project-nav-button span,
@@ -752,8 +752,8 @@ button:disabled {
   place-items: center;
   border-radius: 999px;
   padding: 0 6px;
-  color: #050506;
-  background: #ecff1f;
+  color: #fff;
+  background: #df3f3f;
   font-size: 0.68rem;
   font-weight: 900;
   line-height: 1;
