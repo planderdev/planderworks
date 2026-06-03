@@ -8761,6 +8761,26 @@ h4,
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.journal-drag-ghost[data-copy='true'] {
+  border-color: #36a878;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3), 0 0 0 4px rgba(54, 168, 120, 0.18);
+}
+.journal-drag-ghost-copy {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(54, 168, 120, 0.18);
+  color: #1a7a4a;
+  border: 1px solid rgba(54, 168, 120, 0.45);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+:root[data-theme='dark'] .journal-drag-ghost-copy {
+  background: rgba(54, 168, 120, 0.22);
+  color: #a9e0bf;
+  border-color: rgba(169, 224, 191, 0.4);
+}
 
 /* 뷰 모드 — 평소 텍스트 (호버시만 살짝 강조) */
 .journal-view {

@@ -10181,6 +10181,8 @@ function JournalPage({
   const [dragEntry, setDragEntry] = useState<WorkJournalEntry | null>(null);
   const [dragPos, setDragPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [dragOverDate, setDragOverDate] = useState<string | null>(null);
+  const [dragCopyMode, setDragCopyMode] = useState(false);
+  const copyModeRef = useRef(false);
   const dragRef = useRef<{
     entry: WorkJournalEntry | null;
     armed: boolean;
@@ -10218,6 +10220,11 @@ function JournalPage({
   };
 
   useEffect(() => {
+    const setCopy = (next: boolean) => {
+      if (copyModeRef.current === next) return;
+      copyModeRef.current = next;
+      setDragCopyMode(next);
+    };
     const move = (event: PointerEvent) => {
       const meta = dragRef.current;
       if (!meta.entry) return;
@@ -10230,6 +10237,7 @@ function JournalPage({
         return;
       }
       event.preventDefault();
+      setCopy(event.ctrlKey || event.metaKey);
       setDragPos({ x: event.clientX, y: event.clientY });
       const el = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
       // 주 네비 위 hover → 주 전환 (cross-week, 700ms throttle)
@@ -10249,29 +10257,56 @@ function JournalPage({
       meta.overDate = date;
       setDragOverDate(date);
     };
-    const finish = () => {
+    // 드래그 중에 마우스를 안 움직이고 키만 누르는 경우도 ghost 반영
+    const key = (event: KeyboardEvent) => {
+      if (!dragRef.current.entry) return;
+      if (event.key === 'Control' || event.key === 'Meta') {
+        setCopy(event.type === 'keydown' ? true : (event.ctrlKey || event.metaKey));
+      }
+    };
+    const finish = (event?: PointerEvent) => {
       const meta = dragRef.current;
       if (meta.longPress) { window.clearTimeout(meta.longPress); meta.longPress = null; }
       if (meta.armed && meta.entry && meta.overDate && meta.overDate !== meta.entry.date) {
-        onPatchJournalEntry(meta.entry.id, { date: meta.overDate });
+        // 우선순위: pointerup 이벤트의 modifier → 마지막으로 추적한 ref
+        const isCopy = event ? (event.ctrlKey || event.metaKey) : copyModeRef.current;
+        if (isCopy) {
+          const src = meta.entry;
+          onAddJournalEntry({
+            date: meta.overDate,
+            kind: src.kind,
+            title: src.title,
+            detail: src.detail || '',
+            status: src.status,
+            projectId: src.projectId ?? null,
+          });
+        } else {
+          onPatchJournalEntry(meta.entry.id, { date: meta.overDate });
+        }
         try { navigator.vibrate?.(15); } catch { /* 무시 */ }
       }
       meta.entry = null;
       meta.armed = false;
       meta.overDate = null;
+      copyModeRef.current = false;
       setDragEntry(null);
       setDragOverDate(null);
+      setDragCopyMode(false);
     };
     document.addEventListener('pointermove', move, { passive: false });
     document.addEventListener('pointerup', finish);
     document.addEventListener('pointercancel', finish);
+    document.addEventListener('keydown', key);
+    document.addEventListener('keyup', key);
     return () => {
       document.removeEventListener('pointermove', move);
       document.removeEventListener('pointerup', finish);
       document.removeEventListener('pointercancel', finish);
+      document.removeEventListener('keydown', key);
+      document.removeEventListener('keyup', key);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onPatchJournalEntry, weekStart]);
+  }, [onPatchJournalEntry, onAddJournalEntry, weekStart]);
 
   return (
     <ImmersivePageFrame
@@ -10542,9 +10577,10 @@ function JournalPage({
         })}
       </div>
       {dragEntry ? (
-        <div className="journal-drag-ghost" style={{ left: dragPos.x + 14, top: dragPos.y + 14 }}>
+        <div className="journal-drag-ghost" data-copy={dragCopyMode} style={{ left: dragPos.x + 14, top: dragPos.y + 14 }}>
           <span className="journal-kind-chip">{dragEntry.kind}</span>
           <span className="journal-drag-ghost-title">{dragEntry.title || '(제목 없음)'}</span>
+          {dragCopyMode ? <span className="journal-drag-ghost-copy">＋ 복사</span> : null}
         </div>
       ) : null}
     </ImmersivePageFrame>
