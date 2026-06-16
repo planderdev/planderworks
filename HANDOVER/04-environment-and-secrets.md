@@ -76,19 +76,14 @@ web-push generate-vapid-keys
 
 자세한 사용법은 [06 — 녹음 서버 이전](06-recording-servers-migration.md) 참고.
 
-## 접근 권한 이관 체크리스트
+## 접근 권한 이관
 
-| 항목 | 어디서 | 어떻게 |
-|---|---|---|
-| GitHub 저장소 | github.com/planderdev/planderworks | Settings → Collaborators 또는 Org Transfer |
-| Vercel 프로젝트 | vercel.com/planderdevs-projects | Settings → General → Transfer Project |
-| Supabase 프로젝트 | Supabase 대시보드 → Settings → General | "Transfer ownership" |
-| 도메인 (있을 시) | 도메인 등록 업체 | 등록자 정보 변경 |
-| Google Cloud (구글 캘린더 OAuth) | Google Cloud Console | IAM → 권한 이전 |
+이양 절차 전체는 [00 — 이양 체크리스트](00-handoff-checklist.md)에 정리돼 있습니다. 이 문서는 **무슨 키가 어디 있는지**만 정리한 레퍼런스입니다.
 
-이관 전:
-- ☐ 모든 비밀키 새 담당자에게 전달
-- ☐ 모든 collaborator 권한 추가
-- ☐ 운영 URL 한 번 더 동작 확인
-- ☐ 마지막 커밋·배포 확인 (`/build-meta.json`)
-- ☐ Mac mini 녹음 서버 키도 새 키로 회전 (이전 후) — [06 문서 참고](06-recording-servers-migration.md)
+대상 시스템:
+- **GitHub 저장소** `planderdev/planderworks` — Settings → Collaborators 또는 Org Transfer
+- **Vercel 프로젝트** `planderdevs-projects/planderworks` — Settings → General → Transfer Project
+- **Supabase 프로젝트** — Settings → General → Transfer ownership
+- **Apple Developer / Google Play** (모바일 빌드 시) — Account Holder 변경
+- **Google Cloud** (sync-google-calendar OAuth) — IAM 권한 이전
+- **도메인 등록 업체** (있을 시)
