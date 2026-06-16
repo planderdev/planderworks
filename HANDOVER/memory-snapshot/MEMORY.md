@@ -1,0 +1,2 @@
+- [Planderworks app](project_planderworks.md) — 사내 업무관리 앱, Codex로 제작, Claude가 인수해 유지보수/개발 담당
+- [Safe-change rules](feedback_safe_changes.md) — 기능·DB 불가침; 동작 보존을 증명(빌드 byte-identical)할 수 있는 변경만
